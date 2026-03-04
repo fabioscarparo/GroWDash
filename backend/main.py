@@ -13,6 +13,7 @@ Documentazione interattiva (auto-generata da FastAPI):
 """
 
 from fastapi import FastAPI
+from routers import plant
 
 # Inizializzazione dell'app FastAPI con metadati del progetto
 app = FastAPI(
@@ -21,6 +22,9 @@ app = FastAPI(
     version="0.1.0",
 )
 
+# Registrazione dei router
+app.include_router(plant.router)
+
 
 @app.get("/", summary="Health check", tags=["General"])
 def root():
@@ -28,4 +32,4 @@ def root():
     Endpoint di verifica — conferma che il server è attivo e raggiungibile.
     Utile per monitoring e per il health check del container Docker.
     """
-    return {"message": "GroWDash API is running 🌱"}
+    return {"message": "GroWDash API is running"}
