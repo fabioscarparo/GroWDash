@@ -13,7 +13,7 @@ Documentazione interattiva (auto-generata da FastAPI):
 """
 
 from fastapi import FastAPI
-from routers import plant
+from routers import plant, energy
 
 # Inizializzazione dell'app FastAPI con metadati del progetto
 app = FastAPI(
@@ -24,6 +24,7 @@ app = FastAPI(
 
 # Registrazione dei router
 app.include_router(plant.router)
+app.include_router(energy.router)
 
 
 @app.get("/", summary="Health check", tags=["General"])
