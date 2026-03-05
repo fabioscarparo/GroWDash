@@ -39,7 +39,7 @@ def energy_overview():
         "yearly_energy_kwh": data.get("yearly_energy"),
         "total_energy_kwh": data.get("total_energy"),
         "current_power_w": data.get("current_power"),
-        "carbon_offset_kg": data.get("carbon_offset"),
+        "carbon_offset_kg": round(float(data.get("total_energy") or 0) * 0.4, 1),
         "plant_capacity_kw": data.get("peak_power_actual"),
         "timezone": data.get("timezone"),
         "last_update": data.get("last_update_time"),
