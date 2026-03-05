@@ -13,6 +13,7 @@ Documentazione interattiva (auto-generata da FastAPI):
 """
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from routers import plant, energy
 
 # Inizializzazione dell'app FastAPI con metadati del progetto
@@ -20,6 +21,22 @@ app = FastAPI(
     title="GroWDash API",
     description="API per la dashboard del tuo impianto fotovoltaico Growatt",
     version="0.1.0",
+)
+
+# Configurazione CORS (Cross-Origin Resource Sharing)
+# Permette al frontend React di farerichieste al backend FastAPI senza essere bloccato dal browser per motivi di sicurezza.
+# In produzione frontend e backend sono sullo stesso dominio quindi il CORS non è strettamente necessario, ma è buona pratica mantenerlo.
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",   # Frontend React (Vite)
+        "http://localhost:80",     # Frontend in produzione (Docker + Nginx)
+        "http://localhost",        # Frontend in produzione (Docker + Nginx)
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],           # Permette tutti i metodi HTTP (GET, POST, ecc.)
+    allow_headers=["*"],           # Permette tutti gli header HTTP
 )
 
 # Registrazione dei router
