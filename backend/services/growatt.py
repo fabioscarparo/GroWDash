@@ -42,6 +42,31 @@ def get_plant_info() -> dict:
         return {}
     return plants[0]
 
+def get_device_detail() -> dict:
+    """
+    Recupera i dati tecnici dettagliati dell'inverter MIN.
+    Include versione firmware, modello, impostazioni hardware
+    e parametri di configurazione avanzati.
+
+    Returns:
+        dict: Dati tecnici completi dell'inverter.
+    """
+    api = get_api()
+    return api.min_detail(GROWATT_DEVICE_SN)
+
+
+def get_device_settings() -> dict:
+    """
+    Recupera tutte le impostazioni configurate sull'inverter MIN.
+    Include modalità di lavoro, limiti di rete, impostazioni batteria, ecc.
+
+    Returns:
+        dict: Dizionario con tutte le impostazioni dell'inverter.
+    """
+    api = get_api()
+    return api.min_settings(GROWATT_DEVICE_SN)
+    
+
 def get_energy_today() -> dict:
     """
     Recupera i dati energetici dell'inverter per il giorno corrente.

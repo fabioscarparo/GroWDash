@@ -14,7 +14,7 @@ Documentazione interattiva (auto-generata da FastAPI):
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from routers import plant, energy
+from routers import plant, energy, device
 
 # Inizializzazione dell'app FastAPI con metadati del progetto
 app = FastAPI(
@@ -42,6 +42,7 @@ app.add_middleware(
 # Registrazione dei router
 app.include_router(plant.router)
 app.include_router(energy.router)
+app.include_router(device.router)
 
 
 @app.get("/", summary="Health check", tags=["General"])
