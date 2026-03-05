@@ -12,7 +12,7 @@ Endpoints disponibili:
 
 from fastapi import APIRouter, HTTPException, Query
 from datetime import date
-from services.growatt import get_energy_today, get_energy_history, get_plant_energy_history
+from services.growatt import get_energy_today, get_energy_history, get_plant_energy_history, get_plant_energy_overview
 
 # Crea il router con prefisso /energy
 # Tutti gli endpoint di questo file saranno raggiungibili sotto /energy/...
@@ -21,6 +21,29 @@ router = APIRouter(
     tags=["Energia"],
 )
 
+@router.get("/overview", summary="Panoramica energetica impianto")
+def energy_overview():
+    """
+    Restituisce la panoramica energetica aggregata dell'impianto.
+    Perfetto per le KPI card della dashboard:
+    produzione oggi, mensile, annuale, totale e CO2 risparmiata.
+    """
+    data = get_plant_energy_overview()
+
+    if not data:
+        raise HTTPException(status_code=404, detail="Dati non disponibili")
+
+    return {
+        "today_energy_kwh": data.get("today_energy"),
+        "monthly_energy_kwh": data.get("monthly_energy"),
+        "yearly_energy_kwh": data.get("yearly_energy"),
+        "total_energy_kwh": data.get("total_energy"),
+        "current_power_w": data.get("current_power"),
+        "carbon_offset_kg": data.get("carbon_offset"),
+        "peak_power_kw": data.get("peak_power_actual"),
+        "timezone": data.get("timezone"),
+        "last_update": data.get("last_update_time"),
+    }
 
 @router.get("/today", summary="Dati energetici di oggi")
 def energy_today():

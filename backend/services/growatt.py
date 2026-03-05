@@ -170,8 +170,28 @@ def get_plant_energy_history(
     end_date: date,
     time_unit: str = "month"
 ) -> list:
+    
     """
-    Recupera la storia energetica dell'impianto aggregata per giorno/mese/anno
+    Recupera la storia energetica dell'impianto aggregata per giorno/mese/anno.
+
+    Limiti API Growatt:
+        - "day"   → massimo 7 giorni per chiamata. Se l'intervallo è più lungo, questa funzione lo spezza automaticamente in chunk da 7 giorni.
+        - "month" → nessun limite pratico, paginazione automatica
+        - "year"  → nessun limite pratico, paginazione automatica
+
+    Completamento serie:
+        L'API restituisce solo i periodi con dati disponibili, saltando quelli
+        con produzione zero. Questa funzione riempie i buchi con energy=0
+        per garantire una serie continua, necessaria per i grafici.
+
+    Args:
+        start_date: Data di inizio.
+        end_date:   Data di fine.
+        time_unit:  Granularità: "day", "month" o "year".
+
+    Returns:
+        list: Lista completa di record con 'date' ed 'energy' (kWh),
+            ordinata cronologicamente, senza buchi.
     """
 
     api = get_api()
@@ -243,3 +263,15 @@ def get_plant_energy_history(
             complete.append({"date": key, "energy": energy_map.get(key, "0")})
 
     return complete
+
+def get_plant_energy_overview() -> dict:
+    """
+    Recupera la panoramica energetica dell'impianto fotovoltaico.
+    Utile per le KPI card della dashboard: produzione oggi, questo mese,
+    quest'anno, totale, potenza attuale e CO2 risparmiata.
+
+    Returns:
+        dict: Dati aggregati dell'impianto.
+    """
+    api = get_api()
+    return api.plant_energy_overview(GROWATT_PLANT_ID)
