@@ -10,14 +10,41 @@ Endpoints disponibili:
 """
 
 from fastapi import APIRouter, HTTPException
-from services.growatt import get_device_detail, get_device_settings
+from services.growatt import get_device_detail, get_device_settings, get_device_list
 
 # Crea il router con prefisso /device
 router = APIRouter(
     prefix="/device",
-    tags=["Dispositivo"],
+    tags=["Dispositivi"],
 )
 
+@router.get("/list", summary="Lista dispositivi impianto")
+def device_list():
+    """
+    Restituisce la lista di tutti i dispositivi collegati all'impianto:
+    inverter, meter e altri dispositivi connessi al datalogger.
+    """
+    data = get_device_list()
+
+    if not data:
+        raise HTTPException(status_code=404, detail="Nessun dispositivo trovato")
+
+    return {
+        "count": len(data),
+        "devices": [
+            {
+                "serial_number": device.get("device_sn"),
+                "device_id": device.get("device_id"),
+                "model": device.get("model"),
+                "type": device.get("type"),
+                "datalogger_sn": device.get("datalogger_sn"),
+                "manufacturer": device.get("manufacturer"),
+                "last_update": device.get("last_update_time"),
+                "is_online": not device.get("lost", True),
+            }
+            for device in data
+        ]
+    }
 
 @router.get("/detail", summary="Dettagli tecnici inverter")
 def device_detail():

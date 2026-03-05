@@ -27,6 +27,18 @@ def get_api() -> growattServer.OpenApiV1:
     """
     return growattServer.OpenApiV1(GROWATT_TOKEN)
 
+def get_device_list() -> list:
+    """
+    Recupera la lista di tutti i dispositivi collegati all'impianto.
+    Include inverter, meter e qualsiasi altro dispositivo connesso
+    al datalogger.
+
+    Returns:
+        list: Lista di dispositivi con tipo, serial number e stato.
+    """
+    api = get_api()
+    result = api.device_list(GROWATT_PLANT_ID)
+    return result.get("devices", [])
 
 def get_plant_info() -> dict:
     """
@@ -65,7 +77,7 @@ def get_device_settings() -> dict:
     """
     api = get_api()
     return api.min_settings(GROWATT_DEVICE_SN)
-    
+
 
 def get_energy_today() -> dict:
     """
