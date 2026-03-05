@@ -65,7 +65,7 @@ def energy_today():
         "production": {
             "today_kwh": data.get("eacToday"), # kWh totali prodotti oggi
             "total_kwh": data.get("eacTotal"), # kWh totali prodotti da quando l'impianto è attivo
-            "self_consumption_today_kwh": data.get("eselfToday"), # kWh prodotti dal fotovoltaico e usati dalla casa oggi (autoconsumo)
+            "self_consumption_today_kwh": data.get("eselfToday"), # kWh prodotti dal fotovoltaico e direttamente usati dalla casa oggi (autoconsumo)
             "local_load_today_kwh": data.get("elocalLoadToday"), # Kwh consumati in totale oggi (autoconsumo + prelievo da rete)
         },
 
@@ -73,7 +73,7 @@ def energy_today():
         "inverter": {
             "status": data.get("status"),
             "status_text": data.get("statusText"),
-            "temperature_c": data.get("temp1"),
+            "temperature_c": data.get("temp1"), # Temperatura dell'inverter in gradi Celsius
             "is_online": not data.get("lost", True),
             "last_update": data.get("time"),
         },
@@ -83,8 +83,8 @@ def energy_today():
             "soc_pct": data.get("bmsSoc"), # Stato di carica (State of Charge) della batteria in percentuale
             "charge_today_kwh": data.get("echargeToday"), # kWh caricati nella batteria oggi
             "discharge_today_kwh": data.get("edischargeToday"), # kWh scaricati dalla batteria oggi
-            "charge_total_kwh": data.get("echargeTotal"),
-            "discharge_total_kwh": data.get("edischargeTotal"),
+            "charge_total_kwh": data.get("echargeTotal"), # kWh totali caricati nella batteria da quando l'impianto è attivo
+            "discharge_total_kwh": data.get("edischargeTotal"), # kWh totali scaricati dalla batteria da quando l'impianto è attivo
         },
 
         # ── Rete elettrica ───────────────────────────────
