@@ -5,15 +5,17 @@ Espone gli endpoint relativi alla produzione di energia,
 alla curva di potenza giornaliera e ai dati storici.
 
 Endpoints disponibili:
-    GET /energy/today   → Dati aggregati del giorno corrente
-    GET /energy/history → Serie storica snapshot ogni 5 minuti
+    GET /energy/today     → Dati aggregati del giorno corrente
+    GET /energy/history   → Serie storica snapshot ogni 5 minuti (max 7 giorni)
+    GET /energy/aggregate → Storia energetica aggregata per giorno/mese/anno
 """
 
 from fastapi import APIRouter, HTTPException, Query
 from datetime import date
-from services.growatt import get_energy_today, get_energy_history
+from services.growatt import get_energy_today, get_energy_history, get_plant_energy_history
 
 # Crea il router con prefisso /energy
+# Tutti gli endpoint di questo file saranno raggiungibili sotto /energy/...
 router = APIRouter(
     prefix="/energy",
     tags=["Energia"],
@@ -38,36 +40,36 @@ def energy_today():
     return {
         # ── Produzione solare ────────────────────────────
         "production": {
-            "today_kwh": data.get("eacToday"),           # Energia prodotta oggi
-            "total_kwh": data.get("eacTotal"),            # Energia totale da sempre
-            "self_consumption_today_kwh": data.get("eselfToday"),   # Autoconsumo oggi
-            "local_load_today_kwh": data.get("elocalLoadToday"),    # Carico domestico oggi
+            "today_kwh": data.get("eacToday"),
+            "total_kwh": data.get("eacTotal"),
+            "self_consumption_today_kwh": data.get("eselfToday"),
+            "local_load_today_kwh": data.get("elocalLoadToday"),
         },
 
         # ── Stato inverter ───────────────────────────────
         "inverter": {
-            "status": data.get("status"),                 # Codice stato (0=standby, 1=ok)
-            "status_text": data.get("statusText"),        # Testo stato leggibile
-            "temperature_c": data.get("temp1"),           # Temperatura in °C
-            "is_online": not data.get("lost", True),      # True se l'inverter è raggiungibile
-            "last_update": data.get("time"),              # Timestamp ultimo dato ricevuto
+            "status": data.get("status"),
+            "status_text": data.get("statusText"),
+            "temperature_c": data.get("temp1"),
+            "is_online": not data.get("lost", True),
+            "last_update": data.get("time"),
         },
 
         # ── Batteria ─────────────────────────────────────
         "battery": {
-            "soc_pct": data.get("bmsSoc"),                # Stato di carica in %
-            "charge_today_kwh": data.get("echargeToday"), # Energia caricata oggi
-            "discharge_today_kwh": data.get("edischargeToday"),  # Energia scaricata oggi
-            "charge_total_kwh": data.get("echargeTotal"),        # Energia caricata totale
-            "discharge_total_kwh": data.get("edischargeTotal"),  # Energia scaricata totale
+            "soc_pct": data.get("bmsSoc"),
+            "charge_today_kwh": data.get("echargeToday"),
+            "discharge_today_kwh": data.get("edischargeToday"),
+            "charge_total_kwh": data.get("echargeTotal"),
+            "discharge_total_kwh": data.get("edischargeTotal"),
         },
 
         # ── Rete elettrica ───────────────────────────────
         "grid": {
-            "voltage_v": data.get("vac1"),                # Tensione di rete in V
-            "frequency_hz": data.get("fac"),              # Frequenza di rete in Hz
-            "exported_today_kwh": data.get("etoGridToday"),  # Energia immessa in rete oggi
-            "imported_today_kwh": data.get("etoUserToday"),  # Energia prelevata dalla rete oggi
+            "voltage_v": data.get("vac1"),
+            "frequency_hz": data.get("fac"),
+            "exported_today_kwh": data.get("etoGridToday"),
+            "imported_today_kwh": data.get("etoUserToday"),
         },
     }
 
@@ -85,7 +87,6 @@ def energy_history(
 ):
     """
     Restituisce la serie storica di snapshot ogni 5 minuti per un intervallo di date.
-
     Ogni record contiene: timestamp, potenza istantanea, tensione e temperatura.
     Massimo 7 giorni per chiamata (limite API Growatt).
     Usato principalmente per costruire il grafico della curva di produzione.
@@ -98,6 +99,43 @@ def energy_history(
     return {
         "start_date": str(start_date or date.today()),
         "end_date": str(end_date or start_date or date.today()),
-        "count": len(data),  # Numero totale di snapshot restituiti
+        "count": len(data),
+        "data": data,
+    }
+
+
+@router.get("/aggregate", summary="Storia energetica aggregata per periodo")
+def plant_energy_aggregate(
+    start_date: date = Query(description="Data di inizio nel formato YYYY-MM-DD."),
+    end_date: date = Query(description="Data di fine nel formato YYYY-MM-DD."),
+    time_unit: str = Query(
+        default="month",
+        description="Granularità: 'day' (max 7gg), 'month', 'year'."
+    ),
+):
+    """
+    Restituisce la storia energetica dell'impianto aggregata per periodo.
+    Usato per i grafici storici: produzione giornaliera, mensile e annuale.
+
+    - **day**   → un record per giorno, intervallo massimo 7 giorni
+    - **month** → un record per mese, nessun limite di intervallo
+    - **year**  → un record per anno, nessun limite di intervallo
+    """
+    if time_unit not in ("day", "month", "year"):
+        raise HTTPException(
+            status_code=400,
+            detail="time_unit deve essere 'day', 'month' o 'year'"
+        )
+
+    data = get_plant_energy_history(start_date, end_date, time_unit)
+
+    if not data:
+        raise HTTPException(status_code=404, detail="Nessun dato disponibile")
+
+    return {
+        "start_date": str(start_date),
+        "end_date": str(end_date),
+        "time_unit": time_unit,
+        "count": len(data),
         "data": data,
     }
