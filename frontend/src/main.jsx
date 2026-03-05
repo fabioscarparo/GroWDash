@@ -1,5 +1,5 @@
 /**
- * main.jsx — Application entry point
+ * main.jsx — Application entry point.
  *
  * Sets up the React root with TanStack Query for data fetching.
  * QueryClient is configured with a 5-minute refetch interval to match

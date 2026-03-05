@@ -1,13 +1,12 @@
 /**
- * App.jsx — Root component
+ * App.jsx — Root component.
  *
  * Handles page routing via a simple state variable.
- * On mobile: renders a bottom navigation bar.
- * On desktop (md+): bottom nav will become a sidebar (coming soon).
+ * Renders a bottom navigation bar on mobile.
+ * On desktop (md+) the bottom nav will become a sidebar — coming soon.
  *
- * Dark/light mode is applied automatically based on the device's
- * system preference via the CSS `prefers-color-scheme` media query —
- * no manual toggle needed.
+ * Dark/light mode is applied automatically based on the device system
+ * preference via the CSS prefers-color-scheme media query.
  */
 
 import { useState } from 'react'
@@ -32,12 +31,12 @@ export default function App() {
   return (
     <div className="min-h-dvh bg-background">
 
-      {/* Page content — bottom padding to avoid overlap with nav bar */}
+      {/* Page content — bottom padding to avoid overlap with the nav bar */}
       <main className="pb-16">
         {PAGES[page]}
       </main>
 
-      {/* Bottom navigation bar (mobile) */}
+      {/* Bottom navigation bar — fixed at the bottom on mobile */}
       <BottomNav current={page} onChange={setPage} />
 
     </div>
