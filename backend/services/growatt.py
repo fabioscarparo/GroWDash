@@ -14,7 +14,7 @@ import os
 # Carica le variabili d'ambiente dal file .env
 load_dotenv()
 
-# Legge il token e il plant ID dal file .env
+# Credenziali e identificatori letti dal file .env
 GROWATT_TOKEN = os.getenv("GROWATT_TOKEN")
 GROWATT_PLANT_ID = os.getenv("GROWATT_PLANT_ID")
 GROWATT_DEVICE_SN = os.getenv("GROWATT_DEVICE_SN")
@@ -51,31 +51,83 @@ def get_energy_today() -> dict:
     data = api.min_energy(GROWATT_DEVICE_SN)
     return data
 
-def get_energy_history(query_date: date = None) -> list:
+def get_energy_history(start_date: date = None, end_date: date = None) -> list:
     """
-    Recupera la storia dei dati energetici per una data specifica.
-    Ogni record è uno snapshot ogni 5 minuti con potenza e timestamp.
-    Se non viene fornita una data, usa il giorno corrente.
-    Utile per costruire il grafico della curva di produzione giornaliera.
+    Recupera la serie storica di snapshot energetici in un intervallo di date.
+
+    L'API Growatt registra uno snapshot ogni 5 minuti, quindi una giornata
+    intera contiene circa 288 record. L'API supporta un massimo di 7 giorni
+    per singola richiesta.
+
+    Gestione paginazione:
+        L'API restituisce massimo 100 record per chiamata. Questa funzione
+        gestisce automaticamente la paginazione eseguendo più chiamate
+        consecutive fino a scaricare tutti i record disponibili.
+
+    Args:
+        start_date: Data di inizio dell'intervallo. Default: oggi.
+        end_date:   Data di fine dell'intervallo. Default: uguale a start_date.
+
+    Returns:
+        list: Lista di snapshot ordinati dal più vecchio al più recente,
+              ognuno contenente timestamp, potenza, tensione e temperatura.
     """
-    if query_date is None:
-        query_date = date.today()
+    # Se non vengono fornite date, usa il giorno corrente
+    if start_date is None:
+        start_date = date.today()
+    if end_date is None:
+        end_date = start_date
 
     api = get_api()
-    result = api.min_energy_history(GROWATT_DEVICE_SN, query_date)
-
-    # Estraiamo solo i dati utili da ogni snapshot
-    raw_data = result.get("datas", [])
     history = []
-    for record in raw_data:
-        history.append({
-            "time": record.get("time"),
-            "power_w": record.get("pac", 0),           # Potenza istantanea in W
-            "power_to_user_w": record.get("pacToUserTotal", 0),  # Potenza verso utenza in W
-            "voltage_v": record.get("vac1", 0),        # Tensione di rete in V
-            "temperature_c": record.get("temp1", 0),   # Temperatura inverter in °C
-        })
+    page = 1
 
-    # I dati arrivano dal più recente al più vecchio, vanno invertiti per avere la cronologia corretta
+    while True:
+        result = api.min_energy_history(
+            GROWATT_DEVICE_SN,
+            start_date=start_date,
+            end_date=end_date,
+            page=page,
+            limit=100,  # Massimo record per pagina supportato dall'API
+        )
+
+        raw_data = result.get("datas", [])
+
+        # Se la pagina è vuota, abbiamo finito
+        if not raw_data:
+            break
+
+        # Estraiamo solo i campi utili da ogni snapshot
+        for record in raw_data:
+            history.append({
+                # Timestamp dello snapshot (formato: "YYYY-MM-DD HH:MM:SS")
+                "time": record.get("time"),
+
+                # Potenza istantanea totale dell'inverter in Watt
+                # Negativa = sta prelevando dalla rete, Positiva = sta producendo
+                "power_w": record.get("pac", 0),
+
+                # Potenza istantanea erogata verso i carichi domestici in Watt
+                "power_to_user_w": record.get("pacToUserTotal", 0),
+
+                # Tensione di rete misurata dall'inverter in Volt
+                "voltage_v": record.get("vac1", 0),
+
+                # Temperatura interna dell'inverter in gradi Celsius
+                "temperature_c": record.get("temp1", 0),
+            })
+
+        # Controlla se esistono altre pagine da scaricare
+        # Se il numero di record scaricati finora >= totale disponibile, usciamo
+        total = result.get("count", 0)
+        if page * 100 >= total:
+            break
+
+        # Altrimenti passa alla pagina successiva
+        page += 1
+
+    # L'API restituisce i dati dal più recente al più vecchio.
+    # Invertiamo la lista per avere l'ordine cronologico corretto
+    # (necessario per visualizzare correttamente i grafici)
     history.reverse()
     return history
