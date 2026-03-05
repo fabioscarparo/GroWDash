@@ -189,8 +189,28 @@ Make sure the backend is also running at **http://localhost:8000** for the data 
 |------|---------|
 | React + Vite | UI framework and build tool |
 | Tailwind CSS | Utility-first styling |
-| ApexCharts | Interactive charts with animations |
-| TanStack Query | Data fetching, caching and auto-refresh |
+| shadcn/ui | Copy-paste component library (Card, Badge, Chart, etc.) |
+| Recharts | Charts via shadcn — Area, Bar, Line |
+| TanStack Query | Data fetching, caching and auto-refresh every 5 minutes |
+
+## Frontend Architecture
+
+The frontend is a mobile-first single page application built with React and Vite.
+
+### Design System
+
+shadcn/ui is used as the base design system. Components are copied directly into
+the project under `frontend/src/components/ui/` and can be freely modified.
+
+Dark and light mode are handled automatically based on the device's system preference
+via the `prefers-color-scheme` CSS media query.
+
+### Data Fetching
+
+All API calls go through `src/api/growatt.js`. TanStack Query handles caching,
+background refetching and loading/error states via custom hooks in `src/hooks/useGrowatt.js`.
+
+Data is automatically refreshed every 5 minutes to match the Growatt API update interval.
 
 ---
 
