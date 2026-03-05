@@ -178,7 +178,7 @@ def get_plant_energy_history(
     results = []
 
     if time_unit == "day":
-        # Usiamo datetime.timedelta per i giorni
+        
         chunk_start = start_date
         while chunk_start <= end_date:
             chunk_end = min(chunk_start + timedelta(days=6), end_date)
@@ -232,7 +232,6 @@ def get_plant_energy_history(
             key = current.strftime("%Y-%m")
             complete.append({"date": key, "energy": energy_map.get(key, "0")})
             
-            # Calcolo manuale del mese successivo (sostituisce relativedelta)
             if current.month == 12:
                 current = current.replace(year=current.year + 1, month=1)
             else:
