@@ -33,13 +33,13 @@ def device_list():
         "count": len(data),
         "devices": [
             {
-                "serial_number": device.get("device_sn"),
+                "serial_number": device.get("device_sn"), # Serial number del dispositivo
                 "device_id": device.get("device_id"),
                 "model": device.get("model"),
                 "type": device.get("type"),
-                "datalogger_sn": device.get("datalogger_sn"),
-                "manufacturer": device.get("manufacturer"),
-                "last_update": device.get("last_update_time"),
+                "datalogger_sn": device.get("datalogger_sn"), # Serial number del datalogger a cui è collegato il dispositivo
+                "manufacturer": device.get("manufacturer"), # Produttore del dispositivo
+                "last_update": device.get("last_update_time"), # Ultimo aggiornamento dal dispositivo
                 "is_online": not device.get("lost", True),
             }
             for device in data
@@ -58,17 +58,17 @@ def device_detail():
         raise HTTPException(status_code=404, detail="Dati dispositivo non disponibili")
 
     return {
-        "serial_number": data.get("serialNum"),
+        "serial_number": data.get("serialNum"), # Serial number dell'inverter
         "model": data.get("modelText"),
-        "firmware_version": data.get("fwVersion"),
-        "monitor_version": data.get("monitorVersion"),
+        "firmware_version": data.get("fwVersion"), # Versione firmware installata sull'inverter
+        "monitor_version": data.get("monitorVersion"), # Versione del monitor interno dell'inverter
         "communication_version": data.get("communicationVersion"),
         "status": data.get("status"),
         "status_text": data.get("statusText"),
         "is_online": not data.get("lost", True),
         "peak_power_w": data.get("pmax"),
-        "datalogger_sn": data.get("dataLogSn"),
-        "last_update": data.get("lastUpdateTimeText"),
+        "datalogger_sn": data.get("dataLogSn"), # Serial number del datalogger a cui è collegato l'inverter
+        "last_update": data.get("lastUpdateTimeText"), # Ultimo aggiornamento dall'inverter
     }
 
 

@@ -40,7 +40,7 @@ def energy_overview():
         "total_energy_kwh": data.get("total_energy"),
         "current_power_w": data.get("current_power"),
         "carbon_offset_kg": data.get("carbon_offset"),
-        "peak_power_kw": data.get("peak_power_actual"),
+        "plant_capacity_kw": data.get("peak_power_actual"),
         "timezone": data.get("timezone"),
         "last_update": data.get("last_update_time"),
     }
@@ -63,10 +63,10 @@ def energy_today():
     return {
         # ── Produzione solare ────────────────────────────
         "production": {
-            "today_kwh": data.get("eacToday"),
-            "total_kwh": data.get("eacTotal"),
-            "self_consumption_today_kwh": data.get("eselfToday"),
-            "local_load_today_kwh": data.get("elocalLoadToday"),
+            "today_kwh": data.get("eacToday"), # kWh totali prodotti oggi
+            "total_kwh": data.get("eacTotal"), # kWh totali prodotti da quando l'impianto è attivo
+            "self_consumption_today_kwh": data.get("eselfToday"), # kWh prodotti dal fotovoltaico e usati dalla casa oggi (autoconsumo)
+            "local_load_today_kwh": data.get("elocalLoadToday"), # Kwh consumati in totale oggi (autoconsumo + prelievo da rete)
         },
 
         # ── Stato inverter ───────────────────────────────
@@ -80,9 +80,9 @@ def energy_today():
 
         # ── Batteria ─────────────────────────────────────
         "battery": {
-            "soc_pct": data.get("bmsSoc"),
-            "charge_today_kwh": data.get("echargeToday"),
-            "discharge_today_kwh": data.get("edischargeToday"),
+            "soc_pct": data.get("bmsSoc"), # Stato di carica (State of Charge) della batteria in percentuale
+            "charge_today_kwh": data.get("echargeToday"), # kWh caricati nella batteria oggi
+            "discharge_today_kwh": data.get("edischargeToday"), # kWh scaricati dalla batteria oggi
             "charge_total_kwh": data.get("echargeTotal"),
             "discharge_total_kwh": data.get("edischargeTotal"),
         },
@@ -91,11 +91,10 @@ def energy_today():
         "grid": {
             "voltage_v": data.get("vac1"),
             "frequency_hz": data.get("fac"),
-            "exported_today_kwh": data.get("etoGridToday"),
-            "imported_today_kwh": data.get("etoUserToday"),
+            "exported_today_kwh": data.get("etoGridToday"), # kWh esportati in rete oggi
+            "imported_today_kwh": data.get("etoUserToday"), # kWh importati dalla rete oggi
         },
     }
-
 
 @router.get("/history", summary="Curva di produzione giornaliera")
 def energy_history(
@@ -125,7 +124,6 @@ def energy_history(
         "count": len(data),
         "data": data,
     }
-
 
 @router.get("/aggregate", summary="Storia energetica aggregata per periodo")
 def plant_energy_aggregate(
