@@ -164,9 +164,33 @@ You can explore all available endpoints interactively at **http://localhost:8000
 
 ---
 
-### 6. Start the frontend (coming soon)
+### 6. Set up the frontend
 
-Frontend setup instructions will be added once the React app is complete.
+Navigate to the frontend folder and install dependencies:
+```bash
+cd frontend
+npm install
+```
+
+Start the development server:
+```bash
+npm run dev
+```
+
+The frontend is now running at **http://localhost:5173**
+
+Make sure the backend is also running at **http://localhost:8000** for the data to load correctly.
+
+---
+
+## Frontend Stack
+
+| Tool | Purpose |
+|------|---------|
+| React + Vite | UI framework and build tool |
+| Tailwind CSS | Utility-first styling |
+| ApexCharts | Interactive charts with animations |
+| TanStack Query | Data fetching, caching and auto-refresh |
 
 ---
 
