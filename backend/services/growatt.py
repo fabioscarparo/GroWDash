@@ -90,16 +90,26 @@ def get_device_settings() -> dict:
 
 def get_energy_today() -> dict:
     """
-    Recupera i dati energetici in tempo reale dell'inverter per il giorno corrente.
+    Recupera tutti i dati energetici dell'inverter per il giorno corrente.
 
-    Nota: min_energy() non accetta una data come parametro — restituisce sempre
-    i dati aggiornati del giorno in corso direttamente dall'inverter.
+    Chiama una sola volta api.min_energy() e mappa tutti i campi utili
+    in sezioni logiche per il frontend.
+
+    Nomenclatura dei campi API Growatt:
+        pac                = Power AC — potenza AC in uscita dall'inverter (W)
+        pacToLocalLoad     = Power AC to Local Load — potenza verso i carichi domestici (W)
+        pacToGridTotal     = Power AC to Grid — potenza esportata in rete (W)
+        pacToUserTotal     = Power AC to User — potenza importata dalla rete (W)
+        bdc1ChargePower    = Battery DC Charge Power — potenza di carica batteria (W)
+        bdc1DischargePower = Battery DC Discharge Power — potenza di scarica batteria (W)
+        bmsSoc             = Battery Management System State of Charge — SOC in % (0-100)
 
     Returns:
-        dict: Dati grezzi dell'inverter (produzione, batteria, rete, temperatura, ecc.)
+        dict: Potenze istantanee (W), totali giornalieri (kWh), stato inverter e batteria.
     """
     api = get_api()
-    return api.min_energy(GROWATT_DEVICE_SN)
+    data = api.min_energy(GROWATT_DEVICE_SN)
+    return data
 
 
 def get_energy_history(start_date: date = None, end_date: date = None) -> list:

@@ -45,54 +45,120 @@ def energy_overview():
         "last_update": data.get("last_update_time"),
     }
 
-@router.get("/today", summary="Dati energetici di oggi")
+@router.get("/today", summary="Dati energetici di oggi incluso il flusso energetico live")
 def energy_today():
     """
-    Restituisce i dati energetici del giorno corrente organizzati in 4 sezioni:
+    Restituisce tutti i dati energetici del giorno corrente, organizzati in sezioni.
+    Sezioni:
 
-    - **production**: energia prodotta oggi, totale storico e autoconsumo
-    - **inverter**: stato operativo, temperatura e ultimo aggiornamento
-    - **battery**: stato di carica (SOC), energia caricata e scaricata oggi
-    - **grid**: tensione, frequenza, energia importata ed esportata oggi
+    - **flow.live**    — potenze istantanee (W) per il widget Power Flow
+    - **flow.today**   — totali energetici giornalieri (kWh) per i quattro nodi del sistema
+    - **production**   — riepilogo produzione fotovoltaica
+    - **inverter**     — stato inverter, temperatura e ultimo aggiornamento
+    - **battery**      — stato di carica, totali carica/scarica
+    - **grid**         — tensione, frequenza, energia importata/esportata
+
+    Nomenclatura dei campi API Growatt:
+
+    - **pac**                = Power AC, potenza AC in uscita dall'inverter (W)
+    - **pacToLocalLoad**     = potenza verso i carichi domestici (W)
+    - **pacToGridTotal**     = potenza esportata in rete (W)
+    - **pacToUserTotal**     = potenza importata dalla rete (W)
+    - **bdc1ChargePower**    = potenza di carica batteria (W)
+    - **bdc1DischargePower** = potenza di scarica batteria (W)
     """
     data = get_energy_today()
 
     if not data:
-        raise HTTPException(status_code=404, detail="Dati non disponibili")
+        raise HTTPException(status_code=404, detail="Data not available")
 
     return {
-        # ── Produzione solare ────────────────────────────
-        "production": {
-            "today_kwh": data.get("eacToday"), # kWh totali prodotti oggi
-            "total_kwh": data.get("eacTotal"), # kWh totali prodotti da quando l'impianto è attivo
-            "self_consumption_today_kwh": data.get("eselfToday"), # kWh prodotti dal fotovoltaico e direttamente usati dalla casa oggi (autoconsumo)
-            "local_load_today_kwh": data.get("elocalLoadToday"), # Kwh consumati in totale oggi (autoconsumo + prelievo da rete)
+        # ── Live power flow (W) ───────────────────────────────────────────────
+        # Instantaneous power values — updated every 5 minutes.
+        # All values are 0 at night when the inverter is in standby.
+        "flow": {
+            "live": {
+                # AC output power of the inverter — current solar production
+                "solar_w": data.get("pac", 0),
+
+                # Power currently consumed by home appliances
+                "home_w": data.get("pacToLocalLoad", 0),
+
+                # Power flowing into the battery (0 when not charging)
+                "battery_charge_w": data.get("bdc1ChargePower", 0),
+
+                # Power flowing out of the battery (0 when not discharging)
+                "battery_discharge_w": data.get("bdc1DischargePower", 0),
+
+                # Power exported to the public grid (0 when importing)
+                "grid_export_w": data.get("pacToGridTotal", 0),
+
+                # Power imported from the public grid (0 when exporting)
+                "grid_import_w": data.get("pacToUserTotal", 0),
+            },
+
+            # ── Daily energy totals (kWh) ─────────────────────────────────────
+            # Cumulative values since midnight, reset every day.
+            "today": {
+                # Total PV energy produced today
+                "solar_kwh": data.get("eacToday", 0),
+
+                # Total energy consumed by home appliances today
+                "home_kwh": data.get("elocalLoadToday", 0),
+
+                # Total energy charged into the battery today
+                "battery_charged_kwh": data.get("echargeToday", 0),
+
+                # Total energy discharged from the battery today
+                "battery_discharged_kwh": data.get("edischargeToday", 0),
+
+                # Total energy exported to the grid today
+                "grid_exported_kwh": data.get("etoGridToday", 0),
+
+                # Total energy imported from the grid today
+                "grid_imported_kwh": data.get("etoUserToday", 0),
+
+                # Energy self-consumed today (direct use + battery discharge)
+                "self_consumed_kwh": data.get("eselfToday", 0),
+            },
+
+            # Battery state of charge in percent (0-100)
+            "battery_soc_pct": data.get("bmsSoc", 0),
         },
 
-        # ── Stato inverter ───────────────────────────────
+        # ── PV production summary ─────────────────────────────────────────────
+        "production": {
+            "today_kwh": data.get("eacToday"),
+            "total_kwh": data.get("eacTotal"),
+            "self_consumption_today_kwh": data.get("eselfToday"),
+            "local_load_today_kwh": data.get("elocalLoadToday"),
+        },
+
+        # ── Inverter status ───────────────────────────────────────────────────
         "inverter": {
             "status": data.get("status"),
             "status_text": data.get("statusText"),
-            "temperature_c": data.get("temp1"), # Temperatura dell'inverter in gradi Celsius
+            "temperature_c": data.get("temp1"),
             "is_online": not data.get("lost", True),
             "last_update": data.get("time"),
+            "serial_number": data.get("serialNum"),
         },
 
-        # ── Batteria ─────────────────────────────────────
+        # ── Battery ───────────────────────────────────────────────────────────
         "battery": {
-            "soc_pct": data.get("bmsSoc"), # Stato di carica (State of Charge) della batteria in percentuale
-            "charge_today_kwh": data.get("echargeToday"), # kWh caricati nella batteria oggi
-            "discharge_today_kwh": data.get("edischargeToday"), # kWh scaricati dalla batteria oggi
-            "charge_total_kwh": data.get("echargeTotal"), # kWh totali caricati nella batteria da quando l'impianto è attivo
-            "discharge_total_kwh": data.get("edischargeTotal"), # kWh totali scaricati dalla batteria da quando l'impianto è attivo
+            "soc_pct": data.get("bmsSoc"),
+            "charge_today_kwh": data.get("echargeToday"),
+            "discharge_today_kwh": data.get("edischargeToday"),
+            "charge_total_kwh": data.get("echargeTotal"),
+            "discharge_total_kwh": data.get("edischargeTotal"),
         },
 
-        # ── Rete elettrica ───────────────────────────────
+        # ── Grid ──────────────────────────────────────────────────────────────
         "grid": {
             "voltage_v": data.get("vac1"),
             "frequency_hz": data.get("fac"),
-            "exported_today_kwh": data.get("etoGridToday"), # kWh esportati in rete oggi
-            "imported_today_kwh": data.get("etoUserToday"), # kWh importati dalla rete oggi
+            "exported_today_kwh": data.get("etoGridToday"),
+            "imported_today_kwh": data.get("etoUserToday"),
         },
     }
 
