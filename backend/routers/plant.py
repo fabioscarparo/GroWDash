@@ -36,5 +36,5 @@ def plant_info():
         "status": data.get("status"),
         "latitude": data.get("latitude"),
         "longitude": data.get("longitude"),
-        "planet_installation_date": data.get("create_date"),
+        "plant_installation_date": data.get("create_date"),
     }
