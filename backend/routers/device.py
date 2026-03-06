@@ -38,18 +38,14 @@ def device_list():
         "count": len(data),
         "devices": [
             {
-                # Numero seriale del dispositivo
-                "serial_number": device.get("device_sn"),
+                "serial_number": device.get("device_sn"), # Numero seriale del dispositivo
                 "device_id": device.get("device_id"),
                 "model": device.get("model"),
-                "type": device.get("type"),
-                # Numero seriale del datalogger a cui è collegato
-                "datalogger_sn": device.get("datalogger_sn"),
-                "manufacturer": device.get("manufacturer"),
-                # Timestamp dell'ultimo aggiornamento dal dispositivo
-                "last_update": device.get("last_update_time"),
-                # True se il dispositivo è raggiungibile tramite il cloud Growatt
-                "is_online": not device.get("lost", True),
+                "type": device.get("type"),                 
+                "datalogger_sn": device.get("datalogger_sn"), # Numero seriale del datalogger a cui è collegato
+                "manufacturer": device.get("manufacturer"), 
+                "last_update": device.get("last_update_time"), # Timestamp dell'ultimo aggiornamento dal dispositivo                
+                "is_online": not device.get("lost", True), # True se il dispositivo è raggiungibile tramite il cloud Growatt
             }
             for device in data
         ]

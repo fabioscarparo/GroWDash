@@ -13,6 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Sun, Zap, Leaf } from 'lucide-react'
 import BatteryCard from '../components/BatteryCard'
+import PowerFlowCard from '../components/PowerFlowCard'
 
 // ── Header ───────────────────────────────────────────────────────────────────
 
@@ -148,15 +149,14 @@ export default function Overview() {
           unit="kWh"
         />
 
-        {/* Power Flow widget — coming soon */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm font-semibold">Power Flow</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">Coming soon...</p>
-          </CardContent>
-        </Card>
+        <PowerFlowCard
+          solarW={today?.flow?.live?.solar_w}
+          homeW={today?.flow?.live?.home_w}
+          batteryChargeW={today?.flow?.live?.battery_charge_w}
+          batteryDischargeW={today?.flow?.live?.battery_discharge_w}
+          gridExportW={today?.flow?.live?.grid_export_w}
+          gridImportW={today?.flow?.live?.grid_import_w}
+        />
 
         {/* Battery status card */}
         <BatteryCard

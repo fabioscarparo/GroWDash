@@ -65,43 +65,15 @@ def get_device_list() -> list:
 
 def get_device_detail() -> dict:
     """
-    Recupera i dati tecnici completi dell'inverter MIN combinando
-    due sorgenti:
-        - min_detail() → dati statici: modello, firmware, versioni
-        - min_energy() → dati dinamici: stato reale, temperatura, ultimo aggiornamento
-
-    I due endpoint vengono combinati perché min_detail() restituisce
-    uno status_text non corretto ("tlx.status.checking"), mentre
-    min_energy() restituisce lo stato reale dell'inverter ("Standby", "Normal", ecc.)
+    Recupera i dati tecnici dettagliati dell'inverter MIN.
+    Include versione firmware, modello, impostazioni hardware
+    e parametri di configurazione avanzati.
 
     Returns:
         dict: Dati tecnici completi dell'inverter.
     """
     api = get_api()
-    detail = api.min_detail(GROWATT_DEVICE_SN)
-    energy = api.min_energy(GROWATT_DEVICE_SN)
-
-    return {
-        # Dati statici da min_detail()
-        "serial_number": detail.get("serialNum"),
-        "model": detail.get("modelText"),
-        "firmware_version": detail.get("fwVersion"),
-        "monitor_version": detail.get("monitorVersion"),
-        "communication_version": detail.get("communicationVersion"),
-        "peak_power_w": detail.get("pmax"),
-        # Numero seriale del datalogger a cui è collegato l'inverter
-        "datalogger_sn": detail.get("dataLogSn"),
-
-        # Dati dinamici da min_energy() — più accurati di min_detail()
-        # Codice stato (0 = standby, 1 = normale, ecc.)
-        "status": energy.get("status"),
-        # Testo stato leggibile (es. "Normal", "Standby", "Fault")
-        "status_text": energy.get("statusText"),
-        # Temperatura interna dell'inverter in gradi Celsius
-        "temperature_c": energy.get("temp1"),
-        # Timestamp dell'ultimo aggiornamento dati
-        "last_update": energy.get("time"),
-    }
+    return api.min_detail(GROWATT_DEVICE_SN)
 
 
 def get_device_settings() -> dict:
