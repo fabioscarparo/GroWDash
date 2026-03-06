@@ -55,23 +55,27 @@ def device_list():
 @router.get("/detail", summary="Dettagli tecnici inverter")
 def device_detail():
     """
-    Restituisce i dati tecnici completi dell'inverter MIN.
-
-    I dati vengono combinati da due sorgenti:
-
-        min_detail() — dati statici: modello, firmware, versioni hardware
-        min_energy() — dati dinamici: stato reale, temperatura, ultimo aggiornamento
-
-    Le due sorgenti vengono combinate perché min_detail() restituisce
-    uno status_text non corretto, mentre min_energy() restituisce
-    lo stato reale dell'inverter (es. "Normal", "Standby", "Fault").
+    Restituisce i dati tecnici dettagliati dell'inverter MIN:
+    versione firmware, modello, stato operativo e parametri hardware.
     """
     data = get_device_detail()
 
     if not data:
         raise HTTPException(status_code=404, detail="Dati dispositivo non disponibili")
 
-    return data
+    return {
+        "serial_number": data.get("serialNum"), # Serial number dell'inverter
+        "model": data.get("modelText"),
+        "firmware_version": data.get("fwVersion"), # Versione firmware installata sull'inverter
+        "monitor_version": data.get("monitorVersion"), # Versione del monitor interno dell'inverter
+        "communication_version": data.get("communicationVersion"),
+        "status": data.get("status"),
+        "status_text": data.get("statusText"),
+        "is_online": not data.get("lost", True),
+        "peak_power_w": data.get("pmax"),
+        "datalogger_sn": data.get("dataLogSn"), # Serial number del datalogger a cui è collegato l'inverter
+        "last_update": data.get("lastUpdateTimeText"), # Ultimo aggiornamento dall'inverter
+    }
 
 
 @router.get("/settings", summary="Impostazioni inverter")
