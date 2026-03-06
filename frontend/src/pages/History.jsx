@@ -14,8 +14,7 @@
 
 import { useOverview } from '../hooks/useGrowatt'
 import { Card, CardContent } from '@/components/ui/card'
-import { Calendar, CalendarDays } from 'lucide-react'
-import DailyCurveCard from '../components/DailyCurveCard'
+import { Calendar, CalendarDays, Zap } from 'lucide-react'
 import HistoricalChart from '../components/HistoricalChart'
 
 // ── KPI Card ──────────────────────────────────────────────────────────────────
@@ -55,6 +54,15 @@ export default function History() {
       <div className="px-4 flex flex-col gap-3 pb-6">
 
         {/* KPI cards */}
+        
+        {/* Total production — full width */}
+        <KpiCard
+          icon={<Zap size={14} />}
+          label="Total production"
+          value={overview?.total_energy_kwh}
+          unit="kWh"
+        />
+
         <div className="grid grid-cols-2 gap-3">
           <KpiCard
             icon={<Calendar size={14} />}

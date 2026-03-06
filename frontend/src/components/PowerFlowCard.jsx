@@ -128,7 +128,7 @@ export default function PowerFlowCard({
 
   return (
     <Card>
-      <CardHeader className="pb-2 px-3 pt-3">
+      <CardHeader>
         <div className="flex items-center gap-2">
           <Zap size={16} className="text-muted-foreground" />
           <CardTitle className="text-sm font-semibold">Power Flow</CardTitle>

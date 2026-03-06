@@ -10,52 +10,13 @@
  * devices with a home indicator (iPhone X and later).
  */
 
+import { LayoutGrid, ChartLine, Cpu, Settings } from 'lucide-react'
+
 const NAV_ITEMS = [
-  {
-    id: 'overview',
-    label: 'Overview',
-    icon: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
-        stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="3" y="3" width="7" height="7" rx="1" />
-        <rect x="14" y="3" width="7" height="7" rx="1" />
-        <rect x="3" y="14" width="7" height="7" rx="1" />
-        <rect x="14" y="14" width="7" height="7" rx="1" />
-      </svg>
-    ),
-  },
-  {
-    id: 'history',
-    label: 'History',
-    icon: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
-        stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
-      </svg>
-    ),
-  },
-  {
-    id: 'device',
-    label: 'Device',
-    icon: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
-        stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="12" cy="12" r="3" />
-        <path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12" />
-      </svg>
-    ),
-  },
-  {
-    id: 'settings',
-    label: 'Settings',
-    icon: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
-        stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="12" cy="12" r="3" />
-        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-      </svg>
-    ),
-  },
+  { id: 'overview', label: 'Overview', icon: LayoutGrid },
+  { id: 'history',  label: 'History',  icon: ChartLine  },
+  { id: 'device',   label: 'Device',   icon: Cpu        },
+  { id: 'settings', label: 'Settings', icon: Settings   },
 ]
 
 export default function BottomNav({ current, onChange }) {
@@ -65,23 +26,26 @@ export default function BottomNav({ current, onChange }) {
                  bg-background border-t border-border"
       style={{ height: '64px', paddingBottom: 'env(safe-area-inset-bottom)' }}
     >
-      {NAV_ITEMS.map(item => {
-        const active = current === item.id
+      {NAV_ITEMS.map(({ id, label, icon: Icon }) => {
+        const active = current === id
         return (
           <button
-            key={item.id}
-            onClick={() => onChange(item.id)}
+            key={id}
+            onClick={() => onChange(id)}
             className="flex flex-col items-center gap-1 px-4 py-2 border-none bg-transparent
                        cursor-pointer transition-colors duration-150"
             style={{ color: active ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))' }}
           >
-            {item.icon}
+            <Icon
+              size={22}
+              strokeWidth={active ? 2 : 1.8}
+            />
             <span style={{
               fontSize: '10px',
               fontWeight: active ? 600 : 400,
               letterSpacing: '0.02em',
             }}>
-              {item.label}
+              {label}
             </span>
           </button>
         )

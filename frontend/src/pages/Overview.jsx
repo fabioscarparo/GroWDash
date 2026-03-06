@@ -142,14 +142,6 @@ export default function Overview() {
           />
         </div>
 
-        {/* Total production — full width */}
-        <KpiCard
-          icon={<Zap size={16} />}
-          label="Total production"
-          value={overview?.total_energy_kwh}
-          unit="kWh"
-        />
-
         <PowerFlowCard
           solarW={today?.flow?.live?.solar_w}
           homeW={today?.flow?.live?.home_w}
@@ -162,7 +154,7 @@ export default function Overview() {
         {/* Today's solar production curve */}
         <DailyCurveCard />
 
-        
+
         {/* Battery status card */}
         <BatteryCard
           socPct={today?.battery?.soc_pct}
@@ -171,8 +163,6 @@ export default function Overview() {
           chargedTodayKwh={today?.battery?.charge_today_kwh}
           dischargedTodayKwh={today?.battery?.discharge_today_kwh}
         />
-
-        <div className="h-2" />
       </div>
     </div>
   )
