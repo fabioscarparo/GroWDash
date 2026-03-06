@@ -2,8 +2,8 @@
  * Overview.jsx — Main dashboard page.
  *
  * Displays a summary of the current state of the PV system:
- * - Header with plant name, device serial number and online status
- * - KPI cards: today, month, year, total energy and CO2 saved
+ * - Header with plant name, capacity, serial number and online status
+ * - KPI cards: today's production and CO2 saved
  * - Power Flow widget: live power values for all four system nodes
  * - Battery status card: SOC, charge/discharge totals
  */
@@ -11,30 +11,43 @@
 import { useOverview, useToday, usePlantInfo, useDeviceList } from '../hooks/useGrowatt'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Sun, Zap, Leaf } from 'lucide-react'
+import BatteryCard from '../components/BatteryCard'
 
 // ── Header ───────────────────────────────────────────────────────────────────
 
 /**
- * Page header showing plant name, device serial number and online status.
+ * Page header showing plant name, capacity, serial number and online status.
  * Online status is derived from the device list (type 7 = inverter).
  *
  * @param {object} props
  * @param {string} props.plantName - Name of the PV plant
+ * @param {number} props.plantCapacityKw - Peak power capacity of the plant (kW)
  * @param {string} props.serialNumber - Inverter serial number
  * @param {boolean} props.isOnline - Whether the inverter is reachable
  */
-function Header({ plantName, serialNumber, isOnline }) {
+function Header({ plantName, plantCapacityKw, serialNumber, isOnline }) {
   return (
     <div className="flex items-start justify-between px-4 pt-6 pb-4">
       <div>
         <h1 className="text-xl font-bold text-foreground">
           {plantName || 'GroWDash'}
         </h1>
-        {serialNumber && (
-          <p className="text-xs text-muted-foreground mt-0.5">
-            {serialNumber}
-          </p>
-        )}
+        <div className="flex items-center gap-2 mt-0.5">
+          {plantCapacityKw && (
+            <span className="text-xs text-muted-foreground">
+              {plantCapacityKw} kWp
+            </span>
+          )}
+          {serialNumber && plantCapacityKw && (
+            <span className="text-xs text-muted-foreground">·</span>
+          )}
+          {serialNumber && (
+            <span className="text-xs text-muted-foreground">
+              {serialNumber}
+            </span>
+          )}
+        </div>
       </div>
       <Badge
         variant={isOnline ? 'default' : 'secondary'}
@@ -50,21 +63,25 @@ function Header({ plantName, serialNumber, isOnline }) {
 // ── KPI Cards ────────────────────────────────────────────────────────────────
 
 /**
- * Single KPI card showing a label, value and unit.
+ * Single KPI card showing an icon, label, value and unit.
  *
  * @param {object} props
+ * @param {JSX.Element} props.icon - Lucide icon component
  * @param {string} props.label - Card label (e.g. "Today")
  * @param {string|number} props.value - Main value to display
  * @param {string} props.unit - Unit of measurement (e.g. "kWh")
  * @param {string} [props.sublabel] - Optional secondary label
  */
-function KpiCard({ label, value, unit, sublabel }) {
+function KpiCard({ icon, label, value, unit, sublabel }) {
   return (
     <Card>
-      <CardContent className="pt-4">
-        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">
-          {label}
-        </p>
+      <CardContent>
+        <div className="flex items-center gap-1.5 mb-1">
+          <span className="text-muted-foreground">{icon}</span>
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+            {label}
+          </p>
+        </div>
         <div className="flex items-baseline gap-1">
           <span className="text-2xl font-bold text-foreground">
             {value ?? '—'}
@@ -74,7 +91,7 @@ function KpiCard({ label, value, unit, sublabel }) {
           )}
         </div>
         {sublabel && (
-          <p className="text-xs text-muted-foreground mt-1">{sublabel}</p>
+          <p className="text-xs text-muted-foreground mt-0.5">{sublabel}</p>
         )}
       </CardContent>
     </Card>
@@ -97,9 +114,10 @@ export default function Overview() {
   return (
     <div className="bg-background min-h-dvh">
 
-      {/* Header — plant name, serial number and online status */}
+      {/* Header — plant name, capacity, serial number and online status */}
       <Header
         plantName={plantInfo?.name}
+        plantCapacityKw={overview?.plant_capacity_kw}
         serialNumber={serialNumber}
         isOnline={isOnline}
       />
@@ -109,33 +127,25 @@ export default function Overview() {
         {/* KPI Grid — 2 columns */}
         <div className="grid grid-cols-2 gap-3">
           <KpiCard
+            icon={<Sun size={16} />}
             label="Today"
             value={overview?.today_energy_kwh}
             unit="kWh"
           />
           <KpiCard
-            label="This month"
-            value={overview?.monthly_energy_kwh}
-            unit="kWh"
-          />
-          <KpiCard
-            label="This year"
-            value={overview?.yearly_energy_kwh}
-            unit="kWh"
-          />
-          <KpiCard
+            icon={<Leaf size={16} />}
             label="CO₂ saved"
             value={overview?.carbon_offset_kg}
             unit="kg"
           />
         </div>
 
-        {/* Total energy — full width */}
+        {/* Total production — full width */}
         <KpiCard
+          icon={<Zap size={16} />}
           label="Total production"
           value={overview?.total_energy_kwh}
           unit="kWh"
-          sublabel={`Plant capacity: ${overview?.plant_capacity_kw ?? '—'} kW`}
         />
 
         {/* Power Flow widget — coming soon */}
@@ -148,15 +158,14 @@ export default function Overview() {
           </CardContent>
         </Card>
 
-        {/* Battery card — coming soon */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm font-semibold">Battery</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">Coming soon...</p>
-          </CardContent>
-        </Card>
+        {/* Battery status card */}
+        <BatteryCard
+          socPct={today?.flow?.battery_soc_pct}
+          chargeW={today?.flow?.live?.battery_charge_w}
+          dischargeW={today?.flow?.live?.battery_discharge_w}
+          chargedTodayKwh={today?.battery?.charge_today_kwh}
+          dischargedTodayKwh={today?.battery?.discharge_today_kwh}
+        />
 
         <div className="h-2" />
       </div>
