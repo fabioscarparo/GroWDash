@@ -75,12 +75,19 @@ def energy_today():
 
     Nomenclatura dei campi API Growatt:
 
-        pac                = Power AC, potenza AC in uscita dall'inverter (W)
+        ppv                = Power PV — potenza DC prodotta dai pannelli solari (W)
+                             È la vera produzione solare, indipendente da batteria e carichi.
+                             pac è la potenza AC in uscita dall'inverter — non la usiamo
+                             perché esclude la quota che carica la batteria in DC.
+        ppv1               = potenza DC stringa 1 (W)
+        ppv2               = potenza DC stringa 2 (W)
+        pac                = Power AC — potenza AC in uscita dall'inverter (W)
         pacToLocalLoad     = potenza verso i carichi domestici (W)
         pacToGridTotal     = potenza esportata in rete (W)
         pacToUserTotal     = potenza importata dalla rete (W)
-        bdc1ChargePower    = potenza di carica batteria (W)
-        bdc1DischargePower = potenza di scarica batteria (W)
+        bdc1ChargePower    = Battery DC Charge Power — potenza di carica batteria (W)
+        bdc1DischargePower = Battery DC Discharge Power — potenza di scarica batteria (W)
+        bmsSoc             = Battery Management System State of Charge — SOC in % (0-100)
     """
     data = get_energy_today()
 
@@ -93,8 +100,10 @@ def energy_today():
         # Di notte tutti i valori sono 0 (inverter in standby).
         "flow": {
             "live": {
-                # Potenza AC in uscita dall'inverter — produzione solare attuale
-                "solar_w": data.get("pac", 0),
+                # ppv = Power PV — vera potenza DC prodotta dai pannelli solari.
+                # Non usiamo pac (Power AC) perché è la potenza in uscita dall'inverter
+                # e non include la quota che va direttamente a caricare la batteria in DC.
+                "solar_w": data.get("ppv", 0),
 
                 # Potenza attualmente consumata dai carichi domestici
                 "home_w": data.get("pacToLocalLoad", 0),
@@ -139,9 +148,6 @@ def energy_today():
                 # Energia totale prodotta dall'impianto da quando è attivo
                 "lifetime_solar_kwh": data.get("eacTotal", 0),
             },
-
-            # Stato di carica della batteria in percentuale (0-100)
-            "battery_soc_pct": data.get("bmsSoc", 0),
         },
 
         # ── Batteria ──────────────────────────────────────────────────────────
@@ -243,3 +249,14 @@ def plant_energy_aggregate(
         "count": len(data),
         "data": data,
     }
+
+@router.get("/debug/raw")
+def energy_debug_raw():
+    """
+    Endpoint temporaneo per ispezionare tutti i campi raw di min_energy().
+    DA RIMUOVERE prima del deploy in produzione.
+    """
+    from services.growatt import get_api
+    import os
+    api = get_api()
+    return api.min_energy(os.getenv("GROWATT_DEVICE_SN"))

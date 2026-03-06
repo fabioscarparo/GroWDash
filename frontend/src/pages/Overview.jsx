@@ -160,7 +160,7 @@ export default function Overview() {
 
         {/* Battery status card */}
         <BatteryCard
-          socPct={today?.flow?.battery_soc_pct}
+          socPct={today?.battery?.soc_pct}
           chargeW={today?.flow?.live?.battery_charge_w}
           dischargeW={today?.flow?.live?.battery_discharge_w}
           chargedTodayKwh={today?.battery?.charge_today_kwh}
