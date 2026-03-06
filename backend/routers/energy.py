@@ -249,14 +249,3 @@ def plant_energy_aggregate(
         "count": len(data),
         "data": data,
     }
-
-@router.get("/debug/raw")
-def energy_debug_raw():
-    """
-    Endpoint temporaneo per ispezionare tutti i campi raw di min_energy().
-    DA RIMUOVERE prima del deploy in produzione.
-    """
-    from services.growatt import get_api
-    import os
-    api = get_api()
-    return api.min_energy(os.getenv("GROWATT_DEVICE_SN"))

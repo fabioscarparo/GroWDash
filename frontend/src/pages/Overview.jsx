@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/badge'
 import { Sun, Zap, Leaf } from 'lucide-react'
 import BatteryCard from '../components/BatteryCard'
 import PowerFlowCard from '../components/PowerFlowCard'
+import DailyCurveCard from '../components/DailyCurveCard'
 
 // ── Header ───────────────────────────────────────────────────────────────────
 
@@ -158,6 +159,10 @@ export default function Overview() {
           gridImportW={today?.flow?.live?.grid_import_w}
         />
 
+        {/* Today's solar production curve */}
+        <DailyCurveCard />
+
+        
         {/* Battery status card */}
         <BatteryCard
           socPct={today?.battery?.soc_pct}

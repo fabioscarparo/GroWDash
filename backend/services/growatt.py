@@ -159,8 +159,19 @@ def get_energy_history(start_date: date = None, end_date: date = None) -> list:
         for record in raw_data:
             history.append({
                 "time": record.get("time"),
-                "power_w": record.get("pac", 0),
-                "power_to_user_w": record.get("pacToUserTotal", 0),
+                # ppv = vera produzione solare DC dai pannelli
+                "solar_w": record.get("ppv", 0),
+                # pacToLocalLoad = consumi domestici
+                "home_w": record.get("pacToLocalLoad", 0),
+                # bdc1ChargePower = potenza carica batteria
+                "battery_charge_w": record.get("bdc1ChargePower", 0),
+                # bdc1DischargePower = potenza scarica batteria
+                "battery_discharge_w": record.get("bdc1DischargePower", 0),
+                # pacToUserTotal = energia importata dalla rete
+                "grid_import_w": record.get("pacToUserTotal", 0),
+                # pacToGridTotal = energia esportata in rete
+                "grid_export_w": record.get("pacToGridTotal", 0),
+                # Campi tecnici
                 "voltage_v": record.get("vac1", 0),
                 "temperature_c": record.get("temp1", 0),
             })
