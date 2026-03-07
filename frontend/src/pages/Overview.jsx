@@ -124,7 +124,7 @@ export default function Overview() {
         isOnline={isOnline}
       />
 
-      <div className="px-4 flex flex-col gap-3">
+      <div className="px-4 flex flex-col gap-3 pb-4">
 
         {/* KPI Grid — 2 columns */}
         <div className="grid grid-cols-2 gap-3">
