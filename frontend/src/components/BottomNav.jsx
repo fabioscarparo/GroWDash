@@ -23,30 +23,31 @@ export default function BottomNav({ current, onChange }) {
   return (
     <nav
       className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-around
-                 bg-background border-t border-border"
-      style={{ height: '64px', paddingBottom: 'env(safe-area-inset-bottom)' }}
+                 bg-card border-t border-border"
+      style={{ height: '56px', paddingBottom: 'env(safe-area-inset-bottom)' }}
     >
-      {NAV_ITEMS.map(({ id, label, icon: Icon }) => {
+      {NAV_ITEMS.map(({ id, icon: Icon }) => {
         const active = current === id
         return (
           <button
             key={id}
             onClick={() => onChange(id)}
-            className="flex flex-col items-center gap-1 px-4 py-2 border-none bg-transparent
-                       cursor-pointer transition-colors duration-150"
-            style={{ color: active ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))' }}
+            className="flex flex-col items-center justify-center gap-1 w-16 h-full
+                       border-none bg-transparent cursor-pointer"
           >
             <Icon
-              size={22}
-              strokeWidth={active ? 2 : 1.8}
+              size={20}
+              strokeWidth={active ? 2.5 : 1.8}
+              style={{ color: active ? '#006fff' : 'hsl(var(--muted-foreground))' }}
             />
-            <span style={{
-              fontSize: '10px',
-              fontWeight: active ? 600 : 400,
-              letterSpacing: '0.02em',
-            }}>
-              {label}
-            </span>
+            <div
+              className="rounded-full transition-all duration-300"
+              style={{
+                width: active ? '20px' : '0px',
+                height: '2px',
+                backgroundColor: active ? '#006fff' : 'transparent',
+              }}
+            />
           </button>
         )
       })}

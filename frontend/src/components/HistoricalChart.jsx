@@ -1,5 +1,5 @@
 /**
- * HistoricalChart.jsx — Historical energy production bar chart.
+ * HistoricalChart.jsx — Historical solar energy production bar chart.
  *
  * Header: day/month/year selector + total for the period.
  * Period navigation with prev/next arrows.
@@ -17,7 +17,7 @@ import { useAggregate } from '../hooks/useGrowatt'
 // ── Chart config ───────────────────────────────────────────────────────────────
 
 const chartConfig = {
-  energy: { label: 'Energy', color: '#f59e0b' },
+  energy: { label: 'Energy', color: 'var(--primary)' },
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -109,13 +109,13 @@ export default function HistoricalChart() {
 
   return (
     <Card>
-      <CardHeader className="px-3 pt-3 pb-3 space-y-3">
+      <CardHeader>
 
         {/* Row 1: title + time unit selector + navigation */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <BarChart2 size={16} className="text-muted-foreground" />
-            <CardTitle className="text-sm font-semibold">Production</CardTitle>
+            <CardTitle className="text-sm font-semibold">Solar Production</CardTitle>
           </div>
           <div className="flex items-center gap-2">
             {timeUnit !== 'year' && (
@@ -203,7 +203,7 @@ export default function HistoricalChart() {
                 {chartData.map((_, index) => (
                   <Cell
                     key={index}
-                    fill="#006fff"
+                    fill="var(--primary)"
                     opacity={activeBar === null || activeBar === index ? 1 : 0.3}
                   />
                 ))}
