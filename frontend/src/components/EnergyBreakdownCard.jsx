@@ -106,7 +106,7 @@ function Row({ color, label, kwh, percentage }) {
     <div className="flex items-center justify-between">
       <div className="flex items-center gap-2">
         <span
-          className="inline-block w-2 h-2 rounded-full flex-shrink-0"
+          className="inline-block w-2 h-2 rounded-full shrink-0"
           style={{ backgroundColor: color }}
         />
         <span className="text-xs text-muted-foreground">{label}</span>
