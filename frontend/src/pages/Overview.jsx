@@ -21,6 +21,7 @@ import SOCCurveCard from '../components/SOCCurveCard'
 import { usePullToRefresh } from '../hooks/usePullToRefresh'
 import { useWeather } from '../hooks/useWeather'
 import WeatherCard from '../components/WeatherCard'
+import EnergyBreakdownCard from '../components/EnergyBreakdownCard'
 
 // ── Header ───────────────────────────────────────────────────────────────────
 
@@ -184,6 +185,8 @@ export default function Overview() {
           gridImportW={today?.flow?.live?.grid_import_w}
         />
         <DailyCurveCard />
+
+        <EnergyBreakdownCard today={today?.flow?.today} />
 
         <SOCCurveCard />
         
