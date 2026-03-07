@@ -8,27 +8,21 @@
  * - Battery status card: SOC, charge/discharge totals
  */
 
+import { useCallback, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { useOverview, useToday, usePlantInfo, useDeviceList } from '../hooks/useGrowatt'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Sun, Zap, Leaf } from 'lucide-react'
+import { Sun, Leaf, RefreshCw } from 'lucide-react'
 import BatteryCard from '../components/BatteryCard'
 import PowerFlowCard from '../components/PowerFlowCard'
 import DailyCurveCard from '../components/DailyCurveCard'
+import SOCCurveCard from '../components/SOCCurveCard'
+import { usePullToRefresh } from '../hooks/usePullToRefresh'
 
 // ── Header ───────────────────────────────────────────────────────────────────
 
-/**
- * Page header showing plant name, capacity, serial number and online status.
- * Online status is derived from the device list (type 7 = inverter).
- *
- * @param {object} props
- * @param {string} props.plantName - Name of the PV plant
- * @param {number} props.plantCapacityKw - Peak power capacity of the plant (kW)
- * @param {string} props.serialNumber - Inverter serial number
- * @param {boolean} props.isOnline - Whether the inverter is reachable
- */
-function Header({ plantName, plantCapacityKw, serialNumber, isOnline }) {
+function Header({ plantName, plantCapacityKw, serialNumber, isOnline, lastUpdate }) {
   return (
     <div className="flex items-start justify-between px-4 pt-6 pb-4">
       <div>
@@ -37,24 +31,23 @@ function Header({ plantName, plantCapacityKw, serialNumber, isOnline }) {
         </h1>
         <div className="flex items-center gap-2 mt-0.5">
           {plantCapacityKw && (
-            <span className="text-xs text-muted-foreground">
-              {plantCapacityKw} kWp
-            </span>
+            <span className="text-xs text-muted-foreground">{plantCapacityKw} kWp</span>
           )}
           {serialNumber && plantCapacityKw && (
             <span className="text-xs text-muted-foreground">·</span>
           )}
           {serialNumber && (
-            <span className="text-xs text-muted-foreground">
-              {serialNumber}
-            </span>
+            <span className="text-xs text-muted-foreground">{serialNumber}</span>
+          )}
+          {lastUpdate && (
+            <>
+              <span className="text-xs text-muted-foreground">·</span>
+              <span className="text-xs text-muted-foreground">Updated {lastUpdate}</span>
+            </>
           )}
         </div>
       </div>
-      <Badge
-        variant={isOnline ? 'default' : 'secondary'}
-        className="mt-1"
-      >
+      <Badge variant={isOnline ? 'default' : 'secondary'} className="mt-1">
         <span className={`mr-1.5 inline-block w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-green-400' : 'bg-muted-foreground'}`} />
         {isOnline ? 'Online' : 'Offline'}
       </Badge>
@@ -64,16 +57,6 @@ function Header({ plantName, plantCapacityKw, serialNumber, isOnline }) {
 
 // ── KPI Cards ────────────────────────────────────────────────────────────────
 
-/**
- * Single KPI card showing an icon, label, value and unit.
- *
- * @param {object} props
- * @param {JSX.Element} props.icon - Lucide icon component
- * @param {string} props.label - Card label (e.g. "Today")
- * @param {string|number} props.value - Main value to display
- * @param {string} props.unit - Unit of measurement (e.g. "kWh")
- * @param {string} [props.sublabel] - Optional secondary label
- */
 function KpiCard({ icon, label, value, unit, sublabel }) {
   return (
     <Card>
@@ -108,40 +91,86 @@ export default function Overview() {
   const { data: today } = useToday()
   const { data: deviceList } = useDeviceList()
 
-  // Find the inverter (type 7) from the device list to get real online status
   const inverter = deviceList?.devices?.find(d => d.type === 7)
   const isOnline = inverter?.is_online ?? false
   const serialNumber = inverter?.serial_number
 
+  // ── Pull-to-refresh ─────────────────────────────────────────────────────
+
+  const queryClient = useQueryClient()
+  const [lastUpdate, setLastUpdate] = useState(() => {
+    const d = new Date()
+    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+  })
+  const [isRefreshing, setIsRefreshing] = useState(false)
+
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true)
+    await queryClient.invalidateQueries({ queryKey: ['energy'] })
+    const d = new Date()
+    setLastUpdate(`${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`)
+    setIsRefreshing(false)
+  }, [queryClient])
+
+  const { pulling, pullDistance, progress } = usePullToRefresh(handleRefresh)
+
   return (
     <div className="bg-background min-h-dvh">
 
-      {/* Header — plant name, capacity, serial number and online status */}
+      {/* Refresh indicator — slides in from top */}
+      <div
+        className="fixed left-0 right-0 z-50 flex justify-center pointer-events-none"
+        style={{
+          top: 0,
+          transform: isRefreshing
+            ? 'translateY(12px)'
+            : `translateY(calc(-100% + ${pullDistance}px))`,
+          transition: pulling ? 'none' : 'transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1)',
+        }}
+      >
+        <div
+          className="bg-card border border-border rounded-full px-3 py-1.5 shadow-md flex items-center gap-2"
+          style={{
+            animation: progress >= 0.9 && !isRefreshing ? 'ptr-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)' : 'none',
+          }}
+        >
+          <RefreshCw
+            size={14}
+            className={isRefreshing ? 'text-primary' : progress >= 0.9 ? 'text-primary' : 'text-muted-foreground'}
+            style={{
+              animation: isRefreshing
+                ? 'spin 0.8s linear infinite'
+                : progress >= 0.9
+                  ? 'ptr-wiggle 0.4s ease-out'
+                  : 'none',
+              transform: (!isRefreshing && progress < 0.9)
+                ? `rotate(${progress * 360}deg)`
+                : undefined,
+            }}
+          />
+          <span
+            key={isRefreshing ? 'refreshing' : progress >= 0.9 ? 'release' : 'pull'}
+            className="text-xs text-muted-foreground"
+            style={{ animation: 'ptr-text-in 0.2s ease-out' }}
+          >
+            {isRefreshing ? 'Updating...' : progress >= 0.9 ? 'Release to refresh' : 'Pull to refresh'}
+          </span>
+        </div>
+      </div>
+
       <Header
         plantName={plantInfo?.name}
         plantCapacityKw={overview?.plant_capacity_kw}
         serialNumber={serialNumber}
         isOnline={isOnline}
+        lastUpdate={lastUpdate}
       />
 
       <div className="px-4 flex flex-col gap-3 pb-4">
-
-        {/* KPI Grid — 2 columns */}
         <div className="grid grid-cols-2 gap-3">
-          <KpiCard
-            icon={<Sun size={16} />}
-            label="Today"
-            value={overview?.today_energy_kwh}
-            unit="kWh"
-          />
-          <KpiCard
-            icon={<Leaf size={16} />}
-            label="CO₂ saved"
-            value={overview?.carbon_offset_kg}
-            unit="kg"
-          />
+          <KpiCard icon={<Sun size={16} />} label="Today" value={overview?.today_energy_kwh} unit="kWh" />
+          <KpiCard icon={<Leaf size={16} />} label="CO₂ saved" value={overview?.carbon_offset_kg} unit="kg" />
         </div>
-
         <PowerFlowCard
           solarW={today?.flow?.live?.solar_w}
           homeW={today?.flow?.live?.home_w}
@@ -150,12 +179,10 @@ export default function Overview() {
           gridExportW={today?.flow?.live?.grid_export_w}
           gridImportW={today?.flow?.live?.grid_import_w}
         />
-
-        {/* Today's solar production curve */}
         <DailyCurveCard />
 
-
-        {/* Battery status card */}
+        <SOCCurveCard />
+        
         <BatteryCard
           socPct={today?.battery?.soc_pct}
           chargeW={today?.flow?.live?.battery_charge_w}
@@ -163,6 +190,7 @@ export default function Overview() {
           chargedTodayKwh={today?.battery?.charge_today_kwh}
           dischargedTodayKwh={today?.battery?.discharge_today_kwh}
         />
+        
       </div>
     </div>
   )

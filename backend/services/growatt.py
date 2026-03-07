@@ -269,6 +269,7 @@ def get_energy_history(start_date: date = None, end_date: date = None) -> list:
             "grid_export_w":       record.get("pacToGridTotal", 0),
             "voltage_v":           record.get("vac1", 0),
             "temperature_c":       record.get("temp1", 0),
+            "soc_pct":             record.get("bmsSoc", 0),
         })
 
     history.reverse()

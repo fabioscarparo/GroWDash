@@ -121,7 +121,7 @@
   body {
     @apply bg-background text-foreground;
   }
-
+  
   /* Smooth transition when switching theme */
   html {
     transition:
@@ -134,5 +134,27 @@
       background-color 0.3s ease,
       border-color 0.3s ease,
       color 0.3s ease;
+  }
+
+  /* Pull-to-refresh animations */
+  @keyframes ptr-wiggle {
+    0%   { transform: rotate(0deg); }
+    20%  { transform: rotate(-15deg); }
+    40%  { transform: rotate(12deg); }
+    60%  { transform: rotate(-8deg); }
+    80%  { transform: rotate(5deg); }
+    100% { transform: rotate(0deg); }
+  }
+
+  @keyframes ptr-pop {
+    0%   { transform: scale(1); }
+    40%  { transform: scale(1.08); }
+    70%  { transform: scale(0.97); }
+    100% { transform: scale(1); }
+  }
+
+  @keyframes ptr-text-in {
+    0%   { opacity: 0; transform: translateX(-4px); }
+    100% { opacity: 1; transform: translateX(0); }
   }
 }
