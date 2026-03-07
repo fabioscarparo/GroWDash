@@ -19,6 +19,8 @@ import PowerFlowCard from '../components/PowerFlowCard'
 import DailyCurveCard from '../components/DailyCurveCard'
 import SOCCurveCard from '../components/SOCCurveCard'
 import { usePullToRefresh } from '../hooks/usePullToRefresh'
+import { useWeather } from '../hooks/useWeather'
+import WeatherCard from '../components/WeatherCard'
 
 // ── Header ───────────────────────────────────────────────────────────────────
 
@@ -90,6 +92,7 @@ export default function Overview() {
   const { data: overview } = useOverview()
   const { data: today } = useToday()
   const { data: deviceList } = useDeviceList()
+  const { data: weatherData } = useWeather(plantInfo?.latitude, plantInfo?.longitude)
 
   const inverter = deviceList?.devices?.find(d => d.type === 7)
   const isOnline = inverter?.is_online ?? false
@@ -167,6 +170,7 @@ export default function Overview() {
       />
 
       <div className="px-4 flex flex-col gap-3 pb-4">
+        <WeatherCard data={weatherData} />
         <div className="grid grid-cols-2 gap-3">
           <KpiCard icon={<Sun size={16} />} label="Today" value={overview?.today_energy_kwh} unit="kWh" />
           <KpiCard icon={<Leaf size={16} />} label="CO₂ saved" value={overview?.carbon_offset_kg} unit="kg" />
