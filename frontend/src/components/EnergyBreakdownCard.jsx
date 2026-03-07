@@ -23,7 +23,7 @@
  */
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Zap } from 'lucide-react'
+import { ChartPie } from 'lucide-react'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -196,7 +196,7 @@ export default function EnergyBreakdownCard({ today }) {
     <Card>
       <CardHeader className="pb-2">
         <div className="flex items-center gap-2">
-          <Zap size={16} className="text-muted-foreground" />
+          <ChartPie size={16} className="text-muted-foreground" />
           <CardTitle className="text-sm font-semibold">Energy breakdown</CardTitle>
         </div>
       </CardHeader>
