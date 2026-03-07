@@ -1,46 +1,114 @@
 """
-Servizio di integrazione con le API Growatt V1.
-===============================================
-Questo modulo fa da ponte tra FastAPI e la libreria growattServer.
-Tutte le chiamate alle API Growatt passano da qui, in modo da avere
-un unico punto di controllo e facilitare eventuali modifiche future.
+Growatt V1 API integration service.
+=====================================
+This module acts as the bridge between FastAPI and the growattServer library.
+All calls to the Growatt API go through this file, providing a single point
+of control and making future changes easier.
 
-Variabili d'ambiente richieste nel file .env:
-    GROWATT_TOKEN     → Token API V1 dal tuo account ShinePhone
-    GROWATT_PLANT_ID  → ID numerico dell'impianto
-    GROWATT_DEVICE_SN → Serial number dell'inverter MIN
+A singleton API instance is maintained for the lifetime of the application,
+and all responses are cached in memory for 5 minutes to match the Growatt
+data update interval.
+
+Required environment variables (.env):
+    GROWATT_TOKEN     → V1 API token from your ShinePhone account
+    GROWATT_PLANT_ID  → Numeric plant ID
+    GROWATT_DEVICE_SN → Serial number of the MIN inverter
 """
 
 import growattServer
 from dotenv import load_dotenv
 from datetime import date, timedelta
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from functools import wraps
+import threading
+import time
 import os
 
-# Carica le variabili d'ambiente dal file .env
 load_dotenv()
 
-# Credenziali e identificatori letti dal file .env
-GROWATT_TOKEN = os.getenv("GROWATT_TOKEN")
-GROWATT_PLANT_ID = os.getenv("GROWATT_PLANT_ID")
+GROWATT_TOKEN     = os.getenv("GROWATT_TOKEN")
+GROWATT_PLANT_ID  = os.getenv("GROWATT_PLANT_ID")
 GROWATT_DEVICE_SN = os.getenv("GROWATT_DEVICE_SN")
 
+# Cache TTL in seconds — aligned with the Growatt API update interval
+CACHE_TTL = 5 * 60
+
+# ── API instance ──────────────────────────────────────────────────────────────
+
+_api_instance: growattServer.OpenApiV1 | None = None
+_api_lock = threading.Lock()
 
 def get_api() -> growattServer.OpenApiV1:
     """
-    Crea e restituisce una sessione autenticata con le API Growatt V1.
-    Viene chiamata ogni volta che serve fare una richiesta ai server Growatt.
-    Non mantiene la sessione aperta — ogni chiamata crea una nuova istanza.
+    Returns the singleton Growatt V1 API instance.
+    The instance is created on first access (lazy initialization)
+    and reused for all subsequent requests.
+    Thread-safe via a lock.
     """
-    return growattServer.OpenApiV1(GROWATT_TOKEN)
+    global _api_instance
+    if _api_instance is None:
+        with _api_lock:
+            if _api_instance is None:
+                _api_instance = growattServer.OpenApiV1(GROWATT_TOKEN)
+    return _api_instance
 
 
+# ── In-memory TTL cache ───────────────────────────────────────────────────────
+
+_cache: dict = {}
+_cache_lock = threading.Lock()
+
+def ttl_cache(key_fn=None):
+    """
+    Decorator that adds a TTL-based in-memory cache to a function.
+
+    Cache entries expire after CACHE_TTL seconds. The cache key is computed
+    by key_fn(args, kwargs) if provided, otherwise by the function name
+    and its arguments.
+
+    Args:
+        key_fn: Optional callable that receives (args, kwargs) and returns
+                a string cache key. Useful for functions with complex or
+                date-based arguments.
+
+    Usage:
+        @ttl_cache()
+        def get_something(): ...
+
+        @ttl_cache(key_fn=lambda a, k: f"prefix:{a[0]}:{a[1]}")
+        def get_something_by_date(start, end): ...
+    """
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            cache_key = key_fn(args, kwargs) if key_fn else f"{func.__name__}:{args}:{kwargs}"
+
+            with _cache_lock:
+                if cache_key in _cache:
+                    value, ts = _cache[cache_key]
+                    if time.time() - ts < CACHE_TTL:
+                        return value
+
+            result = func(*args, **kwargs)
+
+            with _cache_lock:
+                _cache[cache_key] = (result, time.time())
+
+            return result
+        return wrapper
+    return decorator
+
+
+# ── Service functions ─────────────────────────────────────────────────────────
+
+@ttl_cache()
 def get_plant_info() -> dict:
     """
-    Recupera le informazioni generali dell'impianto fotovoltaico.
-    Restituisce dati come nome, posizione, potenza di picco e stato.
+    Returns general information about the PV plant:
+    name, location, peak power, total energy and status.
 
     Returns:
-        dict: Dati del primo impianto trovato, o dizionario vuoto se non trovato.
+        dict: First plant found, or empty dict if none available.
     """
     api = get_api()
     result = api.plant_list()
@@ -50,88 +118,97 @@ def get_plant_info() -> dict:
     return plants[0]
 
 
+@ttl_cache()
 def get_device_list() -> list:
     """
-    Recupera la lista di tutti i dispositivi collegati all'impianto.
-    Include inverter, meter e qualsiasi altro dispositivo connesso al datalogger.
+    Returns the list of all devices connected to the plant.
+    Includes inverters, meters and any other device connected
+    to the datalogger.
+
+    Device types:
+        type 3 → Datalogger / meter
+        type 7 → MIN inverter
 
     Returns:
-        list: Lista di dispositivi con tipo, serial number e stato.
+        list: Devices with type, serial number and online status.
     """
     api = get_api()
     result = api.device_list(GROWATT_PLANT_ID)
     return result.get("devices", [])
 
 
+@ttl_cache()
 def get_device_detail() -> dict:
     """
-    Recupera i dati tecnici dettagliati dell'inverter MIN.
-    Include versione firmware, modello, impostazioni hardware
-    e parametri di configurazione avanzati.
+    Returns detailed technical data for the MIN inverter:
+    firmware version, model, operating status and hardware parameters.
 
     Returns:
-        dict: Dati tecnici completi dell'inverter.
+        dict: Full technical data of the inverter.
     """
     api = get_api()
     return api.min_detail(GROWATT_DEVICE_SN)
 
 
+@ttl_cache()
 def get_device_settings() -> dict:
     """
-    Recupera tutte le impostazioni configurate sull'inverter MIN.
-    Include modalità di lavoro, limiti di rete, impostazioni batteria, ecc.
+    Returns all settings configured on the MIN inverter:
+    working mode, grid limits, battery settings, etc.
 
     Returns:
-        dict: Dizionario con tutte le impostazioni dell'inverter.
+        dict: All inverter settings as a flat dictionary.
     """
     api = get_api()
     return api.min_settings(GROWATT_DEVICE_SN)
 
 
+@ttl_cache()
 def get_energy_today() -> dict:
     """
-    Recupera tutti i dati energetici dell'inverter per il giorno corrente.
+    Returns all energy data for the MIN inverter for the current day.
 
-    Chiama una sola volta api.min_energy() e mappa tutti i campi utili
-    in sezioni logiche per il frontend.
-
-    Nomenclatura dei campi API Growatt:
-        pac                = Power AC — potenza AC in uscita dall'inverter (W)
-        pacToLocalLoad     = Power AC to Local Load — potenza verso i carichi domestici (W)
-        pacToGridTotal     = Power AC to Grid — potenza esportata in rete (W)
-        pacToUserTotal     = Power AC to User — potenza importata dalla rete (W)
-        bdc1ChargePower    = Battery DC Charge Power — potenza di carica batteria (W)
-        bdc1DischargePower = Battery DC Discharge Power — potenza di scarica batteria (W)
-        bmsSoc             = Battery Management System State of Charge — SOC in % (0-100)
+    Growatt API field reference:
+        ppv                → total DC power from PV panels (W) — true solar production
+        pac                → AC output power from inverter (W)
+        pacToLocalLoad     → power to home loads (W)
+        pacToGridTotal     → power exported to the grid (W)
+        pacToUserTotal     → power imported from the grid (W)
+        bdc1ChargePower    → battery DC charge power (W)
+        bdc1DischargePower → battery DC discharge power (W)
+        bmsSoc             → battery state of charge (0–100%)
+        eacToday           → solar energy produced today (kWh)
+        elocalLoadToday    → home energy consumed today (kWh)
+        echargeToday       → energy charged into battery today (kWh)
+        edischargeToday    → energy discharged from battery today (kWh)
+        etoGridToday       → energy exported to grid today (kWh)
+        etoUserToday       → energy imported from grid today (kWh)
 
     Returns:
-        dict: Potenze istantanee (W), totali giornalieri (kWh), stato inverter e batteria.
+        dict: Instantaneous power values (W), daily totals (kWh),
+              inverter status and battery state.
     """
     api = get_api()
-    data = api.min_energy(GROWATT_DEVICE_SN)
-    return data
+    return api.min_energy(GROWATT_DEVICE_SN)
 
 
+@ttl_cache(key_fn=lambda a, k: f"history:{a[0]}:{a[1]}")
 def get_energy_history(start_date: date = None, end_date: date = None) -> list:
     """
-    Recupera la serie storica di snapshot energetici in un intervallo di date.
+    Returns a time series of 5-minute energy snapshots for a date range.
 
-    L'API Growatt registra uno snapshot ogni 5 minuti, quindi una giornata
-    intera contiene circa 288 record. L'API supporta un massimo di 7 giorni
-    per singola richiesta.
-
-    Gestione paginazione:
-        L'API restituisce massimo 100 record per chiamata. Questa funzione
-        gestisce automaticamente la paginazione eseguendo più chiamate
-        consecutive fino a scaricare tutti i record disponibili.
+    The Growatt API records one snapshot every 5 minutes, so a full day
+    contains approximately 288 records. The API returns a maximum of 100
+    records per call — pagination is handled automatically, with all pages
+    fetched in parallel for faster response times.
 
     Args:
-        start_date: Data di inizio dell'intervallo. Default: oggi.
-        end_date:   Data di fine dell'intervallo. Default: uguale a start_date.
+        start_date: Start of the range. Defaults to today.
+        end_date:   End of the range. Defaults to start_date.
 
     Returns:
-        list: Lista di snapshot ordinati dal più vecchio al più recente,
-              ognuno contenente timestamp, potenza, tensione e temperatura.
+        list: Snapshots ordered from oldest to newest, each containing
+              timestamp, power flows (W), voltage and temperature.
     """
     if start_date is None:
         start_date = date.today()
@@ -139,101 +216,126 @@ def get_energy_history(start_date: date = None, end_date: date = None) -> list:
         end_date = start_date
 
     api = get_api()
+
+    # First call to get the total record count
+    first = api.min_energy_history(
+        GROWATT_DEVICE_SN,
+        start_date=start_date,
+        end_date=end_date,
+        page=1,
+        limit=100,
+    )
+    raw_data = first.get("datas", [])
+    total = first.get("count", 0)
+
+    if not raw_data:
+        return []
+
+    all_records = list(raw_data)
+
+    # Fetch remaining pages in parallel
+    remaining_pages = range(2, (total // 100) + 2) if total > 100 else []
+
+    if remaining_pages:
+        def fetch_page(page):
+            result = api.min_energy_history(
+                GROWATT_DEVICE_SN,
+                start_date=start_date,
+                end_date=end_date,
+                page=page,
+                limit=100,
+            )
+            return result.get("datas", [])
+
+        with ThreadPoolExecutor(max_workers=4) as executor:
+            futures = {executor.submit(fetch_page, p): p for p in remaining_pages}
+            page_results = {}
+            for future in as_completed(futures):
+                page_results[futures[future]] = future.result()
+
+        for page in sorted(page_results.keys()):
+            all_records.extend(page_results[page])
+
+    # Map to frontend-friendly field names
     history = []
-    page = 1
-
-    while True:
-        result = api.min_energy_history(
-            GROWATT_DEVICE_SN,
-            start_date=start_date,
-            end_date=end_date,
-            page=page,
-            limit=100,
-        )
-
-        raw_data = result.get("datas", [])
-
-        if not raw_data:
-            break
-
-        for record in raw_data:
-            history.append({
-                "time": record.get("time"),
-                # ppv = vera produzione solare DC dai pannelli
-                "solar_w": record.get("ppv", 0),
-                # pacToLocalLoad = consumi domestici
-                "home_w": record.get("pacToLocalLoad", 0),
-                # bdc1ChargePower = potenza carica batteria
-                "battery_charge_w": record.get("bdc1ChargePower", 0),
-                # bdc1DischargePower = potenza scarica batteria
-                "battery_discharge_w": record.get("bdc1DischargePower", 0),
-                # pacToUserTotal = energia importata dalla rete
-                "grid_import_w": record.get("pacToUserTotal", 0),
-                # pacToGridTotal = energia esportata in rete
-                "grid_export_w": record.get("pacToGridTotal", 0),
-                # Campi tecnici
-                "voltage_v": record.get("vac1", 0),
-                "temperature_c": record.get("temp1", 0),
-            })
-
-        total = result.get("count", 0)
-        if page * 100 >= total:
-            break
-
-        page += 1
+    for record in all_records:
+        history.append({
+            "time":                record.get("time"),
+            "solar_w":             record.get("ppv", 0),
+            "home_w":              record.get("pacToLocalLoad", 0),
+            "battery_charge_w":    record.get("bdc1ChargePower", 0),
+            "battery_discharge_w": record.get("bdc1DischargePower", 0),
+            "grid_import_w":       record.get("pacToUserTotal", 0),
+            "grid_export_w":       record.get("pacToGridTotal", 0),
+            "voltage_v":           record.get("vac1", 0),
+            "temperature_c":       record.get("temp1", 0),
+        })
 
     history.reverse()
     return history
 
 
+@ttl_cache(key_fn=lambda a, k: f"plant_history:{a[0]}:{a[1]}:{a[2]}")
 def get_plant_energy_history(
     start_date: date,
     end_date: date,
     time_unit: str = "month"
 ) -> list:
-    
     """
-    Recupera la storia energetica dell'impianto aggregata per giorno/mese/anno.
+    Returns aggregated plant energy history by day, month or year.
 
-    Limiti API Growatt:
-        - "day"   → massimo 7 giorni per chiamata. Se l'intervallo è più lungo, questa funzione lo spezza automaticamente in chunk da 7 giorni.
-        - "month" → nessun limite pratico, paginazione automatica
-        - "year"  → nessun limite pratico, paginazione automatica
+    Growatt API limits:
+        "day"   → maximum 7 days per call. Longer ranges are automatically
+                  split into 7-day chunks and fetched in parallel.
+        "month" → no practical limit, automatic pagination.
+        "year"  → no practical limit, automatic pagination.
 
-    Completamento serie:
-        L'API restituisce solo i periodi con dati disponibili, saltando quelli
-        con produzione zero. Questa funzione riempie i buchi con energy=0
-        per garantire una serie continua, necessaria per i grafici.
+    The API only returns periods with available data, skipping periods
+    with zero production. This function fills gaps with energy=0 to
+    guarantee a continuous series required for charts.
 
     Args:
-        start_date: Data di inizio.
-        end_date:   Data di fine.
-        time_unit:  Granularità: "day", "month" o "year".
+        start_date: Start of the range.
+        end_date:   End of the range.
+        time_unit:  Granularity — "day", "month" or "year".
 
     Returns:
-        list: Lista completa di record con 'date' ed 'energy' (kWh),
-            ordinata cronologicamente, senza buchi.
+        list: Complete list of records with 'date' and 'energy' (kWh),
+              sorted chronologically, with no gaps.
     """
-
     api = get_api()
     results = []
 
     if time_unit == "day":
-        
+        # Build all chunks to fetch
+        chunks = []
         chunk_start = start_date
         while chunk_start <= end_date:
             chunk_end = min(chunk_start + timedelta(days=6), end_date)
+            chunks.append((chunk_start, chunk_end))
+            chunk_start += timedelta(days=7)
 
+        # Fetch all chunks in parallel
+        def fetch_chunk(cs, ce):
             result = api.plant_energy_history(
                 GROWATT_PLANT_ID,
-                start_date=chunk_start,
-                end_date=chunk_end,
+                start_date=cs,
+                end_date=ce,
                 time_unit=time_unit,
                 page=1,
                 perpage=7,
             )
-            results.extend(result.get("energys", []))
-            chunk_start += timedelta(days=7)
+            return result.get("energys", [])
+
+        with ThreadPoolExecutor(max_workers=4) as executor:
+            futures = {executor.submit(fetch_chunk, s, e): (s, e) for s, e in chunks}
+            chunk_results = {}
+            for future in as_completed(futures):
+                chunk_results[futures[future][0]] = future.result()
+
+        # Reassemble in chronological order
+        for chunk_start, _ in chunks:
+            results.extend(chunk_results.get(chunk_start, []))
 
     else:
         page = 1
@@ -256,6 +358,7 @@ def get_plant_energy_history(
                 break
             page += 1
 
+    # Fill gaps with zero for missing periods
     energy_map = {str(r["date"]): r["energy"] for r in results}
     complete = []
 
@@ -272,7 +375,6 @@ def get_plant_energy_history(
         while current <= end:
             key = current.strftime("%Y-%m")
             complete.append({"date": key, "energy": energy_map.get(key, "0")})
-            
             if current.month == 12:
                 current = current.replace(year=current.year + 1, month=1)
             else:
@@ -285,14 +387,16 @@ def get_plant_energy_history(
 
     return complete
 
+
+@ttl_cache()
 def get_plant_energy_overview() -> dict:
     """
-    Recupera la panoramica energetica dell'impianto fotovoltaico.
-    Utile per le KPI card della dashboard: produzione oggi, questo mese,
-    quest'anno, totale, potenza attuale e CO2 risparmiata.
+    Returns the energy overview for the PV plant.
+    Used for dashboard KPI cards: today, this month, this year,
+    total production, current power and CO2 saved.
 
     Returns:
-        dict: Dati aggregati dell'impianto.
+        dict: Aggregated plant energy data.
     """
     api = get_api()
     return api.plant_energy_overview(GROWATT_PLANT_ID)
