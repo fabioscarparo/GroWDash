@@ -1,7 +1,6 @@
 /**
  * useGrowatt.js — TanStack Query hooks for the GroWDash API.
  *
- * Each hook corresponds to one backend endpoint.
  * Data is automatically cached and refreshed every 5 minutes
  * to match the Growatt API update interval.
  */
@@ -9,81 +8,63 @@
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../api/growatt'
 
-/**
- * Returns plant info — name, location, capacity, installation date.
- * Cached for 1 hour since plant info rarely changes.
- */
+// 5 minutes in milliseconds — matches Growatt API update interval
+const REFRESH_INTERVAL = 5 * 60 * 1000
+
 export function usePlantInfo() {
   return useQuery({
     queryKey: ['plant', 'info'],
     queryFn: api.getPlantInfo,
-    staleTime: 60 * 60 * 1000,
+    refetchInterval: REFRESH_INTERVAL,
   })
 }
 
-/**
- * Returns KPI overview — today, month, year, total energy and CO2 saved.
- */
 export function useOverview() {
   return useQuery({
     queryKey: ['energy', 'overview'],
     queryFn: api.getOverview,
+    refetchInterval: REFRESH_INTERVAL,
   })
 }
 
-/**
- * Returns today's full data — live power flow, daily totals,
- * inverter status and battery state.
- */
 export function useToday() {
   return useQuery({
     queryKey: ['energy', 'today'],
     queryFn: api.getToday,
+    refetchInterval: REFRESH_INTERVAL,
   })
 }
 
-/**
- * Returns 5-minute power snapshots for a date range (max 7 days).
- * Only runs when startDate is provided.
- * @param {string} startDate - Start date in YYYY-MM-DD format
- * @param {string} endDate - End date in YYYY-MM-DD format
- */
 export function useHistory(startDate, endDate) {
+  const today = new Date()
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+  const isToday = startDate === todayStr
+
   return useQuery({
     queryKey: ['energy', 'history', startDate, endDate],
     queryFn: () => api.getHistory(startDate, endDate),
     enabled: !!startDate,
+    refetchInterval: isToday ? REFRESH_INTERVAL : false,
   })
 }
 
-/**
- * Returns aggregated energy totals by day, month or year.
- * Only runs when startDate and timeUnit are provided.
- * @param {string} startDate - Start date in YYYY-MM-DD format
- * @param {string} endDate - End date in YYYY-MM-DD format
- * @param {string} timeUnit - Granularity: 'day', 'month' or 'year'
- */
 export function useAggregate(startDate, endDate, timeUnit) {
   return useQuery({
     queryKey: ['energy', 'aggregate', startDate, endDate, timeUnit],
     queryFn: () => api.getAggregate(startDate, endDate, timeUnit),
     enabled: !!startDate && !!timeUnit,
+    refetchInterval: REFRESH_INTERVAL,
   })
 }
 
-/**
- * Returns inverter technical details — model, firmware, status.
- */
 export function useDeviceDetail() {
   return useQuery({
     queryKey: ['device', 'detail'],
     queryFn: api.getDeviceDetail,
+    refetchInterval: REFRESH_INTERVAL,
   })
 }
 
-/**
- * Returns all inverter settings.
- */
 export function useDeviceSettings() {
   return useQuery({
     queryKey: ['device', 'settings'],
@@ -91,14 +72,10 @@ export function useDeviceSettings() {
   })
 }
 
-/**
- * Returns list of all devices connected to the plant.
- * Cached for 1 hour since the device list rarely changes.
- */
 export function useDeviceList() {
   return useQuery({
     queryKey: ['device', 'list'],
     queryFn: api.getDeviceList,
-    staleTime: 60 * 60 * 1000,
+    refetchInterval: REFRESH_INTERVAL,
   })
 }
