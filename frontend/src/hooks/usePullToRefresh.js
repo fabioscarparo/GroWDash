@@ -35,6 +35,10 @@ export function usePullToRefresh(onRefresh) {
       // Prevent native scroll while pulling
       e.preventDefault()
       const eased = THRESHOLD * (1 - Math.exp(-delta / (THRESHOLD * 2)))
+      // Haptic feedback when threshold is first crossed
+        if (eased >= THRESHOLD * 0.9 && pullDistanceRef.current < THRESHOLD * 0.9) {
+        navigator.vibrate?.(10)
+        }
       pullDistanceRef.current = eased
       setPulling(true)
       setPullDistance(eased)

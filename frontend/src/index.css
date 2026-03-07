@@ -157,4 +157,23 @@
     0%   { opacity: 0; transform: translateX(-4px); }
     100% { opacity: 1; transform: translateX(0); }
   }
+
+  /* Swipe animations */
+  @keyframes slide-in-left {
+    from { transform: translateX(40px); opacity: 0; }
+    to   { transform: translateX(0);    opacity: 1; }
+  }
+
+  @keyframes slide-in-right {
+    from { transform: translateX(-40px); opacity: 0; }
+    to   { transform: translateX(0);     opacity: 1; }
+  }
+
+  .animate-slide-in-left {
+    animation: slide-in-left 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  }
+
+  .animate-slide-in-right {
+    animation: slide-in-right 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  }
 }
