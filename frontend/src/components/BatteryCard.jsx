@@ -73,8 +73,8 @@ export default function BatteryCard({
   const currentPowerKw = ((chargeW > 0 ? chargeW : dischargeW) / 1000).toFixed(2)
 
   return (
-    <Card>
-      <CardHeader className="pt-0.1">
+    <Card  className="gap-2">
+      <CardHeader>
         <div className="flex items-center justify-between">
           {/* Title with battery icon */}
           <div className="flex items-center gap-2">

@@ -130,7 +130,7 @@ export default function PowerFlowCard({
   })
 
   return (
-    <Card>
+    <Card className="gap-2">
       <CardHeader>
         <div className="flex items-center gap-2">
           <Zap size={16} className="text-muted-foreground" />
