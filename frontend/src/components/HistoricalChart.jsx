@@ -163,7 +163,7 @@ export default function HistoricalChart() {
         ) : chartData.length === 0 ? (
           <p className="text-sm text-muted-foreground">No data available.</p>
         ) : (
-          <ChartContainer config={chartConfig} className="h-[200px] w-full">
+          <ChartContainer config={chartConfig} className="h-50 w-full">
             <BarChart data={chartData} barCategoryGap="20%">
               <CartesianGrid vertical={false} stroke="hsl(var(--border))" strokeDasharray="3 3" />
               <XAxis

@@ -47,18 +47,18 @@ const INV     = { x: CX,          y: CY }
  * @returns {object} Color map for light or dark mode
  */
 function getColors() {
-  const dark = window.matchMedia('(prefers-color-scheme: dark)').matches
+  const dark = document.documentElement.classList.contains('dark')
   return dark ? {
-    foreground:      '#f0f4f8',
-    mutedForeground: '#8899aa',
-    muted:           '#1c2a3f',
-    border:          '#2a3f55',
+    foreground:      'oklch(0.985 0 0)',     // --foreground dark
+    mutedForeground: 'oklch(0.708 0 0)',     // --muted-foreground dark
+    muted:           'oklch(0.269 0 0)',     // --muted dark
+    border:          'oklch(0.4 0 0)',       // --border dark (opacizzato)
     primary:         '#006fff',
   } : {
-    foreground:      '#0d1117',
-    mutedForeground: '#6b7280',
-    muted:           '#eef0f2',
-    border:          '#d1d5db',
+    foreground:      'oklch(0.145 0 0)',     // --foreground light
+    mutedForeground: 'oklch(0.556 0 0)',     // --muted-foreground light
+    muted:           'oklch(0.97 0 0)',      // --muted light
+    border:          'oklch(0.922 0 0)',     // --border light
     primary:         '#006fff',
   }
 }
@@ -88,10 +88,12 @@ export default function PowerFlowCard({
   const [colors, setColors] = useState(getColors)
 
   useEffect(() => {
-    const media = window.matchMedia('(prefers-color-scheme: dark)')
-    const handler = () => setColors(getColors())
-    media.addEventListener('change', handler)
-    return () => media.removeEventListener('change', handler)
+    const observer = new MutationObserver(() => setColors(getColors()))
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class'],
+    })
+    return () => observer.disconnect()
   }, [])
 
   // ── Flow state ─────────────────────────────────────────────────────────────
@@ -99,6 +101,7 @@ export default function PowerFlowCard({
   const solarActive        = solarW > 0
   const batteryActive      = batteryChargeW > 0 || batteryDischargeW > 0
   const batteryDischarging = batteryDischargeW > 0
+  const batteryCharging    = batteryChargeW > 0
   const gridActive         = gridExportW > 0 || gridImportW > 0
   const gridImporting      = gridImportW > 0
   const homeActive         = homeW > 0
@@ -168,7 +171,7 @@ export default function PowerFlowCard({
           <line
             x1={BATTERY.x + R} y1={BATTERY.y}
             x2={INV.x - R}     y2={INV.y}
-            style={lineStyle(batteryActive, batteryDischarging)}
+            style={lineStyle(batteryActive, batteryCharging)}
           />
 
           {/* Inverter ↔ Grid — reversed when importing from grid */}

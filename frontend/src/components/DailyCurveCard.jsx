@@ -84,7 +84,7 @@ export default function DailyCurveCard() {
         ) : chartData.length === 0 ? (
           <p className="text-sm text-muted-foreground">No data yet for today.</p>
         ) : (
-          <ChartContainer config={chartConfig} className="h-[220px] w-full">
+          <ChartContainer config={chartConfig} className="h-55 w-full">
             <AreaChart data={chartData} margin={{ left: 0, right: 0 }}>
 
               {/* Gradient definitions — one per series */}
