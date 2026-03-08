@@ -30,7 +30,7 @@ export default function SeriesToggle({ label, color, active, onClick }) {
     >
       {active && (
         <span
-          className="inline-block w-2 h-2 rounded-full flex-shrink-0"
+          className="inline-block w-2 h-2 rounded-full shrink-0"
           style={{ background: color }}
         />
       )}

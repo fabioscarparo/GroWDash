@@ -115,14 +115,24 @@
 }
 
 @layer base {
+
+  /* Apply border color and focus ring to all elements by default. */
   * {
     @apply border-border outline-ring/50;
   }
+
+  /* Apply base background and text color to the document body. */
   body {
     @apply bg-background text-foreground;
   }
-  
-  /* Smooth transition when switching theme */
+
+  /*
+   * Smooth theme transition.
+   * When the .dark class is toggled on <html>, background, text and border
+   * colors transition gradually instead of snapping instantly.
+   * The transition on <html> covers the root background, while the wildcard
+   * rule covers all child elements.
+   */
   html {
     transition:
       background-color 0.3s ease,
@@ -136,44 +146,85 @@
       color 0.3s ease;
   }
 
-  /* Pull-to-refresh animations */
+  /*
+   * Pull-to-refresh animations.
+   * Used by Overview.jsx to animate the refresh indicator pill.
+   *
+   * ptr-wiggle  — icon shakes when the pull threshold is reached
+   * ptr-pop     — pill scales up slightly as a confirmation bounce
+   * ptr-text-in — label slides in horizontally when the text changes
+   */
   @keyframes ptr-wiggle {
-    0%   { transform: rotate(0deg); }
+    0%   { transform: rotate(0deg);   }
     20%  { transform: rotate(-15deg); }
-    40%  { transform: rotate(12deg); }
-    60%  { transform: rotate(-8deg); }
-    80%  { transform: rotate(5deg); }
-    100% { transform: rotate(0deg); }
+    40%  { transform: rotate(12deg);  }
+    60%  { transform: rotate(-8deg);  }
+    80%  { transform: rotate(5deg);   }
+    100% { transform: rotate(0deg);   }
   }
 
   @keyframes ptr-pop {
-    0%   { transform: scale(1); }
+    0%   { transform: scale(1);    }
     40%  { transform: scale(1.08); }
     70%  { transform: scale(0.97); }
-    100% { transform: scale(1); }
+    100% { transform: scale(1);    }
   }
 
   @keyframes ptr-text-in {
     0%   { opacity: 0; transform: translateX(-4px); }
-    100% { opacity: 1; transform: translateX(0); }
+    100% { opacity: 1; transform: translateX(0);    }
   }
 
-  /* Swipe animations */
+  /*
+   * Page transition animations.
+   * Used by App.jsx when navigating between pages.
+   *
+   * Mobile: full-width slide — the outgoing page exits while the incoming
+   * page enters simultaneously, both travelling in the same direction.
+   * A subtle opacity change (1 ↔ 0.6) adds depth to the transition.
+   *
+   * Desktop (md+): simple fade — more appropriate for a sidebar layout
+   * where pages don't conceptually "stack" horizontally.
+   *
+   * Direction convention:
+   *   forward navigation (higher index) → slides/fades left
+   *   backward navigation (lower index) → slides/fades right
+   */
   @keyframes slide-in-left {
-    from { transform: translateX(40px); opacity: 0; }
-    to   { transform: translateX(0);    opacity: 1; }
+    from { transform: translateX(100%);  opacity: 0.6; }
+    to   { transform: translateX(0);     opacity: 1;   }
   }
 
   @keyframes slide-in-right {
-    from { transform: translateX(-40px); opacity: 0; }
-    to   { transform: translateX(0);     opacity: 1; }
+    from { transform: translateX(-100%); opacity: 0.6; }
+    to   { transform: translateX(0);     opacity: 1;   }
   }
 
-  .animate-slide-in-left {
-    animation: slide-in-left 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  @keyframes slide-out-left {
+    from { transform: translateX(0);     opacity: 1;   }
+    to   { transform: translateX(-100%); opacity: 0.6; }
   }
 
-  .animate-slide-in-right {
-    animation: slide-in-right 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  @keyframes slide-out-right {
+    from { transform: translateX(0);    opacity: 1;   }
+    to   { transform: translateX(100%); opacity: 0.6; }
   }
+
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+
+  @keyframes fade-out {
+    from { opacity: 1; }
+    to   { opacity: 0; }
+  }
+
+  .animate-slide-in-left   { animation: slide-in-left   0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94); }
+  .animate-slide-in-right  { animation: slide-in-right  0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94); }
+  .animate-slide-out-left  { animation: slide-out-left  0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94); }
+  .animate-slide-out-right { animation: slide-out-right 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94); }
+  .animate-fade-in         { animation: fade-in         0.2s ease-out; }
+  .animate-fade-out        { animation: fade-out        0.2s ease-out; }
+
 }
