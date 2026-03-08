@@ -183,12 +183,8 @@ export default function EnergyBreakdownCard({ today }) {
    */
   const systemOutput = selfConsumed + gridExported
 
-  /**
-   * Solar energy consumed directly by home loads.
-   * Excludes energy that went to the battery or was exported.
-   * Clamped to 0 to avoid negative values from rounding.
-   */
-  const solarDirect = Math.max(solar - gridExported - batCharged, 0)
+  // selfConsumed already includes battery discharge, so subtract it to get solar-only portion
+  const solarDirect = Math.max(selfConsumed - batDischarged, 0)
 
   // ── Render ──────────────────────────────────────────────────────────────────
 
