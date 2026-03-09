@@ -5,7 +5,7 @@
  * to match the Growatt API update interval.
  */
 
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, keepPreviousData } from '@tanstack/react-query'
 import { api } from '../api/growatt'
 
 // 5 minutes in milliseconds — matches Growatt API update interval
@@ -52,8 +52,25 @@ export function useAggregate(startDate, endDate, timeUnit) {
   return useQuery({
     queryKey: ['energy', 'aggregate', startDate, endDate, timeUnit],
     queryFn: () => api.getAggregate(startDate, endDate, timeUnit),
-    enabled: !!startDate && !!timeUnit,
+    enabled: !!startDate && !!endDate && !!timeUnit,
     refetchInterval: REFRESH_INTERVAL,
+  })
+}
+
+/**
+ * Returns daily energy breakdown for all power flows, reconstructed
+ * from 5-minute snapshots. Supports arbitrary date ranges — the service
+ * layer handles chunking automatically.
+ *
+ * @param {string} startDate - Start date in YYYY-MM-DD format
+ * @param {string} endDate   - End date in YYYY-MM-DD format
+ */
+export function useDailyBreakdown(startDate, endDate) {
+  return useQuery({
+    queryKey: ['energy', 'daily-breakdown', startDate, endDate],
+    queryFn: () => api.getDailyBreakdown(startDate, endDate),
+    enabled: !!startDate && !!endDate,
+    placeholderData: keepPreviousData,
   })
 }
 

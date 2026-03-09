@@ -16,6 +16,9 @@ import { useOverview } from '../hooks/useGrowatt'
 import { Card, CardContent } from '@/components/ui/card'
 import { Calendar, CalendarDays, Zap } from 'lucide-react'
 import HistoricalChart from '../components/HistoricalChart'
+import EnergyBreakdownChart from '../components/EnergyBreakdownChart'
+import SelfSufficiencyChart from '../components/SelfSufficiencyChart'
+
 
 // ── KPI Card ──────────────────────────────────────────────────────────────────
 
@@ -80,6 +83,11 @@ export default function History() {
 
         {/* Historical bar chart */}
         <HistoricalChart />
+
+        {/* Full energy breakdown — all flows, day by day, month navigation */}
+        <EnergyBreakdownChart />
+
+        <SelfSufficiencyChart />
 
       </div>
     </div>

@@ -3,9 +3,11 @@
  *
  * Displays a summary of the current state of the PV system:
  * - Header with plant name, capacity, serial number and online status
+ * - Weather card
  * - KPI cards: today's production and CO2 saved
- * - Power Flow widget: live power values for all four system nodes
- * - Battery status card: SOC, charge/discharge totals
+ * - Power Flow + Daily Curve side by side on desktop, stacked on mobile
+ * - Energy Breakdown card
+ * - SOC Curve + Battery side by side on desktop, stacked on mobile
  */
 
 import { useCallback, useState } from 'react'
@@ -23,7 +25,7 @@ import { useWeather } from '../hooks/useWeather'
 import WeatherCard from '../components/WeatherCard'
 import EnergyBreakdownCard from '../components/EnergyBreakdownCard'
 
-// ── Header ───────────────────────────────────────────────────────────────────
+// ── Header ────────────────────────────────────────────────────────────────────
 
 function Header({ plantName, plantCapacityKw, serialNumber, isOnline, lastUpdate }) {
   return (
@@ -58,7 +60,7 @@ function Header({ plantName, plantCapacityKw, serialNumber, isOnline, lastUpdate
   )
 }
 
-// ── KPI Cards ────────────────────────────────────────────────────────────────
+// ── KPI Card ──────────────────────────────────────────────────────────────────
 
 function KpiCard({ icon, label, value, unit, sublabel }) {
   return (
@@ -71,12 +73,8 @@ function KpiCard({ icon, label, value, unit, sublabel }) {
           </p>
         </div>
         <div className="flex items-baseline gap-1">
-          <span className="text-2xl font-bold text-foreground">
-            {value ?? '—'}
-          </span>
-          {unit && (
-            <span className="text-sm text-muted-foreground">{unit}</span>
-          )}
+          <span className="text-2xl font-bold text-foreground">{value ?? '—'}</span>
+          {unit && <span className="text-sm text-muted-foreground">{unit}</span>}
         </div>
         {sublabel && (
           <p className="text-xs text-muted-foreground mt-0.5">{sublabel}</p>
@@ -86,20 +84,20 @@ function KpiCard({ icon, label, value, unit, sublabel }) {
   )
 }
 
-// ── Main page ────────────────────────────────────────────────────────────────
+// ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function Overview() {
-  const { data: plantInfo } = usePlantInfo()
-  const { data: overview } = useOverview()
-  const { data: today } = useToday()
+  const { data: plantInfo }  = usePlantInfo()
+  const { data: overview }   = useOverview()
+  const { data: today }      = useToday()
   const { data: deviceList } = useDeviceList()
   const { data: weatherData } = useWeather(plantInfo?.latitude, plantInfo?.longitude)
 
-  const inverter = deviceList?.devices?.find(d => d.type === 7)
-  const isOnline = inverter?.is_online ?? false
+  const inverter     = deviceList?.devices?.find(d => d.type === 7)
+  const isOnline     = inverter?.is_online ?? false
   const serialNumber = inverter?.serial_number
 
-  // ── Pull-to-refresh ─────────────────────────────────────────────────────
+  // ── Pull-to-refresh ───────────────────────────────────────────────────────
 
   const queryClient = useQueryClient()
   const [lastUpdate, setLastUpdate] = useState(() => {
@@ -171,33 +169,42 @@ export default function Overview() {
       />
 
       <div className="px-4 flex flex-col gap-3 pb-4">
+
         <WeatherCard data={weatherData} />
+
+        {/* KPI cards */}
         <div className="grid grid-cols-2 gap-3">
-          <KpiCard icon={<Sun size={16} />} label="Today" value={overview?.today_energy_kwh} unit="kWh" />
-          <KpiCard icon={<Leaf size={16} />} label="CO₂ saved" value={overview?.carbon_offset_kg} unit="kg" />
+          <KpiCard icon={<Sun size={16} />}  label="Solar Production" value={overview?.today_energy_kwh} unit="kWh" />
+          <KpiCard icon={<Leaf size={16} />} label="Total CO₂ saved"  value={overview?.carbon_offset_kg} unit="kg" />
         </div>
-        <PowerFlowCard
-          solarW={today?.flow?.live?.solar_w}
-          homeW={today?.flow?.live?.home_w}
-          batteryChargeW={today?.flow?.live?.battery_charge_w}
-          batteryDischargeW={today?.flow?.live?.battery_discharge_w}
-          gridExportW={today?.flow?.live?.grid_export_w}
-          gridImportW={today?.flow?.live?.grid_import_w}
-        />
-        <DailyCurveCard />
+
+        {/* Power Flow + Daily Curve — side by side on desktop */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <PowerFlowCard
+            solarW={today?.flow?.live?.solar_w}
+            homeW={today?.flow?.live?.home_w}
+            batteryChargeW={today?.flow?.live?.battery_charge_w}
+            batteryDischargeW={today?.flow?.live?.battery_discharge_w}
+            gridExportW={today?.flow?.live?.grid_export_w}
+            gridImportW={today?.flow?.live?.grid_import_w}
+          />
+          <DailyCurveCard />
+        </div>
 
         <EnergyBreakdownCard today={today?.flow?.today} />
 
-        <SOCCurveCard />
-        
-        <BatteryCard
-          socPct={today?.battery?.soc_pct}
-          chargeW={today?.flow?.live?.battery_charge_w}
-          dischargeW={today?.flow?.live?.battery_discharge_w}
-          chargedTodayKwh={today?.battery?.charge_today_kwh}
-          dischargedTodayKwh={today?.battery?.discharge_today_kwh}
-        />
-        
+        {/* SOC Curve + Battery — side by side on desktop */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <BatteryCard
+            socPct={today?.battery?.soc_pct}
+            chargeW={today?.flow?.live?.battery_charge_w}
+            dischargeW={today?.flow?.live?.battery_discharge_w}
+            chargedTodayKwh={today?.battery?.charge_today_kwh}
+            dischargedTodayKwh={today?.battery?.discharge_today_kwh}
+          />
+          <SOCCurveCard />
+        </div>
+
       </div>
     </div>
   )

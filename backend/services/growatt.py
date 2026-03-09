@@ -58,24 +58,28 @@ def get_api() -> growattServer.OpenApiV1:
 _cache: dict = {}
 _cache_lock = threading.Lock()
 
-def ttl_cache(key_fn=None):
+CACHE_TTL         = 300       # 5 minutes — current data
+CACHE_TTL_LONG    = 86400     # 24 hours  — historical data that will not change
+
+def ttl_cache(key_fn=None, ttl=CACHE_TTL):
     """
     Decorator that adds a TTL-based in-memory cache to a function.
 
-    Cache entries expire after CACHE_TTL seconds. The cache key is computed
+    Cache entries expire after `ttl` seconds. The cache key is computed
     by key_fn(args, kwargs) if provided, otherwise by the function name
     and its arguments.
 
     Args:
         key_fn: Optional callable that receives (args, kwargs) and returns
-                a string cache key. Useful for functions with complex or
-                date-based arguments.
+                a string cache key.
+        ttl:    Cache lifetime in seconds. Defaults to CACHE_TTL (5 min).
+                Pass CACHE_TTL_LONG (24h) for historical data that never changes.
 
     Usage:
         @ttl_cache()
         def get_something(): ...
 
-        @ttl_cache(key_fn=lambda a, k: f"prefix:{a[0]}:{a[1]}")
+        @ttl_cache(key_fn=lambda a, k: f"prefix:{a[0]}:{a[1]}", ttl=CACHE_TTL_LONG)
         def get_something_by_date(start, end): ...
     """
     def decorator(func):
@@ -85,14 +89,14 @@ def ttl_cache(key_fn=None):
 
             with _cache_lock:
                 if cache_key in _cache:
-                    value, ts = _cache[cache_key]
-                    if time.time() - ts < CACHE_TTL:
+                    value, ts, entry_ttl = _cache[cache_key]
+                    if time.time() - ts < entry_ttl:
                         return value
 
             result = func(*args, **kwargs)
 
             with _cache_lock:
-                _cache[cache_key] = (result, time.time())
+                _cache[cache_key] = (result, time.time(), ttl)
 
             return result
         return wrapper
@@ -387,6 +391,123 @@ def get_plant_energy_history(
             complete.append({"date": key, "energy": energy_map.get(key, "0")})
 
     return complete
+
+
+def get_daily_energy_breakdown(start_date: date, end_date: date) -> list:
+    """
+    Returns daily energy totals by reading the *Today cumulative counters
+    from the last 5-minute snapshot of each day.
+
+    These counters (eacToday, elocalLoadToday, etc.) reset at midnight and
+    are updated by the inverter's internal energy meter — the same source
+    used by the ShinePhone app. Taking the last snapshot of each day gives
+    exact daily totals with no integration error.
+
+    Args:
+        start_date: Start date of the range.
+        end_date:   End date of the range (clamped to today).
+
+    Returns:
+        list: One record per day with solar, home, grid, battery and
+              self-consumption totals in kWh, ordered chronologically.
+    """
+    end_date = min(end_date, date.today())
+
+    cache_key = f"daily_breakdown:{start_date}:{end_date}"
+    now = time.time()
+    if cache_key in _cache:
+        value, ts, ttl = _cache[cache_key]
+        if now - ts < ttl:
+            return value
+
+    today = date.today()
+    is_current_period = (
+        end_date.year == today.year and end_date.month == today.month
+    )
+    cache_ttl = CACHE_TTL if is_current_period else CACHE_TTL_LONG
+
+    def fetch_chunk(chunk_start, chunk_end):
+        """Fetch all snapshots for a ≤7-day chunk, return only *Today fields."""
+        api = growattServer.OpenApiV1(GROWATT_TOKEN)
+        snapshots = []
+        page = 1
+        while True:
+            result = api.min_energy_history(
+                GROWATT_DEVICE_SN,
+                start_date=chunk_start,
+                end_date=chunk_end,
+                page=page,
+                limit=100,
+            )
+            raw_data = result.get("datas", [])
+            if not raw_data:
+                break
+            for r in raw_data:
+                snapshots.append({
+                    "time":                   r.get("time", ""),
+                    "eacToday":               float(r.get("eacToday") or 0),
+                    "elocalLoadToday":        float(r.get("elocalLoadToday") or 0),
+                    "etoUserToday":           float(r.get("etoUserToday") or 0),
+                    "etoGridToday":           float(r.get("etoGridToday") or 0),
+                    "echargeToday":           float(r.get("echargeToday") or 0),
+                    "edischargeToday":        float(r.get("edischargeToday") or 0),
+                    "eselfToday":             float(r.get("eselfToday") or 0),
+                })
+            total = result.get("count", 0)
+            if page * 100 >= total:
+                break
+            page += 1
+        return snapshots
+
+    # Split the range into ≤7-day chunks and fetch in parallel
+    chunks = []
+    chunk_start = start_date
+    while chunk_start <= end_date:
+        chunks.append((chunk_start, min(chunk_start + timedelta(days=6), end_date)))
+        chunk_start += timedelta(days=7)
+
+    all_snapshots = []
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        for snapshots in executor.map(lambda c: fetch_chunk(*c), chunks):
+            all_snapshots.extend(snapshots)
+
+    # For each day keep only the snapshot with the latest timestamp.
+    # That snapshot's *Today counters = the final daily total.
+    by_date: dict[str, dict] = {}
+    for snap in all_snapshots:
+        day = snap["time"][:10]  # "2026-03-09"
+        if day not in by_date or snap["time"] > by_date[day]["time"]:
+            by_date[day] = snap
+
+    # Build a complete, gap-free series
+    result = []
+    current = start_date
+    while current <= end_date:
+        key = current.strftime("%Y-%m-%d")
+        if key in by_date:
+            s = by_date[key]
+            result.append({
+                "date":                   key,
+                "solar_kwh":              round(s["eacToday"], 2),
+                "home_kwh":               round(s["elocalLoadToday"], 2),
+                "grid_import_kwh":        round(s["etoUserToday"], 2),
+                "grid_export_kwh":        round(s["etoGridToday"], 2),
+                "battery_charged_kwh":    round(s["echargeToday"], 2),
+                "battery_discharged_kwh": round(s["edischargeToday"], 2),
+                "self_consumed_kwh":      round(s["eselfToday"], 2),
+            })
+        else:
+            result.append({
+                "date": key,
+                "solar_kwh": 0, "home_kwh": 0,
+                "grid_import_kwh": 0, "grid_export_kwh": 0,
+                "battery_charged_kwh": 0, "battery_discharged_kwh": 0,
+                "self_consumed_kwh": 0,
+            })
+        current += timedelta(days=1)
+
+    _cache[cache_key] = (result, now, cache_ttl)
+    return result
 
 
 @ttl_cache()

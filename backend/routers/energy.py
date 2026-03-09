@@ -1,251 +1,272 @@
 """
-Router per i dati energetici dell'impianto fotovoltaico.
-=========================================================
-Espone gli endpoint relativi alla produzione di energia,
-alla curva di potenza giornaliera e ai dati storici.
+Energy router for the PV plant.
+=================================
+Exposes all endpoints related to energy production, live power flow,
+daily power curves and historical data.
 
-Endpoints disponibili:
-    GET /energy/overview  → KPI aggregati: oggi, mese, anno, totale, CO₂
-    GET /energy/today     → Flusso energetico live e totali giornalieri
-    GET /energy/history   → Serie storica snapshot ogni 5 minuti (max 7 giorni)
-    GET /energy/aggregate → Storia energetica aggregata per giorno/mese/anno
+Available endpoints:
+    GET /energy/overview        → Aggregated KPIs: today, month, year, total, CO₂
+    GET /energy/today           → Live power flow and daily energy totals
+    GET /energy/history         → 5-minute power snapshots (max 7 days)
+    GET /energy/aggregate       → Solar energy history aggregated by day, month or year
+    GET /energy/daily-breakdown → Full energy breakdown by day, reconstructed from snapshots
 """
 
 from fastapi import APIRouter, HTTPException, Query
 from datetime import date
-from services.growatt import get_energy_today, get_energy_history, get_plant_energy_history, get_plant_energy_overview
-
-# Crea il router con prefisso /energy
-# Tutti gli endpoint di questo file saranno raggiungibili sotto /energy/...
-router = APIRouter(
-    prefix="/energy",
-    tags=["Energia"],
+from services.growatt import (
+    get_energy_today,
+    get_energy_history,
+    get_plant_energy_history,
+    get_plant_energy_overview,
+    get_daily_energy_breakdown,
 )
 
-@router.get("/overview", summary="Panoramica energetica impianto")
+router = APIRouter(
+    prefix="/energy",
+    tags=["Energy"],
+)
+
+
+@router.get("/overview", summary="Plant energy overview")
 def energy_overview():
     """
-    Restituisce la panoramica energetica aggregata dell'impianto.
+    Returns aggregated energy KPIs for the PV plant.
 
-    Campi restituiti:
-
-        today_energy_kwh    — energia prodotta oggi (kWh)
-        monthly_energy_kwh  — energia prodotta questo mese (kWh)
-        yearly_energy_kwh   — energia prodotta quest'anno (kWh)
-        total_energy_kwh    — energia totale prodotta da sempre (kWh)
-        current_power_w     — potenza attuale in uscita dall'impianto (W)
-        carbon_offset_kg    — CO₂ risparmiata calcolata con fattore europeo 0.4 kg/kWh
-        plant_capacity_kw   — potenza di picco dell'impianto (kW)
-        timezone            — fuso orario dell'impianto
-        last_update         — timestamp dell'ultimo aggiornamento
+    Fields:
+        today_energy_kwh    — energy produced today (kWh)
+        monthly_energy_kwh  — energy produced this month (kWh)
+        yearly_energy_kwh   — energy produced this year (kWh)
+        total_energy_kwh    — total lifetime energy produced (kWh)
+        current_power_w     — current output power from the plant (W)
+        carbon_offset_kg    — CO₂ saved, using the European emission factor
+                              of 0.4 kg/kWh. Growatt returns a value based on
+                              the Chinese factor (~0.168 kg/kWh), so we
+                              recalculate it from total lifetime energy.
+        plant_capacity_kw   — peak power capacity of the plant (kWp)
+        timezone            — plant timezone
+        last_update         — timestamp of the last data update
     """
     data = get_plant_energy_overview()
 
     if not data:
-        raise HTTPException(status_code=404, detail="Dati non disponibili")
+        raise HTTPException(status_code=404, detail="Data not available")
 
     return {
-        "today_energy_kwh": data.get("today_energy"),
+        "today_energy_kwh":   data.get("today_energy"),
         "monthly_energy_kwh": data.get("monthly_energy"),
-        "yearly_energy_kwh": data.get("yearly_energy"),
-        "total_energy_kwh": data.get("total_energy"),
-        "current_power_w": data.get("current_power"),
-
-        # CO₂ risparmiata calcolata con il fattore di emissione europeo (0.4 kg/kWh).
-        # Il valore restituito da Growatt usa il fattore cinese (circa 0.168 kg/kWh)
-        # quindi lo ricalcoliamo dall'energia totale prodotta.
-        "carbon_offset_kg": round(float(data.get("total_energy") or 0) * 0.4, 1),
-
-        "plant_capacity_kw": data.get("peak_power_actual"),
-        "timezone": data.get("timezone"),
-        "last_update": data.get("last_update_time"),
+        "yearly_energy_kwh":  data.get("yearly_energy"),
+        "total_energy_kwh":   data.get("total_energy"),
+        "current_power_w":    data.get("current_power"),
+        "carbon_offset_kg":   round(float(data.get("total_energy") or 0) * 0.4, 1),
+        "plant_capacity_kw":  data.get("peak_power_actual"),
+        "timezone":           data.get("timezone"),
+        "last_update":        data.get("last_update_time"),
     }
 
-@router.get("/today", summary="Dati energetici di oggi incluso il flusso energetico live")
+
+@router.get("/today", summary="Today's energy data including live power flow")
 def energy_today():
     """
-    Restituisce il flusso energetico live e i totali del giorno corrente.
+    Returns the live power flow and daily energy totals for the current day.
 
-    Sezioni:
+    Sections:
+        flow.live    — instantaneous power values (W) for the Power Flow widget
+        flow.today   — cumulative daily energy totals (kWh) for all four nodes
+        battery      — state of charge, charge/discharge totals
+        grid         — grid voltage and frequency
 
-        flow.live    — potenze istantanee (W) per il widget Power Flow
-        flow.today   — totali energetici giornalieri (kWh) per i quattro nodi
-        battery      — stato di carica, totali carica/scarica
-        grid         — tensione e frequenza di rete
-
-    Nomenclatura dei campi API Growatt:
-
-        ppv                = Power PV — potenza DC prodotta dai pannelli solari (W)
-                             È la vera produzione solare, indipendente da batteria e carichi.
-                             pac è la potenza AC in uscita dall'inverter — non la usiamo
-                             perché esclude la quota che carica la batteria in DC.
-        ppv1               = potenza DC stringa 1 (W)
-        ppv2               = potenza DC stringa 2 (W)
-        pac                = Power AC — potenza AC in uscita dall'inverter (W)
-        pacToLocalLoad     = potenza verso i carichi domestici (W)
-        pacToGridTotal     = potenza esportata in rete (W)
-        pacToUserTotal     = potenza importata dalla rete (W)
-        bdc1ChargePower    = Battery DC Charge Power — potenza di carica batteria (W)
-        bdc1DischargePower = Battery DC Discharge Power — potenza di scarica batteria (W)
-        bmsSoc             = Battery Management System State of Charge — SOC in % (0-100)
+    Growatt API field reference:
+        ppv                → DC power from PV panels (W) — true solar production.
+                             We use ppv instead of pac (AC inverter output) because
+                             pac excludes the portion that charges the battery in DC.
+        pacToLocalLoad     → power delivered to home loads (W)
+        pacToGridTotal     → power exported to the grid (W)
+        pacToUserTotal     → power imported from the grid (W)
+        bdc1ChargePower    → battery DC charge power (W)
+        bdc1DischargePower → battery DC discharge power (W)
+        bmsSoc             → battery state of charge (0–100%)
+        eacToday           → solar energy produced today (kWh)
+        elocalLoadToday    → home energy consumed today (kWh)
+        echargeToday       → energy charged into battery today (kWh)
+        edischargeToday    → energy discharged from battery today (kWh)
+        etoGridToday       → energy exported to grid today (kWh)
+        etoUserToday       → energy imported from grid today (kWh)
+        eselfToday         → self-consumed energy today (kWh)
+                             = solar direct to loads + battery discharge.
+                             This is NOT equal to solar production alone.
+        eacTotal           → total lifetime energy produced by the plant (kWh)
     """
     data = get_energy_today()
 
     if not data:
-        raise HTTPException(status_code=404, detail="Dati non disponibili")
+        raise HTTPException(status_code=404, detail="Data not available")
 
     return {
-        # ── Flusso energetico live (W) ────────────────────────────────────────
-        # Potenze istantanee — aggiornate ogni 5 minuti.
-        # Di notte tutti i valori sono 0 (inverter in standby).
         "flow": {
+
+            # Instantaneous power values — updated every 5 minutes.
+            # All values are 0 at night when the inverter is in standby.
             "live": {
-                # ppv = Power PV — vera potenza DC prodotta dai pannelli solari.
-                # Non usiamo pac (Power AC) perché è la potenza in uscita dall'inverter
-                # e non include la quota che va direttamente a caricare la batteria in DC.
-                "solar_w": data.get("ppv", 0),
-
-                # Potenza attualmente consumata dai carichi domestici
-                "home_w": data.get("pacToLocalLoad", 0),
-
-                # Potenza in entrata nella batteria (0 se non sta caricando)
-                "battery_charge_w": data.get("bdc1ChargePower", 0),
-
-                # Potenza in uscita dalla batteria (0 se non sta scaricando)
+                "solar_w":             data.get("ppv", 0),
+                "home_w":              data.get("pacToLocalLoad", 0),
+                "battery_charge_w":    data.get("bdc1ChargePower", 0),
                 "battery_discharge_w": data.get("bdc1DischargePower", 0),
-
-                # Potenza esportata nella rete pubblica (0 se sta importando)
-                "grid_export_w": data.get("pacToGridTotal", 0),
-
-                # Potenza importata dalla rete pubblica (0 se sta esportando)
-                "grid_import_w": data.get("pacToUserTotal", 0),
+                "grid_export_w":       data.get("pacToGridTotal", 0),
+                "grid_import_w":       data.get("pacToUserTotal", 0),
             },
 
-            # ── Totali energetici giornalieri (kWh) ───────────────────────────
-            # Valori cumulativi dalla mezzanotte, si azzerano ogni giorno.
+            # Cumulative energy totals since midnight — reset to zero each day.
             "today": {
-                # Energia totale prodotta dai pannelli oggi
-                "solar_kwh": data.get("eacToday", 0),
-
-                # Energia totale consumata dai carichi domestici oggi
-                "home_kwh": data.get("elocalLoadToday", 0),
-
-                # Energia totale caricata nella batteria oggi
-                "battery_charged_kwh": data.get("echargeToday", 0),
-
-                # Energia totale scaricata dalla batteria oggi
+                "solar_kwh":              data.get("eacToday", 0),
+                "home_kwh":               data.get("elocalLoadToday", 0),
+                "battery_charged_kwh":    data.get("echargeToday", 0),
                 "battery_discharged_kwh": data.get("edischargeToday", 0),
-
-                # Energia totale esportata in rete oggi
-                "grid_exported_kwh": data.get("etoGridToday", 0),
-
-                # Energia totale importata dalla rete oggi
-                "grid_imported_kwh": data.get("etoUserToday", 0),
-
-                # Energia autoconsumata oggi (uso diretto + scarica batteria)
-                "self_consumed_kwh": data.get("eselfToday", 0),
-
-                # Energia totale prodotta dall'impianto da quando è attivo
-                "lifetime_solar_kwh": data.get("eacTotal", 0),
+                "grid_exported_kwh":      data.get("etoGridToday", 0),
+                "grid_imported_kwh":      data.get("etoUserToday", 0),
+                "self_consumed_kwh":      data.get("eselfToday", 0),
+                "lifetime_solar_kwh":     data.get("eacTotal", 0),
             },
         },
 
-        # ── Batteria ──────────────────────────────────────────────────────────
+        # Battery state of charge and daily charge/discharge totals.
         "battery": {
-            # Stato di carica in percentuale (0-100)
-            "soc_pct": data.get("bmsSoc"),
-
-            # kWh caricati nella batteria oggi
-            "charge_today_kwh": data.get("echargeToday"),
-
-            # kWh scaricati dalla batteria oggi
+            "soc_pct":             data.get("bmsSoc"),
+            "charge_today_kwh":    data.get("echargeToday"),
             "discharge_today_kwh": data.get("edischargeToday"),
-
-            # kWh totali caricati nella batteria da sempre
-            "charge_total_kwh": data.get("echargeTotal"),
-
-            # kWh totali scaricati dalla batteria da sempre
+            "charge_total_kwh":    data.get("echargeTotal"),
             "discharge_total_kwh": data.get("edischargeTotal"),
         },
 
-        # ── Rete elettrica ────────────────────────────────────────────────────
-        # Tensione e frequenza sono dati tecnici della rete, non energetici.
+        # Grid technical parameters — voltage and frequency.
         "grid": {
-            # Tensione di rete in Volt
-            "voltage_v": data.get("vac1"),
-
-            # Frequenza di rete in Hz
+            "voltage_v":    data.get("vac1"),
             "frequency_hz": data.get("fac"),
         },
     }
 
 
-@router.get("/history", summary="Curva di produzione giornaliera")
+@router.get("/history", summary="5-minute power snapshots for a date range")
 def energy_history(
     start_date: date = Query(
         default=None,
-        description="Data di inizio nel formato YYYY-MM-DD. Default: oggi."
+        description="Start date in YYYY-MM-DD format. Defaults to today."
     ),
     end_date: date = Query(
         default=None,
-        description="Data di fine nel formato YYYY-MM-DD. Massimo 7 giorni da start_date. Default: uguale a start_date."
+        description="End date in YYYY-MM-DD format. Maximum 7 days from start_date. Defaults to start_date."
     ),
 ):
     """
-    Restituisce la serie storica di snapshot ogni 5 minuti per un intervallo di date.
+    Returns a time series of 5-minute energy snapshots for a date range.
 
-    Ogni record contiene: timestamp, potenza istantanea, tensione e temperatura.
-    Massimo 7 giorni per chiamata (limite API Growatt).
-    Usato principalmente per costruire il grafico della curva di produzione giornaliera.
+    Each record contains: timestamp, instantaneous power flows (W),
+    grid voltage, inverter temperature and battery SOC.
+    Maximum 7 days per request (Growatt API limit).
+
+    Used to render the daily power curve chart (DailyCurveCard)
+    and the battery SOC curve chart (SOCCurveCard).
     """
     data = get_energy_history(start_date, end_date)
 
     if not data:
-        raise HTTPException(status_code=404, detail="Nessun dato storico disponibile")
+        raise HTTPException(status_code=404, detail="No historical data available")
 
     return {
         "start_date": str(start_date or date.today()),
-        "end_date": str(end_date or start_date or date.today()),
-        "count": len(data),
-        "data": data,
+        "end_date":   str(end_date or start_date or date.today()),
+        "count":      len(data),
+        "data":       data,
     }
 
 
-@router.get("/aggregate", summary="Storia energetica aggregata per periodo")
+@router.get("/aggregate", summary="Solar energy history aggregated by day, month or year")
 def plant_energy_aggregate(
-    start_date: date = Query(description="Data di inizio nel formato YYYY-MM-DD."),
-    end_date: date = Query(description="Data di fine nel formato YYYY-MM-DD."),
+    start_date: date = Query(description="Start date in YYYY-MM-DD format."),
+    end_date: date = Query(description="End date in YYYY-MM-DD format."),
     time_unit: str = Query(
         default="month",
-        description="Granularità: 'day' (max 7gg), 'month', 'year'."
+        description="Granularity: 'day' (max 7 days), 'month', or 'year'."
     ),
 ):
     """
-    Restituisce la storia energetica dell'impianto aggregata per periodo.
+    Returns the plant's solar energy history aggregated by period.
 
-    Granularità disponibili:
+    Available granularities:
+        day   — one record per day, maximum 7-day range per request
+        month — one record per month, no range limit
+        year  — one record per year, no range limit
 
-        day   — un record per giorno, intervallo massimo 7 giorni
-        month — un record per mese, nessun limite di intervallo
-        year  — un record per anno, nessun limite di intervallo
-
-    Usato per i grafici storici: produzione giornaliera, mensile e annuale.
+    Note: only solar production is available at this granularity.
+    The Growatt API does not provide aggregated consumption, grid or
+    battery data for MIN inverters. Use /energy/daily-breakdown for
+    a full breakdown of all energy flows at day-level granularity.
     """
     if time_unit not in ("day", "month", "year"):
         raise HTTPException(
             status_code=400,
-            detail="time_unit deve essere 'day', 'month' o 'year'"
+            detail="time_unit must be 'day', 'month' or 'year'."
         )
 
     data = get_plant_energy_history(start_date, end_date, time_unit)
 
     if not data:
-        raise HTTPException(status_code=404, detail="Nessun dato disponibile")
+        raise HTTPException(status_code=404, detail="No data available")
 
     return {
         "start_date": str(start_date),
-        "end_date": str(end_date),
-        "time_unit": time_unit,
-        "count": len(data),
-        "data": data,
+        "end_date":   str(end_date),
+        "time_unit":  time_unit,
+        "count":      len(data),
+        "data":       data,
+    }
+
+
+@router.get("/daily-breakdown", summary="Full energy breakdown aggregated by day")
+def energy_daily_breakdown(
+    start_date: date = Query(description="Start date in YYYY-MM-DD format."),
+    end_date: date = Query(description="End date in YYYY-MM-DD format."),
+):
+    """
+    Returns daily energy totals for all power flows, reconstructed from
+    5-minute inverter snapshots.
+
+    Unlike /energy/aggregate, this endpoint includes all energy flows —
+    not just solar production. It covers the full energy picture:
+    solar, home consumption, grid import/export and battery charge/discharge.
+
+    This is necessary because the Growatt API does not natively provide
+    aggregated consumption data for MIN inverters. The values are
+    approximated by integrating the 5-minute power readings over time:
+        kWh ≈ Σ(W) × (5 / 60) / 1000
+
+    There is no hard limit on the date range — the service layer
+    automatically splits long ranges into 7-day chunks and fetches
+    them in parallel. Longer ranges are slower on first load but
+    are cached for 5 minutes afterwards.
+
+    Typical response times:
+        7 days   → ~0.5s  (1 API call)
+        30 days  → ~1s    (5 parallel calls)
+        365 days → ~4-6s  (53 parallel calls, then cached)
+
+    Fields per day:
+        date                    — YYYY-MM-DD
+        solar_kwh               — solar energy produced (kWh)
+        home_kwh                — home energy consumed (kWh)
+        grid_import_kwh         — energy imported from the grid (kWh)
+        grid_export_kwh         — energy exported to the grid (kWh)
+        battery_charged_kwh     — energy charged into the battery (kWh)
+        battery_discharged_kwh  — energy discharged from the battery (kWh)
+    """
+    data = get_daily_energy_breakdown(start_date, end_date)
+
+    if not data:
+        raise HTTPException(status_code=404, detail="No data available")
+
+    return {
+        "start_date": str(start_date),
+        "end_date":   str(end_date),
+        "count":      len(data),
+        "data":       data,
     }

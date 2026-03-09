@@ -37,6 +37,11 @@ export const api = {
   getAggregate: (startDate, endDate, timeUnit) =>
     fetcher(`/energy/aggregate?start_date=${startDate}&end_date=${endDate}&time_unit=${timeUnit}`),
 
+  // Returns full daily energy breakdown (solar, home, grid, battery) for a date range.
+  // No hard limit on range — the backend handles chunking automatically.
+  getDailyBreakdown: (startDate, endDate) =>
+    fetcher(`/energy/daily-breakdown?start_date=${startDate}&end_date=${endDate}`),
+
   // Returns inverter technical details (model, firmware, status)
   getDeviceDetail: () => fetcher('/device/detail'),
 
