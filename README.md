@@ -14,7 +14,7 @@ GroWDash provides an essential and clean designed dashboard with real-time data,
 
 ## ✨ Features
 
-- **Secure Authentication:** Implementation of a robust JWT (JSON Web Token) authentication flow.
+- **Secure Authentication:** Implementation of a robust JWT flow using **HttpOnly Cookies**.
 - **Real-Time Power Flow:** Visual representation of energy moving between solar panels, battery, grid, and home.
 - **Detailed Energy Breakdown:** Analyze daily, monthly, and yearly yields.
 - **Self-Sufficiency Tracking:** Monitor how independent your home is from the grid.
@@ -196,11 +196,15 @@ GroWDash needs to know exactly which plant and inverter to monitor. We provide a
 
 GroWDash uses a local SQLite database to store your dashboard account. You must create at least one user to be able to log in.
 
-1. **Create your User**: Run the user creation utility:
+1. **Create your User**: Ensure your virtual environment is active, then run the utility:
    ```bash
+   # Make sure you are in the /backend folder
    python utilities/create_user.py
    ```
-2. Follow the prompts to set your **username** and **password**. This information is stored only on your machine (passwords are securely hashed with Bcrypt).
+2. Follow the prompts to set your **username** and **password**.
+   - This information is stored only on your machine in `growdash.db`.
+   - Passwords are securely hashed using **Bcrypt**.
+   - If you encounter a "ModuleNotFoundError", ensure you ran `source .venv/bin/activate`.
 
 ---
 
@@ -237,7 +241,7 @@ The frontend is now running at **http://localhost:5173**.
 
 The frontend is a single-page application built with **React** and **Vite**.
 
-- **Authentication:** Handled via a custom `AuthContext`. The JWT token is stored in `localStorage` and sent with every API request.
+- **Authentication:** Handled via a custom `AuthContext`. Unlike standard implementations, GroWDash uses **HttpOnly Cookies** to store JWT tokens. This makes the token inaccessible to JavaScript, providing strong protection against XSS attacks—essential for exposing the dashboard in a DMZ or on the internet.
 - **Data Fetching:** Managed by **TanStack Query** (`react-query`). Data is cached and automatically refreshed every 5 minutes (standard Growatt reporting interval).
 - **Design System:** Built using **Tailwind CSS** and **shadcn/ui** components for a premium, responsive look.
 - **Charts:** A combination of **ApexCharts** and **Recharts** delivers rich visual analytics.

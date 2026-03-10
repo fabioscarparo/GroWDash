@@ -54,13 +54,16 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:5173",   # Local Development: Default port for Vite React servers
-        "http://localhost:80",     # Local Production: Default HTTP port for Docker + Nginx
-        "http://localhost",        # Local Production: Implicit HTTP port for Docker + Nginx
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:8000",
+        "http://127.0.0.1:8000",
+        "http://localhost",
+        "http://127.0.0.1",
     ],
-    allow_credentials=True,        # Permits cookies, authorization headers, or TLS client certificates
-    allow_methods=["*"],           # Whitelists all HTTP verbs (GET, POST, PUT, DELETE, OPTIONS, etc.)
-    allow_headers=["*"],           # Whitelists all HTTP headers (Authorization, Content-Type, etc.)
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # ---------------------------------------------------------

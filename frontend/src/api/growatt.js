@@ -18,15 +18,14 @@ const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
  * @returns {Promise<any>} A promise that resolves to the parsed JSON payload.
  */
 async function fetcher(path) {
-  const token = localStorage.getItem('growdash_token')
-  const headers = token ? { Authorization: `Bearer ${token}` } : {}
-  const res = await fetch(`${BASE_URL}${path}`, { headers })
+  const res = await fetch(`${BASE_URL}${path}`, { 
+    credentials: 'include' 
+  })
 
-  // If token expired / invalid, force logout by clearing state and reloading
   if (res.status === 401) {
-    localStorage.removeItem('growdash_token')
-    window.location.reload()
-    return
+    const error = new Error('Unauthorized')
+    error.status = 401
+    throw error
   }
 
   if (!res.ok) throw new Error(`API error: ${res.status}`)
@@ -42,6 +41,11 @@ export const api = {
    * @returns {Promise<Object>} Plant data including name, location, capacity, and installation date.
    */
   getPlantInfo: () => fetcher('/plant/info'),
+
+  /**
+   * Retrieves the currently logged-in user session.
+   */
+  getMe: () => fetcher('/auth/me'),
 
   /**
    * Retrieves the high-level Key Performance Indicators (KPIs) for the plant.

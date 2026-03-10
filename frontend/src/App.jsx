@@ -89,7 +89,7 @@ const ANIM_DURATION = 300
 
 export default function App() {
   const { theme, toggle } = useTheme()
-  const { isAuthenticated } = useAuth()
+  const { isAuthenticated, loading } = useAuth()
 
   const [current,   setCurrent]   = useState('overview')
   const [previous,  setPrevious]  = useState(null)
@@ -136,7 +136,6 @@ export default function App() {
 
   // Current page index — used to determine swipe nav boundaries
   const currentIdx = PAGE_ORDER.indexOf(current)
-
   // Register horizontal swipe gesture for mobile navigation
   useSwipeNavigation({
     onNext: () => {
@@ -149,7 +148,23 @@ export default function App() {
     },
   })
 
-  return !isAuthenticated ? <LoginPage /> : (
+  // --- CONDITIONAL RENDERS (Must be AFTER all hooks) ---
+
+  if (loading) {
+    return (
+      <div className="min-h-dvh bg-background flex items-center justify-center">
+        <div className="animate-pulse text-muted-foreground uppercase tracking-widest text-xs">
+          Loading GroWDash...
+        </div>
+      </div>
+    )
+  }
+
+  if (!isAuthenticated) {
+    return <LoginPage />
+  }
+
+  return (
     <TooltipProvider>
       <SidebarProvider>
         <div className="min-h-dvh bg-background flex w-full">

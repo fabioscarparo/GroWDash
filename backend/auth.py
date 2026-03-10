@@ -2,7 +2,7 @@ import os
 from datetime import datetime, timedelta
 from typing import Optional
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Cookie
 from fastapi.security import OAuth2PasswordBearer
 import jwt
 from jwt.exceptions import InvalidTokenError
@@ -29,7 +29,9 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # OAuth2 scheme: this tells FastAPI where to look for the token (the tokenUrl)
 # e.g., in the Swagger UI, it will use this endpoint to retrieve the token to test other endpoints.
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/token")
+# auto_error=False is crucial here because we now use cookies; we don't want a 401 
+# just because the header is missing.
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/token", auto_error=False)
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verifies a plain text password against its bcrypt hash."""
@@ -53,20 +55,31 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
-def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+def get_current_user(
+    growdash_token: Optional[str] = Cookie(None),
+    token: Optional[str] = Depends(oauth2_scheme),
+    db: Session = Depends(get_db)
+):
     """
-    FastAPI Dependency that extracts and validates the JWT token from the Authorization header.
-    If valid, it queries the database and returns the current User object.
-    Otherwise, raises a 401 Unauthorized exception.
+    FastAPI Dependency that extracts and validates the JWT token.
+    It prioritizes the HttpOnly cookie 'growdash_token', with 
+    the Authorization header as a fallback for Swagger UI.
     """
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
+    
+    # Prioritize cookie, then header
+    final_token = growdash_token or token
+    
+    if not final_token:
+        raise credentials_exception
+        
     try:
         # Decode the token payload
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(final_token, SECRET_KEY, algorithms=[ALGORITHM])
         # We expect the username to be stored in the "sub" (subject) claim
         username: str = payload.get("sub")
         if username is None:
