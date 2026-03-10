@@ -90,17 +90,27 @@ export default function HistoricalChart() {
 
   // ── Chart data ────────────────────────────────────────────────────────────
 
-  const chartData = useMemo(() =>
-    (aggregate?.data ?? []).map(d => ({
+  const chartData = useMemo(() => {
+    let data = (aggregate?.data ?? []).map(d => ({
       label: timeUnit === 'day'
         ? dayLabel(d.date)
         : timeUnit === 'month'
           ? monthLabel(d.date)
           : d.date,
       energy: Number(d.energy),
-    })),
-    [aggregate, timeUnit]
-  )
+      dateStr: d.date, // Keep original date for filtering
+    }))
+
+    // When viewing current month, filter out future days
+    if (timeUnit === 'day' && isCurrentPeriod) {
+      const today = new Date()
+      const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+      data = data.filter(d => d.dateStr <= todayStr)
+    }
+
+    // Remove the dateStr before returning for chart display
+    return data.map(({ dateStr, ...rest }) => rest)
+  }, [aggregate, timeUnit, isCurrentPeriod])
 
   const total = useMemo(() =>
     chartData.reduce((sum, d) => sum + d.energy, 0).toFixed(1),
