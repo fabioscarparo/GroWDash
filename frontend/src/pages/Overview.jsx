@@ -1,13 +1,17 @@
 /**
- * Overview.jsx — Main dashboard page.
+ * Overview.jsx — Main dashboard entry page.
  *
- * Displays a summary of the current state of the PV system:
- * - Header with plant name, capacity, serial number and online status
- * - Weather card
- * - KPI cards: today's production and CO2 saved
- * - Power Flow + Daily Curve side by side on desktop, stacked on mobile
- * - Energy Breakdown card
- * - SOC Curve + Battery side by side on desktop, stacked on mobile
+ * This is the primary landing view for the GroWDash application. It aggregates multiple
+ * data streams to provide a real-time glance at the state of the PV system.
+ *
+ * Features:
+ *   - Main header displaying plant name, dynamic peak capacity, and connection status.
+ *   - Implements native-like "Pull-to-Refresh" functionality to manually invalidate TanStack Query caches.
+ *   - Weather overview reflecting real-time conditions at the plant's coordinates.
+ *   - KPI summaries for today's yields and lifetime environmental impact.
+ *   - Grid layout switching intelligently between mobile (stacked layout) and desktop (side-by-side grid).
+ *
+ * @module pages/Overview
  */
 
 import { useCallback, useState } from 'react'
@@ -27,6 +31,17 @@ import EnergyBreakdownCard from '../components/EnergyBreakdownCard'
 
 // ── Header ────────────────────────────────────────────────────────────────────
 
+/**
+ * Top contextual header displaying key plant attributes.
+ *
+ * @param {Object} props - Component props.
+ * @param {string} props.plantName - The name assigned to the photovoltaic plant.
+ * @param {string|number} props.plantCapacityKw - The total maximum output in kWp (Kilowatt Peak).
+ * @param {string} props.serialNumber - The tracked inverter's serial number.
+ * @param {boolean} props.isOnline - True if the connected inverter has reported data recently.
+ * @param {string} props.lastUpdate - Time string of the last successful client-side data refresh.
+ * @returns {JSX.Element} The rendered header block.
+ */
 function Header({ plantName, plantCapacityKw, serialNumber, isOnline, lastUpdate }) {
   return (
     <div className="flex items-start justify-between px-4 pt-6 pb-4">
@@ -62,6 +77,18 @@ function Header({ plantName, plantCapacityKw, serialNumber, isOnline, lastUpdate
 
 // ── KPI Card ──────────────────────────────────────────────────────────────────
 
+/**
+ * A reusable KPI presentation card. Layout consists of an upper title/icon row
+ * and a lower emphasis row for the metric itself.
+ *
+ * @param {Object} props - Component props.
+ * @param {JSX.Element} props.icon - A Lucide React icon.
+ * @param {string} props.label - Descriptive title of the metric.
+ * @param {number|string} props.value - The main metric value payload.
+ * @param {string} props.unit - The unit suffix to display.
+ * @param {string} [props.sublabel] - Optional subtle text spanning below the main value.
+ * @returns {JSX.Element} The KPI Card wrapper.
+ */
 function KpiCard({ icon, label, value, unit, sublabel }) {
   return (
     <Card>
@@ -86,6 +113,15 @@ function KpiCard({ icon, label, value, unit, sublabel }) {
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 
+/**
+ * The Overview main page.
+ *
+ * This functional component manages pulling and dispatching data into numerous
+ * child widget components. It implements `usePullToRefresh` hook logic to animate
+ * a custom mobile-native feeling spinner that forces query invalidation.
+ *
+ * @returns {JSX.Element} The completely assembled Overview view.
+ */
 export default function Overview() {
   const { data: plantInfo }  = usePlantInfo()
   const { data: overview }   = useOverview()
@@ -106,6 +142,11 @@ export default function Overview() {
   })
   const [isRefreshing, setIsRefreshing] = useState(false)
 
+  /**
+   * Callback fired sequentially when the user completes a valid pull-to-refresh action.
+   * It triggers a hard invalidation array targeting the "energy" cache key for TanStack query, 
+   * forcing all widgets to synchronize and fetch new data bounds.
+   */
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true)
     await queryClient.invalidateQueries({ queryKey: ['energy'] })
@@ -119,7 +160,7 @@ export default function Overview() {
   return (
     <div className="bg-background min-h-dvh">
 
-      {/* Refresh indicator — slides in from top */}
+      {/* Refresh indicator — slides in from top via dynamic inline styles */}
       <div
         className="fixed left-0 right-0 z-50 flex justify-center pointer-events-none"
         style={{
@@ -170,15 +211,16 @@ export default function Overview() {
 
       <div className="px-4 flex flex-col gap-3 pb-4">
 
+        {/* Real-time OpenMeteo weather view */}
         <WeatherCard data={weatherData} />
 
-        {/* KPI cards */}
+        {/* Global KPI metric summaries */}
         <div className="grid grid-cols-2 gap-3">
           <KpiCard icon={<Sun size={16} />}  label="Solar Production" value={overview?.today_energy_kwh} unit="kWh" />
           <KpiCard icon={<Leaf size={16} />} label="Total CO₂ saved"  value={overview?.carbon_offset_kg} unit="kg" />
         </div>
 
-        {/* Power Flow + Daily Curve — side by side on desktop */}
+        {/* Grid switching: interactive Node Flow and Intraday Curvage graph side by side on wide screens */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <PowerFlowCard
             solarW={today?.flow?.live?.solar_w}
@@ -191,9 +233,10 @@ export default function Overview() {
           <DailyCurveCard />
         </div>
 
+        {/* Stacked-bar widget dissecting the current day's accumulated energy yields versus consumption */}
         <EnergyBreakdownCard today={today?.flow?.today} />
 
-        {/* SOC Curve + Battery — side by side on desktop */}
+        {/* Lower tier: Battery operational parameters and corresponding intraday State of Charge (SOC) tracking */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <BatteryCard
             socPct={today?.battery?.soc_pct}

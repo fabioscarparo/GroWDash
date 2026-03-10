@@ -1,10 +1,16 @@
 /**
- * DeviceSettings.jsx — Inverter settings page.
+ * DeviceSettings.jsx — Inverter settings overview page.
  *
- * Displays the most relevant inverter settings grouped by category.
- * All data is read-only — settings cannot be changed from this page.
+ * This page displays the most relevant inverter configuration settings,
+ * grouped logically by category (System, Battery, Grid, Functions).
+ * 
+ * Note: All data presented on this page is read-only. Modifying settings 
+ * must be done directly through the installer interface or official app.
  *
- * Data source: /device/settings
+ * Data source: 
+ *   - /device/settings → Raw configuration dictionary from the inverter
+ * 
+ * @module pages/DeviceSettings
  */
 
 import { useDeviceSettings } from '../hooks/useGrowatt'
@@ -14,6 +20,16 @@ import { Zap, BatteryCharging, Settings } from 'lucide-react'
 
 // ── Detail Row ────────────────────────────────────────────────────────────────
 
+/**
+ * A reusable component that renders a single row of detailed information.
+ * It strictly hides itself if the provided value is null, undefined, or an empty string,
+ * avoiding the display of broken or missing data.
+ *
+ * @param {Object} props - The component props.
+ * @param {string} props.label - The descriptive label for the setting.
+ * @param {string|number|null|JSX.Element} props.value - The setting's current value or badge.
+ * @returns {JSX.Element|null} The row element, or null if value is missing.
+ */
 function DetailRow({ label, value }) {
   if (value === null || value === undefined || value === '') return null
   return (
@@ -26,6 +42,15 @@ function DetailRow({ label, value }) {
 
 // ── Section Card ──────────────────────────────────────────────────────────────
 
+/**
+ * A layout component that wraps a group of related settings inside a styled Card.
+ *
+ * @param {Object} props - The component props.
+ * @param {JSX.Element} props.icon - The Lucide React icon to display in the header.
+ * @param {string} props.title - The title of the settings category.
+ * @param {JSX.Element|JSX.Element[]} props.children - The `DetailRow` components to render inside.
+ * @returns {JSX.Element} The section card.
+ */
 function Section({ icon, title, children }) {
   return (
     <Card>
@@ -44,22 +69,46 @@ function Section({ icon, title, children }) {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
+/**
+ * Converts a numeric or boolean enable/disable flag into a colored UI Badge.
+ *
+ * @param {number|boolean} val - The flag value (1/true for enabled, 0/false for disabled).
+ * @returns {JSX.Element|string} A green "Enabled" badge, a gray "Disabled" badge, or a fallback string.
+ */
 function enabled(val) {
   if (val === 1 || val === true) return <Badge className="bg-green-500 text-white hover:bg-green-500 text-xs">Enabled</Badge>
   if (val === 0 || val === false) return <Badge variant="secondary" className="text-xs">Disabled</Badge>
   return '—'
 }
 
+/**
+ * Converts an On/Off state flag into a colored UI Badge.
+ *
+ * @param {number} val - The state flag (1 for On, 0 for Off).
+ * @returns {JSX.Element} A green "On" badge or a gray "Off" badge.
+ */
 function onOff(val) {
   if (val === 1) return <Badge className="bg-green-500 text-white hover:bg-green-500 text-xs">On</Badge>
   return <Badge variant="secondary" className="text-xs">Off</Badge>
 }
 
+/**
+ * Translates the internal system work mode integer into a human-readable string.
+ *
+ * @param {number} val - The work mode integer.
+ * @returns {string} The descriptive name of the work mode (e.g., "Self-use").
+ */
 function workMode(val) {
   const modes = { 0: 'Self-use', 1: 'Feed-in priority', 2: 'Battery first', 3: 'Off-grid' }
   return modes[val] ?? `Mode ${val}`
 }
 
+/**
+ * Translates the internal Battery DC (BDC) operating mode into a human-readable string.
+ *
+ * @param {number} val - The BDC mode integer.
+ * @returns {string} The descriptive name of the BDC mode (e.g., "Auto", "Charge").
+ */
 function bdcMode(val) {
   const modes = { 0: 'Auto', 1: 'Charge', 2: 'Discharge' }
   return modes[val] ?? `Mode ${val}`
@@ -67,6 +116,14 @@ function bdcMode(val) {
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
+/**
+ * The Device Settings page component.
+ * 
+ * It fetches the raw configuration dictionary from the backend and maps the most
+ * important fields into categorized, readable UI blocks using formatting helpers.
+ *
+ * @returns {JSX.Element} The rendered settings page.
+ */
 export default function DeviceSettings() {
   const { data: s, isLoading } = useDeviceSettings()
 

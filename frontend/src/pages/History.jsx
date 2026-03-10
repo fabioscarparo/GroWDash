@@ -1,10 +1,14 @@
 /**
- * History.jsx — Energy history page.
+ * History.jsx — Energy history analytics page.
+ *
+ * Provides deep insights into historical energy production and consumption.
+ * It renders several interactive charts and KPI summaries covering various time granularities.
  *
  * Displays:
- *   - KPI cards: this month and this year production
- *   - DailyCurveCard: today's 5-minute power curve
- *   - HistoricalChart: bar chart with day/month/year granularity
+ *   - High-level KPI cards: total, monthly, and yearly production yields.
+ *   - HistoricalChart: Interactive bar chart for aggregated solar production.
+ *   - EnergyBreakdownChart: Full stacked-bar area visualizing generation, consumption, grid, and battery flows simultaneously.
+ *   - SelfSufficiencyChart: Advanced analytics pie/bar showing grid reliance.
  *
  * Data sources:
  *   /energy/overview  → KPI cards
@@ -22,6 +26,16 @@ import SelfSufficiencyChart from '../components/SelfSufficiencyChart'
 
 // ── KPI Card ──────────────────────────────────────────────────────────────────
 
+/**
+ * A reusable presentation component displaying a single Key Performance Indicator.
+ *
+ * @param {Object} props - The component props.
+ * @param {JSX.Element} props.icon - The Lucide React icon to display next to the label.
+ * @param {string} props.label - The title describing the KPI.
+ * @param {number|string} props.value - The main numeric value to display.
+ * @param {string} props.unit - The unit string (e.g., 'kWh') appended to the value.
+ * @returns {JSX.Element} A formatted card component with large typography.
+ */
 function KpiCard({ icon, label, value, unit }) {
   return (
     <Card>
@@ -43,6 +57,15 @@ function KpiCard({ icon, label, value, unit }) {
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
+/**
+ * The History page component.
+ * 
+ * It coordinates the rendering of high-level overview metrics alongside
+ * deeply interactive and customized React-based charting components.
+ * Data-fetching for the charts is independently handled by their respective components.
+ *
+ * @returns {JSX.Element} The rendered historical analytics page.
+ */
 export default function History() {
   const { data: overview } = useOverview()
 
@@ -56,9 +79,7 @@ export default function History() {
 
       <div className="px-4 flex flex-col gap-3 pb-6">
 
-        {/* KPI cards */}
-        
-        {/* Total production — full width */}
+        {/* Total production — full width KPI card */}
         <KpiCard
           icon={<Zap size={14} />}
           label="Total production"
@@ -66,6 +87,7 @@ export default function History() {
           unit="kWh"
         />
 
+        {/* Sub-KPI grid for monthly and yearly views */}
         <div className="grid grid-cols-2 gap-3">
           <KpiCard
             icon={<Calendar size={14} />}
@@ -81,12 +103,13 @@ export default function History() {
           />
         </div>
 
-        {/* Historical bar chart */}
+        {/* Historical bar chart wrapper inside its dedicated component */}
         <HistoricalChart />
 
         {/* Full energy breakdown — all flows, day by day, month navigation */}
         <EnergyBreakdownChart />
 
+        {/* Self sufficiency analytics pie/bar component */}
         <SelfSufficiencyChart />
 
       </div>

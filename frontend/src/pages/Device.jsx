@@ -1,13 +1,16 @@
 /**
  * Device.jsx — Inverter technical details page.
  *
- * Displays:
- *   - Inverter status card (model, firmware, serial, online status)
- *   - Connected devices list
+ * This page provides a comprehensive overview of the PV system's hardware.
+ * It displays two main sections:
+ * 1. A list of all connected devices (data loggers, energy meters).
+ * 2. Detailed technical parameters for the primary inverter.
  *
  * Data sources:
- *   /device/detail → inverter technical details
- *   /device/list   → connected devices
+ *   - /device/detail → Inverter technical details (firmware, status, etc.)
+ *   - /device/list   → List of all connected auxiliary devices
+ * 
+ * @module pages/Device
  */
 
 import { useDeviceDetail, useDeviceList } from '../hooks/useGrowatt'
@@ -17,6 +20,16 @@ import { Cpu, Wifi, WifiOff, CircuitBoard } from 'lucide-react'
 
 // ── Detail Row ────────────────────────────────────────────────────────────────
 
+/**
+ * A reusable component that renders a single row of detailed information.
+ * It automatically hides itself if the provided value is null or undefined 
+ * (except for 0, which is deemed valid).
+ *
+ * @param {Object} props - The component props.
+ * @param {string} props.label - The descriptive label for the data point.
+ * @param {string|number|null} props.value - The value to display.
+ * @returns {JSX.Element|null} The row element, or null if value is missing.
+ */
 function DetailRow({ label, value }) {
   if (!value && value !== 0) return null
   return (
@@ -29,6 +42,13 @@ function DetailRow({ label, value }) {
 
 // ── Device Type Label ─────────────────────────────────────────────────────────
 
+/**
+ * Helper function to convert Growatt's internal numeric device types
+ * into human-readable strings.
+ *
+ * @param {number} type - The integer representing the hardware type.
+ * @returns {string} The human-readable device category.
+ */
 function deviceTypeLabel(type) {
   if (type === 7) return 'Inverter'
   if (type === 3) return 'Datalogger'
@@ -37,6 +57,15 @@ function deviceTypeLabel(type) {
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
+/**
+ * The Device page component.
+ * 
+ * It fetches both the list of connected devices and the detailed metadata
+ * for the main inverter simultaneously. It handles loading states gracefully
+ * and renders a responsive list of cards containing the technical telemetry.
+ *
+ * @returns {JSX.Element} The completely rendered Device page.
+ */
 export default function Device() {
   const { data: detail, isLoading: loadingDetail } = useDeviceDetail()
   const { data: deviceList, isLoading: loadingList } = useDeviceList()
@@ -97,7 +126,8 @@ export default function Device() {
             )}
           </CardContent>
         </Card>
-      {/* Inverter detail card */}
+
+        {/* Inverter detail card */}
         <Card className="gap-2">
           <CardHeader>
             <div className="flex items-center justify-between">
@@ -132,6 +162,7 @@ export default function Device() {
             )}
           </CardContent>
         </Card>
+
       </div>
     </div>
   )
