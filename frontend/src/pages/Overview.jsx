@@ -19,7 +19,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useOverview, useToday, usePlantInfo, useDeviceList } from '../hooks/useGrowatt'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Sun, Leaf, RefreshCw } from 'lucide-react'
+import { Sun, RefreshCw } from 'lucide-react'
 import BatteryCard from '../components/BatteryCard'
 import PowerFlowCard from '../components/PowerFlowCard'
 import DailyCurveCard from '../components/DailyCurveCard'
@@ -211,13 +211,10 @@ export default function Overview() {
 
       <div className="px-4 flex flex-col gap-3 pb-4">
 
-        {/* Real-time OpenMeteo weather view */}
-        <WeatherCard data={weatherData} />
-
-        {/* Global KPI metric summaries */}
-        <div className="grid grid-cols-2 gap-3">
+        {/* Weather and Solar Production KPI side-by-side on desktop, stacked on mobile */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <WeatherCard data={weatherData} />
           <KpiCard icon={<Sun size={16} />}  label="Solar Production" value={overview?.today_energy_kwh} unit="kWh" />
-          <KpiCard icon={<Leaf size={16} />} label="Total CO₂ saved"  value={overview?.carbon_offset_kg} unit="kg" />
         </div>
 
         {/* Grid switching: interactive Node Flow and Intraday Curvage graph side by side on wide screens */}
