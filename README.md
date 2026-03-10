@@ -30,10 +30,10 @@ GroWDash provides an essential and clean designed dashboard with real-time data,
 
 | Layer | Technology |
 |-------|-----------|
-| **Backend** | Python 3.12+ · FastAPI · SQLAlchemy · SQLite · JWT · Passlib |
-| **PV Integration** | growattServer (V1 Token API) |
+| **Backend** | Python 3.12+ · FastAPI · SQLAlchemy · SQLite · **HttpOnly Cookies** · JWT · Passlib |
+| **PV Integration** | **PyPi_GrowattServer** (Open API V1) |
 | **Frontend** | React · Vite · Tailwind CSS · shadcn/ui · ApexCharts · Recharts · React Query |
-| **Deployment** | Docker · Docker Compose · Nginx (Coming Soon) |
+| **Deployment** | Docker · Docker Compose · Nginx (In Progress) |
 
 ---
 
@@ -75,7 +75,9 @@ GroWDash/
 ### Authentication
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/auth/token` | Validates credentials and issues JWT |
+| POST | `/auth/token` | Validates credentials and sets **HttpOnly cookie** |
+| POST | `/auth/logout` | Clears the authentication session cookie |
+| GET | `/auth/me` | Returns current authenticated user session |
 
 ### General
 | Method | Endpoint | Description |
