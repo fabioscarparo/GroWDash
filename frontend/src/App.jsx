@@ -58,8 +58,10 @@ import Overview from './pages/Overview'
 import History from './pages/History'
 import Device from './pages/Device'
 import DeviceSettings from './pages/DeviceSettings'
+import LoginPage from './pages/LoginPage'
 import { useTheme } from './hooks/useTheme'
 import { useSwipeNavigation } from './hooks/useSwipeNavigation'
+import { useAuth } from './context/AuthContext'
 
 /**
  * Ordered list of page IDs.
@@ -87,13 +89,8 @@ const ANIM_DURATION = 300
 
 export default function App() {
   const { theme, toggle } = useTheme()
+  const { isAuthenticated } = useAuth()
 
-  /**
-   * current   — ID of the page currently visible (or transitioning in).
-   * previous  — ID of the page transitioning out. Null when not animating.
-   * dir       — Slide direction: 'left' for forward, 'right' for backward.
-   * animating — True while a page transition is in progress.
-   */
   const [current,   setCurrent]   = useState('overview')
   const [previous,  setPrevious]  = useState(null)
   const [dir,       setDir]       = useState(null)
@@ -152,7 +149,7 @@ export default function App() {
     },
   })
 
-  return (
+  return !isAuthenticated ? <LoginPage /> : (
     <TooltipProvider>
       <SidebarProvider>
         <div className="min-h-dvh bg-background flex w-full">

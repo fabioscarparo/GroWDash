@@ -18,9 +18,19 @@ const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
  * @returns {Promise<any>} A promise that resolves to the parsed JSON payload.
  */
 async function fetcher(path) {
-  const res = await fetch(`${BASE_URL}${path}`);
-  if (!res.ok) throw new Error(`API error: ${res.status}`);
-  return res.json();
+  const token = localStorage.getItem('growdash_token')
+  const headers = token ? { Authorization: `Bearer ${token}` } : {}
+  const res = await fetch(`${BASE_URL}${path}`, { headers })
+
+  // If token expired / invalid, force logout by clearing state and reloading
+  if (res.status === 401) {
+    localStorage.removeItem('growdash_token')
+    window.location.reload()
+    return
+  }
+
+  if (!res.ok) throw new Error(`API error: ${res.status}`)
+  return res.json()
 }
 
 /**

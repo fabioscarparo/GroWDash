@@ -12,8 +12,10 @@ Available endpoints:
     GET /energy/daily-breakdown → Full energy breakdown by day, reconstructed from snapshots
 """
 
-from fastapi import APIRouter, HTTPException, Query
-from datetime import date
+from fastapi import APIRouter, HTTPException, Query, Depends
+from datetime import date, datetime
+from typing import Optional, Dict, Any, List
+from auth import get_current_user
 from services.growatt import (
     get_energy_today,
     get_energy_history,
@@ -29,7 +31,7 @@ router = APIRouter(
 
 
 @router.get("/overview", summary="Plant energy overview")
-def energy_overview():
+def energy_overview(current_user: str = Depends(get_current_user)):
     """
     Returns aggregated energy KPIs for the PV plant.
 
@@ -66,7 +68,7 @@ def energy_overview():
 
 
 @router.get("/today", summary="Today's energy data including live power flow")
-def energy_today():
+def energy_today(current_user: str = Depends(get_current_user)):
     """
     Returns the live power flow and daily energy totals for the current day.
 
@@ -156,6 +158,7 @@ def energy_history(
         default=None,
         description="End date in YYYY-MM-DD format. Maximum 7 days from start_date. Defaults to start_date."
     ),
+    current_user: str = Depends(get_current_user)
 ):
     """
     Returns a time series of 5-minute energy snapshots for a date range.
@@ -180,6 +183,7 @@ def energy_history(
     }
 
 
+
 @router.get("/aggregate", summary="Solar energy history aggregated by day, month or year")
 def plant_energy_aggregate(
     start_date: date = Query(description="Start date in YYYY-MM-DD format."),
@@ -188,6 +192,7 @@ def plant_energy_aggregate(
         default="month",
         description="Granularity: 'day' (max 7 days), 'month', or 'year'."
     ),
+    current_user: str = Depends(get_current_user)
 ):
     """
     Returns the plant's solar energy history aggregated by period.
@@ -226,6 +231,7 @@ def plant_energy_aggregate(
 def energy_daily_breakdown(
     start_date: date = Query(description="Start date in YYYY-MM-DD format."),
     end_date: date = Query(description="End date in YYYY-MM-DD format."),
+    current_user: str = Depends(get_current_user)
 ):
     """
     Returns daily energy totals for all power flows, reconstructed from

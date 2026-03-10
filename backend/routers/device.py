@@ -10,8 +10,10 @@ Endpoints disponibili:
     GET /device/settings → Impostazioni configurate sull'inverter
 """
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query, Depends
 from services.growatt import get_device_detail, get_device_settings, get_device_list
+from typing import Optional, Dict, Any, List
+from auth import get_current_user
 
 # Crea il router con prefisso /device
 router = APIRouter(
@@ -20,7 +22,7 @@ router = APIRouter(
 )
 
 @router.get("/list", summary="Lista dispositivi impianto")
-def device_list():
+def device_list(current_user = Depends(get_current_user)):
     """
     Restituisce la lista di tutti i dispositivi collegati all'impianto.
 
@@ -53,7 +55,7 @@ def device_list():
 
 
 @router.get("/detail", summary="Dettagli tecnici inverter")
-def device_detail():
+def device_detail(current_user = Depends(get_current_user)):
     """
     Restituisce i dati tecnici dettagliati dell'inverter MIN:
     versione firmware, modello, stato operativo e parametri hardware.
@@ -79,7 +81,7 @@ def device_detail():
 
 
 @router.get("/settings", summary="Impostazioni inverter")
-def device_settings():
+def device_settings(current_user = Depends(get_current_user)):
     """
     Restituisce tutte le impostazioni configurate sull'inverter MIN.
     """

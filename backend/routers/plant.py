@@ -5,8 +5,10 @@ Espone gli endpoint relativi ai dati generali dell'impianto,
 come nome, posizione, potenza di picco e stato attuale.
 """
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query, Depends
 from services.growatt import get_plant_info
+from typing import Optional
+from auth import get_current_user
 
 # Crea il router con prefisso /plant
 router = APIRouter(
@@ -16,7 +18,7 @@ router = APIRouter(
 
 
 @router.get("/info", summary="Informazioni impianto")
-def plant_info():
+def plant_info(current_user = Depends(get_current_user)):
     """
     Restituisce le informazioni generali dell'impianto fotovoltaico:
     nome, città, potenza di picco, energia totale prodotta e stato.

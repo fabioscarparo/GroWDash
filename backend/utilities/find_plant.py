@@ -33,9 +33,10 @@ import growattServer
 from dotenv import load_dotenv
 import os
 
-# Dynamically parse and load system environment variables from a local `.env` file 
-# located in the current working directory.
-load_dotenv()
+# Dynamically parse and load system environment variables from the .env file 
+# located in the parent directory (backend root).
+env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '.env')
+load_dotenv(dotenv_path=env_path)
 
 # Extract the critical authentication token required to initialize the Growatt API session.
 token = os.getenv("GROWATT_TOKEN")

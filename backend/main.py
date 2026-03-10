@@ -28,7 +28,12 @@ To access the interactive, OpenAPI-compliant documentation automatically generat
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from routers import plant, energy, device
+from routers import plant, energy, device, auth
+import models
+from database import engine
+
+# Generate database tables (e.g., users table) on startup
+models.Base.metadata.create_all(bind=engine)
 
 # Initialize the core FastAPI application instance.
 # These metadata fields (title, description, version) are prominently displayed 
@@ -64,6 +69,7 @@ app.add_middleware(
 # By utilizing APIRouters, the application's endpoints are cleanly separated 
 # into distinct files based on their domain context. This vastly improves 
 # maintainability and team collaboration as the API surface grows.
+app.include_router(auth.router)    # Authentication and token issuance
 app.include_router(plant.router)   # Endpoints mapping to general PV Plant metadata
 app.include_router(energy.router)  # Endpoints aggregating power generation and flow metrics
 app.include_router(device.router)  # Endpoints fetching hardware states (Inverters, Dataloggers)

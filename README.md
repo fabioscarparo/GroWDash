@@ -14,6 +14,7 @@ GroWDash provides an essential and clean designed dashboard with real-time data,
 
 ## ✨ Features
 
+- **Secure Authentication:** Implementation of a robust JWT (JSON Web Token) authentication flow.
 - **Real-Time Power Flow:** Visual representation of energy moving between solar panels, battery, grid, and home.
 - **Detailed Energy Breakdown:** Analyze daily, monthly, and yearly yields.
 - **Self-Sufficiency Tracking:** Monitor how independent your home is from the grid.
@@ -29,7 +30,7 @@ GroWDash provides an essential and clean designed dashboard with real-time data,
 
 | Layer | Technology |
 |-------|-----------|
-| **Backend** | Python 3.12+ · FastAPI · Uvicorn |
+| **Backend** | Python 3.12+ · FastAPI · SQLAlchemy · SQLite · JWT · Passlib |
 | **PV Integration** | growattServer (V1 Token API) |
 | **Frontend** | React · Vite · Tailwind CSS · shadcn/ui · ApexCharts · Recharts · React Query |
 | **Deployment** | Docker · Docker Compose · Nginx (Coming Soon) |
@@ -41,21 +42,29 @@ GroWDash provides an essential and clean designed dashboard with real-time data,
 GroWDash/
 ├── backend/                  # FastAPI backend
 │   ├── routers/              # API endpoints organized by domain
+│   │   ├── auth.py           # /auth — token issuance
 │   │   ├── plant.py          # /plant — plant information
-│   │   ├── energy.py         # /energy — energy data, history, daily breakdown
-│   │   └── device.py         # /device — inverter details and settings
+│   │   ├── energy.py         # /energy — energy data & history
+│   │   └── device.py         # /device — inverter details & settings
+│   ├── utilities/            # Administrative scripts
+│   │   ├── find_plant.py     # Find IDs for initial setup
+│   │   ├── create_user.py    # Create new dashboard users
+│   │   └── check_db_users.py # List existing dashboard users
 │   ├── services/
 │   │   └── growatt.py        # Growatt V1 API integration layer
-│   ├── main.py               # FastAPI app entry point
-│   ├── find_plant.py         # Setup script to find Plant ID and Device SN
+│   ├── auth.py               # Security & JWT logic
+│   ├── database.py           # SQLite connection setup
+│   ├── models.py             # Database user schemas
+│   ├── main.py               # Application entry point
 │   └── requirements.txt      # Python dependencies
 ├── frontend/                 # React frontend
 │   ├── src/
-│   │   ├── components/       # Reusable UI cards and charts (PowerFlow, Battery, etc.)
-│   │   ├── pages/            # Main views (Overview, History, Device, Settings)
-│   │   └── api/              # Backend communication via TanStack Query
+│   │   ├── context/          # AuthContext for state management
+│   │   ├── components/       # UI cards and charts
+│   │   ├── pages/            # Views (Login, Overview, History, etc.)
+│   │   └── api/              # Backend communication layer
 ├── .env.example              # Environment variables template
-├── .gitignore
+├── .gitignore                # Root gitignore (OS & IDE files)
 └── docker-compose.yml        # Docker orchestration (coming soon)
 ```
 
@@ -63,17 +72,22 @@ GroWDash/
 
 ## 📡 API Endpoints
 
+### Authentication
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/auth/token` | Validates credentials and issues JWT |
+
 ### General
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/` | Health check |
 
-### Plant
+### Plant (Protected)
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/plant/info` | Plant name, location, peak power, status |
 
-### Energy
+### Energy (Protected)
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/energy/overview` | KPI summary: today, month, year, total, CO₂ saved |
@@ -96,14 +110,15 @@ GroWDash/
 ## 🚀 Getting Started
 
 ### Prerequisites
-- Python 3.12+
-- Node.js 18+ (for frontend)
-- Git
-- A Growatt account with API Token (from ShinePhone app: **Me → API Token**)
+- **Python 3.12+**
+- **Node.js 18+** (for frontend development)
+- **Git**
+- A **Growatt account** with an API Token (available in the ShinePhone app: **Me → API Token**)
 
 ---
 
 ### 1. Clone the repository
+First, download the project to your local machine:
 ```bash
 git clone https://github.com/fabioscarparo/GroWDash.git
 cd GroWDash
@@ -113,7 +128,7 @@ cd GroWDash
 
 ### 2. Set up the Backend
 
-Navigate to the backend folder and create a Python virtual environment to keep dependencies isolated:
+Navigate to the `backend` folder and create a Python virtual environment to keep dependencies isolated:
 ```bash
 cd backend
 python -m venv .venv
@@ -128,18 +143,16 @@ Activate the virtual environment:
 source .venv/bin/activate
 ```
 
-You should see `(.venv)` appear in your terminal prompt.
-
-Install all required Python dependencies:
+You should see `(.venv)` appear in your terminal prompt. Now, install all required Python dependencies:
 ```bash
 pip install -r requirements.txt
 ```
 
 ---
 
-### 3. Configure Environment Variables
+### 3. Initial Configuration
 
-Copy the environment template file into the backend folder:
+Copy the environment template file into the `backend` folder to create your local configuration:
 ```bash
 # Windows
 copy ..\.env.example .env
@@ -148,50 +161,75 @@ copy ..\.env.example .env
 cp ../.env.example .env
 ```
 
-Open `.env` and add your Growatt API token:
+Open the newly created `.env` file and provide the two mandatory values required to start the discovery process:
+1. **GROWATT_TOKEN**: This is your primary authorization key. You can find it in the Growatt **ShinePhone App** by navigating to: **Me → API Token**. 
+2. **JWT_SECRET_KEY**: A unique security string used to sign your dashboard sessions.
+
 ```env
 GROWATT_TOKEN=your_token_here
-GROWATT_PLANT_ID=     # leave empty for now
-GROWATT_DEVICE_SN=    # leave empty for now
+JWT_SECRET_KEY=your_random_secret_string
+
+# Leave these empty for now; the next step will help you find them
+GROWATT_PLANT_ID=
+GROWATT_DEVICE_SN=
 ```
+
+> [!TIP]
+> **To generate a secure JWT Secret Key**, run this command in your terminal and copy the unique string it produces:
+> `python -c "import secrets; print(secrets.token_hex(32))"`
 
 ---
 
-### 4. Find your Plant ID and Device SN
+### 4. Hardware Discovery (Find your IDs)
 
-Run the setup script — it will automatically discover and print the IDs required to complete your `.env` file:
-```bash
-python find_plant.py
-```
+GroWDash needs to know exactly which plant and inverter to monitor. We provide an automated utility to fetch these IDs from the Growatt servers.
 
-Copy the printed values into your `.env` file.
+1. **Run the discovery script**:
+   ```bash
+   python utilities/find_plant.py
+   ```
+2. **Update your `.env`**: The script will print a block of configuration at the end. Look for the lines starting with `GROWATT_PLANT_ID` and `GROWATT_DEVICE_SN`. **Copy these whole lines** and paste them into your `.env` file, replacing the empty values.
+
+---
+
+### 5. Initialize the Database
+
+GroWDash uses a local SQLite database to store your dashboard account. You must create at least one user to be able to log in.
+
+1. **Create your User**: Run the user creation utility:
+   ```bash
+   python utilities/create_user.py
+   ```
+2. Follow the prompts to set your **username** and **password**. This information is stored only on your machine (passwords are securely hashed with Bcrypt).
 
 ---
 
 ### 5. Start the Backend Server
+
+Launch the FastAPI application using Uvicorn:
 ```bash
 uvicorn main:app --reload
 ```
-The backend is now running at **http://localhost:8000** 
+The backend is now running at **http://localhost:8000**. You can explore the interactive API documentation at `/docs`.
 
 ---
 
 ### 6. Set up the Frontend
 
-Open a new terminal, navigate to the frontend folder, and install dependencies:
+Open a **new terminal tab**, navigate to the `frontend` folder, and install the necessary Node.js packages:
 ```bash
 cd frontend
 npm install
 ```
 
-Start the development server:
+Start the Vite development server:
 ```bash
 npm run dev
 ```
 
-The frontend is now running at **http://localhost:5173**
+The frontend is now running at **http://localhost:5173**. 
 
-*(Note: Make sure the backend is also running in your other terminal so the frontend can fetch data).*
+*(Note: Make sure the backend is also running in your other terminal so the frontend can retrieve your data).*
 
 ---
 
@@ -199,10 +237,10 @@ The frontend is now running at **http://localhost:5173**
 
 The frontend is a single-page application built with **React** and **Vite**.
 
-- **Data Fetching:** Handled by **TanStack Query** (`react-query`). Data from the backend is cached and automatically refreshed every 5 minutes to stay in sync with the Growatt API reporting interval.
-- **Design System:** Built using **Tailwind CSS** and **shadcn/ui** components.
-- **Routing:** Pages are modularized into `Overview`, `History`, `Device`, and `DeviceSettings`.
-- **Charts:** A mix of **ApexCharts** (for complex curves) and **Recharts** (via shadcn/ui) are used to build the rich visual analytics.
+- **Authentication:** Handled via a custom `AuthContext`. The JWT token is stored in `localStorage` and sent with every API request.
+- **Data Fetching:** Managed by **TanStack Query** (`react-query`). Data is cached and automatically refreshed every 5 minutes (standard Growatt reporting interval).
+- **Design System:** Built using **Tailwind CSS** and **shadcn/ui** components for a premium, responsive look.
+- **Charts:** A combination of **ApexCharts** and **Recharts** delivers rich visual analytics.
 
 ---
 
@@ -214,9 +252,7 @@ Currently supports **Growatt MIN inverters** via the V1 Token API.
 ---
 
 ## ⚠️ Disclaimer
-
-This project is not affiliated with Growatt. Use at your own risk.
-Only read operations are used by the dashboard — no inverter settings are modified.
+This project is not affiliated with Growatt. Only read operations are used. No inverter settings are modified. Use at your own risk.
 
 ---
 
