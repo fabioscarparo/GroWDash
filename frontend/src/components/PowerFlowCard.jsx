@@ -98,13 +98,16 @@ export default function PowerFlowCard({
 
   // ── Flow state ─────────────────────────────────────────────────────────────
 
-  const solarActive        = solarW > 0
-  const batteryActive      = batteryChargeW > 0 || batteryDischargeW > 0
-  const batteryDischarging = batteryDischargeW > 0
-  const batteryCharging    = batteryChargeW > 0
-  const gridActive         = gridExportW > 0 || gridImportW > 0
-  const gridImporting      = gridImportW > 0
-  const homeActive         = homeW > 0
+  // Determine which connections have active power flow
+  // Use a small threshold (5W) to avoid visual noise from negligible power
+  const THRESHOLD = 5
+  const solarActive        = solarW > THRESHOLD
+  const batteryActive      = batteryChargeW > THRESHOLD || batteryDischargeW > THRESHOLD
+  const batteryDischarging = batteryDischargeW > THRESHOLD
+  const batteryCharging    = batteryChargeW > THRESHOLD
+  const gridActive         = gridExportW > THRESHOLD || gridImportW > THRESHOLD
+  const gridImporting      = gridImportW > THRESHOLD
+  const homeActive         = homeW > THRESHOLD
   const inverterActive     = solarActive || homeActive
 
   // Use the higher of charge/discharge for battery node display
