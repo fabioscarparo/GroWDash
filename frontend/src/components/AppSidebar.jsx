@@ -11,7 +11,7 @@ import {
   SidebarTrigger,
 } from '@/components/ui/sidebar'
 import { Button } from '@/components/ui/button'
-import { LayoutGrid, ChartLine, Cpu, Settings, Sun, Moon } from 'lucide-react'
+import { LayoutGrid, ChartLine, Cpu, Settings, Sun, Moon, LogOut, User } from 'lucide-react'
 
 const NAV_ITEMS = [
   { id: 'overview', label: 'Overview', icon: LayoutGrid },
@@ -20,7 +20,11 @@ const NAV_ITEMS = [
   { id: 'settings', label: 'Settings', icon: Settings   },
 ]
 
-export default function AppSidebar({ current, onChange, theme, onToggleTheme }) {
+export default function AppSidebar({ current, onChange, theme, onToggleTheme, user, onLogout }) {
+  const handleLogout = async () => {
+    await onLogout()
+  }
+
   return (
     <Sidebar collapsible="icon">
 
@@ -54,13 +58,31 @@ export default function AppSidebar({ current, onChange, theme, onToggleTheme }) 
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="border-t border-sidebar-border p-2">
+      <SidebarFooter className="border-t border-sidebar-border p-2 space-y-2">
+        {user && (
+          <div className="flex items-center gap-2 px-2 py-2 text-sm rounded-lg bg-sidebar-accent/50">
+            <User size={16} className="shrink-0" />
+            <span className="text-sidebar-foreground truncate group-data-[collapsible=icon]:hidden">
+              {user.username}
+            </span>
+          </div>
+        )}
+        
         <SidebarMenuButton
           onClick={onToggleTheme}
           tooltip={theme === 'dark' ? 'Light mode' : 'Dark mode'}
         >
           {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
           <span>{theme === 'dark' ? 'Light mode' : 'Dark mode'}</span>
+        </SidebarMenuButton>
+
+        <SidebarMenuButton
+          onClick={handleLogout}
+          tooltip="Logout"
+          className="text-destructive hover:text-destructive hover:bg-destructive/10"
+        >
+          <LogOut size={18} />
+          <span>Logout</span>
         </SidebarMenuButton>
       </SidebarFooter>
 

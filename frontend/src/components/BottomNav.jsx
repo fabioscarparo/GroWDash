@@ -1,7 +1,7 @@
 /**
  * BottomNav.jsx — Mobile bottom navigation bar
  *
- * Displays four navigation items at the bottom of the screen.
+ * Displays navigation items at the bottom of the screen.
  * The active item is highlighted with the primary accent color.
  *
  * On desktop (md+) this will be replaced by a sidebar — coming soon.
@@ -10,13 +10,14 @@
  * devices with a home indicator (iPhone X and later).
  */
 
-import { LayoutGrid, ChartLine, Cpu, Settings } from 'lucide-react'
+import { LayoutGrid, ChartLine, Cpu, Settings, User } from 'lucide-react'
 
 const NAV_ITEMS = [
   { id: 'overview', label: 'Overview', icon: LayoutGrid },
   { id: 'history',  label: 'History',  icon: ChartLine  },
   { id: 'device',   label: 'Device',   icon: Cpu        },
   { id: 'settings', label: 'Settings', icon: Settings   },
+  { id: 'account',  label: 'Account',  icon: User       },
 ]
 
 export default function BottomNav({ current, onChange }) {

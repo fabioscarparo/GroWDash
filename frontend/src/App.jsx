@@ -58,6 +58,7 @@ import Overview from './pages/Overview'
 import History from './pages/History'
 import Device from './pages/Device'
 import DeviceSettings from './pages/DeviceSettings'
+import UserAccount from './pages/UserAccount'
 import LoginPage from './pages/LoginPage'
 import { useTheme } from './hooks/useTheme'
 import { useSwipeNavigation } from './hooks/useSwipeNavigation'
@@ -68,7 +69,7 @@ import { useAuth } from './context/AuthContext'
  * The order determines slide direction when navigating:
  * moving to a higher index slides left, lower index slides right.
  */
-const PAGE_ORDER = ['overview', 'history', 'device', 'settings']
+const PAGE_ORDER = ['overview', 'history', 'device', 'settings', 'account']
 
 /**
  * Map of page ID → JSX element.
@@ -79,6 +80,7 @@ const PAGES = {
   history:  <History />,
   device:   <Device />,
   settings: <DeviceSettings />,
+  account:  <UserAccount />,
 }
 
 /**
@@ -89,7 +91,7 @@ const ANIM_DURATION = 300
 
 export default function App() {
   const { theme, toggle } = useTheme()
-  const { isAuthenticated, loading } = useAuth()
+  const { isAuthenticated, loading, user, logout } = useAuth()
 
   const [current,   setCurrent]   = useState('overview')
   const [previous,  setPrevious]  = useState(null)
@@ -176,6 +178,8 @@ export default function App() {
               onChange={navigate}
               theme={theme}
               onToggleTheme={toggle}
+              user={user}
+              onLogout={logout}
             />
           </div>
 

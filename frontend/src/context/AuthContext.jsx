@@ -17,6 +17,11 @@ export function AuthProvider({ children }) {
         const u = await api.getMe()
         setUser(u)
       } catch (err) {
+        // 401 is expected when session has expired or user is not logged in
+        // Silently handle it without logging to console
+        if (err.status !== 401) {
+          console.error('Session check failed:', err)
+        }
         setUser(null)
       } finally {
         setLoading(false)

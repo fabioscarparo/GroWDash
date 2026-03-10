@@ -23,6 +23,7 @@ async function fetcher(path) {
   })
 
   if (res.status === 401) {
+    // 401 is expected when not authenticated - don't log as error
     const error = new Error('Unauthorized')
     error.status = 401
     throw error

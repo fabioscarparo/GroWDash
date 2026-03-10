@@ -8,78 +8,103 @@
 
 import { useState } from 'react'
 import { useAuth } from '@/context/AuthContext'
-import { Lock } from 'lucide-react' // Using Lock instead for general purpose if needed, or keeping minimal
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
 export default function LoginPage() {
   const { login, error, loading } = useAuth()
-  const [username, setUsername] = useState('')
+  const [username, setUsername] = useState(() => localStorage.getItem('last_username') || '')
   const [password, setPassword] = useState('')
+
+  const handleUsernameChange = (e) => {
+    const value = e.target.value
+    setUsername(value)
+    localStorage.setItem('last_username', value)
+  }
 
   async function handleSubmit(e) {
     e.preventDefault()
-    await login(username, password)
+    const success = await login(username, password)
+    // If login failed, clear password but keep username
+    if (!success) {
+      console.log('Login failed, clearing password but keeping username:', username)
+      setPassword('')
+    }
   }
 
   return (
     <div className="min-h-dvh bg-background flex items-center justify-center p-4">
-      <div className="w-full max-w-sm">
+      <div className="w-full max-w-sm space-y-4">
 
         {/* Logo / Brand */}
-        <div className="flex flex-col items-center mb-8 text-center">
-          <img src="/favicon.svg" alt="GroWDash Logo" className="w-16 h-16 mb-4" />
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">GroWDash</h1>
-          <p className="text-sm text-muted-foreground">Sign in to access your dashboard</p>
+        <div className="flex flex-col items-center mb-6 text-center">
+          <img src="/favicon.svg" alt="GroWDash Logo" className="w-12 h-12 mb-3" />
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">GroWDash</h1>
+          <p className="text-sm text-muted-foreground mt-1">Sign in to access your dashboard</p>
         </div>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor="username" className="text-sm font-medium text-foreground">
-              Username
-            </label>
-            <input
-              id="username"
-              type="text"
-              autoComplete="username"
-              required
-              value={username}
-              onChange={e => setUsername(e.target.value)}
-              className="h-10 rounded-md border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1 transition"
-              placeholder="your_username"
-            />
-          </div>
+        {/* Form Card */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Login</CardTitle>
+            <CardDescription>Enter your credentials to continue</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+              {/* Username Input */}
+              <div className="flex flex-col gap-2">
+                <label htmlFor="username" className="text-sm font-medium text-foreground">
+                  Username
+                </label>
+                <Input
+                  id="username"
+                  type="text"
+                  autoComplete="username"
+                  required
+                  value={username}
+                  onChange={handleUsernameChange}
+                  disabled={loading}
+                  placeholder="Enter your username"
+                />
+              </div>
 
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor="password" className="text-sm font-medium text-foreground">
-              Password
-            </label>
-            <input
-              id="password"
-              type="password"
-              autoComplete="current-password"
-              required
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              className="h-10 rounded-md border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1 transition"
-              placeholder="••••••••"
-            />
-          </div>
+              {/* Password Input */}
+              <div className="flex flex-col gap-2">
+                <label htmlFor="password" className="text-sm font-medium text-foreground">
+                  Password
+                </label>
+                <Input
+                  id="password"
+                  type="password"
+                  autoComplete="current-password"
+                  required
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  disabled={loading}
+                  placeholder="Enter your password"
+                />
+              </div>
 
-          {/* Error message */}
-          {error && (
-            <p className="text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-md px-3 py-2">
-              {error}
-            </p>
-          )}
+              {/* Error message */}
+              {error && (
+                <div className="rounded-md bg-destructive/10 p-3 border border-destructive/20">
+                  <p className="text-sm text-destructive">{error}</p>
+                </div>
+              )}
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="h-10 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 active:scale-[0.98] transition disabled:opacity-60 disabled:cursor-not-allowed mt-1"
-          >
-            {loading ? 'Signing in…' : 'Sign in'}
-          </button>
-        </form>
+              {/* Submit Button */}
+              <Button
+                type="submit"
+                disabled={loading || !username || !password}
+                className="w-full mt-2"
+              >
+                {loading ? 'Signing in…' : 'Sign in'}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+
       </div>
     </div>
   )
