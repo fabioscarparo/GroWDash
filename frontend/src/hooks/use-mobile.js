@@ -1,7 +1,19 @@
 import * as React from "react"
 
+/** 
+ * Breakpoint threshold in pixels used to determine if the viewport is considered "mobile".
+ * Matches common Tailwind CSS `md` breakpoints.
+ * @constant {number}
+ */
 const MOBILE_BREAKPOINT = 768
 
+/**
+ * A React hook that determines if the current viewport width falls under the mobile breakpoint.
+ * It listens to window resize events via `matchMedia` for efficient updates.
+ *
+ * @returns {boolean} `true` if the viewport is narrower than `MOBILE_BREAKPOINT`, otherwise `false`.
+ *                    Returns `false` strictly during initial SSR (if applicable) until mounted.
+ */
 export function useIsMobile() {
   const [isMobile, setIsMobile] = React.useState(undefined)
 
