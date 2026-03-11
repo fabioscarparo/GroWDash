@@ -63,6 +63,7 @@ import LoginPage from './pages/LoginPage'
 import { useTheme } from './hooks/useTheme'
 import { useSwipeNavigation } from './hooks/useSwipeNavigation'
 import { useAuth } from './context/AuthContext'
+import PullToRefreshChip from './components/PullToRefreshChip'
 
 /**
  * Ordered list of page IDs.
@@ -87,7 +88,7 @@ const PAGES = {
  * Duration of the page transition animation in milliseconds.
  * Must match the animation duration defined in index.css.
  */
-const ANIM_DURATION = 300
+const ANIM_DURATION = 400
 
 export default function App() {
   const { theme, toggle } = useTheme()
@@ -112,6 +113,14 @@ export default function App() {
    */
   const navigate = useCallback((newPage) => {
     if (newPage === current || animating) return
+
+    const isDesktop = window.innerWidth >= 768
+
+    if (isDesktop) {
+      // Instant switch on desktop
+      setCurrent(newPage)
+      return
+    }
 
     const currentIdx = PAGE_ORDER.indexOf(current)
     const newIdx     = PAGE_ORDER.indexOf(newPage)
@@ -170,6 +179,7 @@ export default function App() {
     <TooltipProvider>
       <SidebarProvider>
         <div className="min-h-dvh bg-background flex w-full">
+          <PullToRefreshChip />
 
           {/* Sidebar — desktop only (md+) */}
           <div className="hidden md:block">

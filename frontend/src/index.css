@@ -181,50 +181,51 @@
    *
    * Mobile: full-width slide — the outgoing page exits while the incoming
    * page enters simultaneously, both travelling in the same direction.
-   * A subtle opacity change (1 ↔ 0.6) adds depth to the transition.
    *
-   * Desktop (md+): simple fade — more appropriate for a sidebar layout
-   * where pages don't conceptually "stack" horizontally.
-   *
-   * Direction convention:
-   *   forward navigation (higher index) → slides/fades left
-   *   backward navigation (lower index) → slides/fades right
+   * Desktop (md+): Disabled — navigation is immediate.
    */
   @keyframes slide-in-left {
-    from { transform: translateX(100%);  opacity: 0.6; }
-    to   { transform: translateX(0);     opacity: 1;   }
+    from { transform: translateX(100%);  }
+    to   { transform: translateX(0);     }
   }
 
   @keyframes slide-in-right {
-    from { transform: translateX(-100%); opacity: 0.6; }
-    to   { transform: translateX(0);     opacity: 1;   }
+    from { transform: translateX(-100%); }
+    to   { transform: translateX(0);     }
   }
 
   @keyframes slide-out-left {
-    from { transform: translateX(0);     opacity: 1;   }
-    to   { transform: translateX(-100%); opacity: 0.6; }
+    from { transform: translateX(0);     }
+    to   { transform: translateX(-100%); }
   }
 
   @keyframes slide-out-right {
-    from { transform: translateX(0);    opacity: 1;   }
-    to   { transform: translateX(100%); opacity: 0.6; }
+    from { transform: translateX(0);    }
+    to   { transform: translateX(100%); }
   }
 
-  @keyframes fade-in {
-    from { opacity: 0; }
-    to   { opacity: 1; }
+  /* Transition timings — standard fluid curves for mobile, none for desktop */
+  .animate-slide-in-left,
+  .animate-slide-in-right,
+  .animate-slide-out-left,
+  .animate-slide-out-right {
+    animation-duration: 400ms;
+    animation-timing-function: cubic-bezier(0.33, 1, 0.68, 1); /* Quintic ease-out */
+    animation-fill-mode: forwards;
   }
 
-  @keyframes fade-out {
-    from { opacity: 1; }
-    to   { opacity: 0; }
+  @media (min-width: 768px) {
+    .animate-slide-in-left,
+    .animate-slide-in-right,
+    .animate-slide-out-left,
+    .animate-slide-out-right {
+      animation: none !important;
+    }
   }
 
-  .animate-slide-in-left   { animation: slide-in-left   0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94); }
-  .animate-slide-in-right  { animation: slide-in-right  0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94); }
-  .animate-slide-out-left  { animation: slide-out-left  0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94); }
-  .animate-slide-out-right { animation: slide-out-right 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94); }
-  .animate-fade-in         { animation: fade-in         0.2s ease-out; }
-  .animate-fade-out        { animation: fade-out        0.2s ease-out; }
+  .animate-slide-in-left   { animation-name: slide-in-left;   }
+  .animate-slide-in-right  { animation-name: slide-in-right;  }
+  .animate-slide-out-left  { animation-name: slide-out-left;  }
+  .animate-slide-out-right { animation-name: slide-out-right; }
 
 }
