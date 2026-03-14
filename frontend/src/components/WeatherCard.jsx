@@ -53,10 +53,49 @@ function Stat({ icon, value, unit }) {
   )
 }
 
+// ── Skeleton ─────────────────────────────────────────────────────────────────
+
+function WeatherSkeleton() {
+  return (
+    <Card className="animate-pulse">
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 rounded-full bg-muted" />
+            <div className="w-16 h-4 rounded bg-muted" />
+          </div>
+          <div className="w-20 h-4 rounded bg-muted" />
+        </div>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-muted" />
+            <div className="space-y-2">
+              <div className="w-12 h-8 rounded bg-muted" />
+              <div className="w-16 h-3 rounded bg-muted" />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <div className="w-16 h-4 rounded bg-muted" />
+            <div className="w-10 h-3 ml-auto rounded bg-muted" />
+          </div>
+        </div>
+        <div className="h-px bg-border" />
+        <div className="flex items-center justify-between pt-1">
+          <div className="w-16 h-3 rounded bg-muted" />
+          <div className="w-16 h-3 rounded bg-muted" />
+          <div className="w-16 h-3 rounded bg-muted" />
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
 // ── Component ──────────────────────────────────────────────────────────────────
 
 export default function WeatherCard({ data }) {
-  if (!data) return null
+  if (!data) return <WeatherSkeleton />
 
   const current = data.current
   const daily   = data.daily

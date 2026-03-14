@@ -49,16 +49,20 @@ const INV     = { x: CX,          y: CY }
 function getColors() {
   const dark = document.documentElement.classList.contains('dark')
   return dark ? {
-    foreground:      'oklch(0.985 0 0)',     // --foreground dark
-    mutedForeground: 'oklch(0.708 0 0)',     // --muted-foreground dark
-    muted:           'oklch(0.269 0 0)',     // --muted dark
-    border:          'oklch(0.4 0 0)',       // --border dark (opacizzato)
+    foreground:      'oklch(0.985 0 0)',
+    mutedForeground: 'oklch(0.708 0 0)',
+    muted:           'oklch(0.269 0 0)',
+    border:          'oklch(1 0 0 / 10%)',
+    nodeBorder:      'oklch(1 0 0 / 10%)',   // Match shadcn dark border
+    nodeActive:      'oklch(1 0 0 / 25%)',   // Subtle active highlight
     primary:         '#006fff',
   } : {
-    foreground:      'oklch(0.145 0 0)',     // --foreground light
-    mutedForeground: 'oklch(0.556 0 0)',     // --muted-foreground light
-    muted:           'oklch(0.97 0 0)',      // --muted light
-    border:          'oklch(0.922 0 0)',     // --border light
+    foreground:      'oklch(0.145 0 0)',
+    mutedForeground: 'oklch(0.556 0 0)',
+    muted:           'oklch(0.97 0 0)',
+    border:          'oklch(0.922 0 0)',    // Match shadcn light border
+    nodeBorder:      'oklch(0.922 0 0)',
+    nodeActive:      'oklch(0.7 0 0)',       // Subtle active highlight
     primary:         '#006fff',
   }
 }
@@ -222,8 +226,8 @@ export default function PowerFlowCard({
           <circle
             cx={INV.x} cy={INV.y} r={R}
             fill={colors.muted}
-            stroke={inverterActive ? colors.foreground : colors.border}
-            strokeWidth={inverterActive ? 2 : 1.5}
+            stroke={inverterActive ? colors.nodeActive : colors.nodeBorder}
+            strokeWidth={1}
             style={{ transition: 'all 0.3s' }}
           />
           <foreignObject x={INV.x - R} y={INV.y - R} width={R * 2} height={R * 2}>

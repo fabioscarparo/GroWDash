@@ -44,8 +44,8 @@ export default function FlowNode({
       <circle
         cx={cx} cy={cy} r={r}
         fill={colors.muted}
-        stroke={active ? colors.foreground : colors.border}
-        strokeWidth={active ? 2 : 1.5}
+        stroke={active ? colors.nodeActive : colors.nodeBorder}
+        strokeWidth={1}
         style={{ transition: 'all 0.3s' }}
       />
 

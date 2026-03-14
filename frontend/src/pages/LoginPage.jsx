@@ -11,6 +11,8 @@ import { useAuth } from '@/context/AuthContext'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Heart } from 'lucide-react'
+
 
 export default function LoginPage() {
   const { login, error, loading } = useAuth()
@@ -106,6 +108,21 @@ export default function LoginPage() {
         </Card>
 
       </div>
+
+      {/* Footer */}
+      <footer className="absolute bottom-6 left-0 right-0 text-center animate-in fade-in slide-in-from-bottom-2 duration-700">
+        <p className="text-sm text-muted-foreground flex items-center justify-center gap-1.5">
+          Made with <Heart className="w-4 h-4 text-foreground fill-foreground" /> by{' '}
+          <a
+            href="https://www.linkedin.com/in/fabio-scarparo-543b27193/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-medium text-primary hover:underline underline-offset-4 transition-colors"
+          >
+            Fabio
+          </a>
+        </p>
+      </footer>
     </div>
   )
 }

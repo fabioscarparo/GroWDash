@@ -40,7 +40,7 @@ function monthLabel(dateStr) {
 // ── Component ──────────────────────────────────────────────────────────────────
 
 export default function HistoricalChart() {
-  const [timeUnit, setTimeUnit] = useState('month')
+  const [timeUnit, setTimeUnit] = useState('day')
   const [refDate, setRefDate]   = useState(new Date())
   const [activeBar, setActiveBar] = useState(null)
 
@@ -127,25 +127,8 @@ export default function HistoricalChart() {
             <BarChart2 size={16} className="text-muted-foreground" />
             <CardTitle className="text-sm font-semibold">Solar Production</CardTitle>
           </div>
-          <div className="flex items-center gap-2">
-            {timeUnit !== 'year' && (
-              <>
-                <button
-                  onClick={prev}
-                  className="p-1 rounded hover:bg-muted text-muted-foreground transition-colors"
-                >
-                  <ChevronLeft size={16} />
-                </button>
-                <span className="text-xs text-muted-foreground">{periodLabel}</span>
-                <button
-                  onClick={next}
-                  disabled={isCurrentPeriod}
-                  className="p-1 rounded hover:bg-muted text-muted-foreground transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                >
-                  <ChevronRight size={16} />
-                </button>
-              </>
-            )}
+          <div className="flex items-center gap-3">
+            {/* Unit Selector First */}
             <div className="flex rounded-md border border-border overflow-hidden text-xs">
               {['day', 'month', 'year'].map(u => (
                 <button
@@ -161,6 +144,26 @@ export default function HistoricalChart() {
                 </button>
               ))}
             </div>
+
+            {/* Navigation Second */}
+            {timeUnit !== 'year' && (
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={prev}
+                  className="p-1 rounded hover:bg-muted text-muted-foreground transition-colors"
+                >
+                  <ChevronLeft size={16} />
+                </button>
+                <span className="text-xs text-muted-foreground font-medium min-w-[70px] text-center">{periodLabel}</span>
+                <button
+                  onClick={next}
+                  disabled={isCurrentPeriod}
+                  className="p-1 rounded hover:bg-muted text-muted-foreground transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                >
+                  <ChevronRight size={16} />
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
