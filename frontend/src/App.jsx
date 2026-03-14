@@ -91,7 +91,8 @@ const PAGES = {
 const ANIM_DURATION = 400
 
 export default function App() {
-  const { theme, toggle } = useTheme()
+  const { theme, setTheme } = useTheme()
+
   const { isAuthenticated, loading, user, logout } = useAuth()
 
   const [current,   setCurrent]   = useState('overview')
@@ -147,6 +148,12 @@ export default function App() {
 
   // Current page index — used to determine swipe nav boundaries
   const currentIdx = PAGE_ORDER.indexOf(current)
+
+  // Stable toggle for sidebar (Desktop)
+  const toggleTheme = useCallback(() => {
+    setTheme(prev => prev === 'dark' ? 'light' : 'dark')
+  }, [setTheme])
+
   // Register horizontal swipe gesture for mobile navigation
   useSwipeNavigation({
     onNext: () => {
@@ -187,8 +194,9 @@ export default function App() {
               current={current}
               onChange={navigate}
               theme={theme}
-              onToggleTheme={toggle}
+              onToggleTheme={toggleTheme}
               user={user}
+
               onLogout={logout}
             />
           </div>
@@ -247,20 +255,6 @@ export default function App() {
           <div className="md:hidden">
             <BottomNav current={current} onChange={navigate} />
           </div>
-
-          {/*
-           * Dark mode toggle — mobile only.
-           * Floats above the bottom navigation bar (bottom-20 = 80px).
-           * On desktop the toggle is inside the sidebar footer.
-           */}
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={toggle}
-            className="md:hidden fixed bottom-20 right-4 z-50 rounded-full bg-background border border-border shadow-md"
-          >
-            {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
-          </Button>
 
         </div>
       </SidebarProvider>

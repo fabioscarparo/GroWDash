@@ -17,40 +17,45 @@ import { useState, useEffect } from 'react'
 /**
  * A custom hook to manage and toggle global application themes (Dark vs. Light).
  *
- * @returns {{ theme: string, toggle: Function }} An object containing:
- *   - `theme`: The currently active theme string (`'dark'` or `'light'`).
- *   - `toggle`: A stable function to invert the active theme state.
+ * A custom hook to manage and toggle global application themes (Dark, Light, or System).
+ *
+ * @returns {{ theme: string, setTheme: Function }} An object containing:
+ *   - `theme`: The currently active theme string (`'dark'`, `'light'`, or `'system'`).
+ *   - `setTheme`: A function to set the active theme state.
  */
 export function useTheme() {
   const [theme, setTheme] = useState(() => {
-    // Attempt to hydrate persistence state first
-    const stored = localStorage.getItem('theme')
-    if (stored) return stored
-    
-    // Fall back to sniffing the OS-level browser preference
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+    return localStorage.getItem('theme') || 'system'
   })
 
   useEffect(() => {
     const root = document.documentElement
-    
-    // Mutate the root DOM element to trigger global Tailwind cascading color shifts
-    if (theme === 'dark') {
-      root.classList.add('dark')
-    } else {
-      root.classList.remove('dark')
+
+    const applyTheme = (currentTheme) => {
+      let resolvedTheme = currentTheme
+
+      if (currentTheme === 'system') {
+        resolvedTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+      }
+
+      if (resolvedTheme === 'dark') {
+        root.classList.add('dark')
+      } else {
+        root.classList.remove('dark')
+      }
     }
-    
-    // Persist the choice so returning users aren't flashed with the wrong mode
+
+    applyTheme(theme)
     localStorage.setItem('theme', theme)
+
+    // Listener for system theme changes
+    if (theme === 'system') {
+      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
+      const handleChange = () => applyTheme('system')
+      mediaQuery.addEventListener('change', handleChange)
+      return () => mediaQuery.removeEventListener('change', handleChange)
+    }
   }, [theme])
 
-  /**
-   * Reverses the currently active theme setting.
-   */
-  function toggle() {
-    setTheme(prev => prev === 'dark' ? 'light' : 'dark')
-  }
-
-  return { theme, toggle }
+  return { theme, setTheme }
 }

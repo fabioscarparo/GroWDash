@@ -140,7 +140,8 @@ export default function HistoricalChart() {
                       : 'bg-background text-muted-foreground hover:bg-muted'
                   }`}
                 >
-                  {u}
+                  <span className="md:hidden">{u.charAt(0).toUpperCase()}</span>
+                  <span className="hidden md:inline">{u.charAt(0).toUpperCase() + u.slice(1)}</span>
                 </button>
               ))}
             </div>
