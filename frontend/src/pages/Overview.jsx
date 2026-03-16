@@ -28,6 +28,7 @@ import SOCCurveCard from '../components/SOCCurveCard'
 import { useWeather } from '../hooks/useWeather'
 import WeatherCard from '../components/WeatherCard'
 import EnergyBreakdownCard from '../components/EnergyBreakdownCard'
+import { Skeleton } from '@/components/ui/skeleton'
 
 // ── Header ────────────────────────────────────────────────────────────────────
 
@@ -42,35 +43,48 @@ import EnergyBreakdownCard from '../components/EnergyBreakdownCard'
  * @param {string} props.lastUpdate - Time string of the last successful client-side data refresh.
  * @returns {JSX.Element} The rendered header block.
  */
-function Header({ plantName, plantCapacityKw, serialNumber, isOnline, lastUpdate }) {
+function Header({ plantName, plantCapacityKw, serialNumber, isOnline, lastUpdate, isLoading }) {
   return (
     <div className="flex items-start justify-between px-4 pt-6 pb-4">
-      <div>
-        <h1 className="text-xl font-bold text-foreground">
-          {plantName || 'GroWDash'}
-        </h1>
-        <div className="flex items-center gap-2 mt-0.5">
-          {plantCapacityKw && (
-            <span className="text-xs text-muted-foreground">{plantCapacityKw} kWp</span>
-          )}
-          {serialNumber && plantCapacityKw && (
-            <span className="text-xs text-muted-foreground">·</span>
-          )}
-          {serialNumber && (
-            <span className="text-xs text-muted-foreground">{serialNumber}</span>
-          )}
-          {lastUpdate && (
-            <>
-              <span className="text-xs text-muted-foreground">·</span>
-              <span className="text-xs text-muted-foreground">Updated {lastUpdate}</span>
-            </>
-          )}
-        </div>
+      <div className="flex-1">
+        {isLoading ? (
+          <>
+            <Skeleton className="h-7 w-48 mb-2" />
+            <Skeleton className="h-4 w-64" />
+          </>
+        ) : (
+          <>
+            <h1 className="text-xl font-bold text-foreground">
+              {plantName || 'GroWDash'}
+            </h1>
+            <div className="flex items-center gap-2 mt-0.5">
+              {plantCapacityKw && (
+                <span className="text-xs text-muted-foreground">{plantCapacityKw} kWp</span>
+              )}
+              {serialNumber && plantCapacityKw && (
+                <span className="text-xs text-muted-foreground">·</span>
+              )}
+              {serialNumber && (
+                <span className="text-xs text-muted-foreground">{serialNumber}</span>
+              )}
+              {lastUpdate && (
+                <>
+                  <span className="text-xs text-muted-foreground">·</span>
+                  <span className="text-xs text-muted-foreground">Updated {lastUpdate}</span>
+                </>
+              )}
+            </div>
+          </>
+        )}
       </div>
-      <Badge variant={isOnline ? 'default' : 'secondary'} className="mt-1">
-        <span className={`mr-1.5 inline-block w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-green-400' : 'bg-muted-foreground'}`} />
-        {isOnline ? 'Online' : 'Offline'}
-      </Badge>
+      {isLoading ? (
+        <Skeleton className="h-6 w-16 rounded-full mt-1" />
+      ) : (
+        <Badge variant={isOnline ? 'default' : 'secondary'} className="mt-1">
+          <span className={`mr-1.5 inline-block w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-green-400' : 'bg-muted-foreground'}`} />
+          {isOnline ? 'Online' : 'Offline'}
+        </Badge>
+      )}
     </div>
   )
 }
@@ -89,7 +103,7 @@ function Header({ plantName, plantCapacityKw, serialNumber, isOnline, lastUpdate
  * @param {string} [props.sublabel] - Optional subtle text spanning below the main value.
  * @returns {JSX.Element} The KPI Card wrapper.
  */
-function KpiCard({ icon, label, value, unit, sublabel }) {
+function KpiCard({ icon, label, value, unit, sublabel, isLoading }) {
   return (
     <Card>
       <CardContent>
@@ -100,8 +114,14 @@ function KpiCard({ icon, label, value, unit, sublabel }) {
           </p>
         </div>
         <div className="flex items-baseline gap-1">
-          <span className="text-2xl font-bold text-foreground">{value ?? '—'}</span>
-          {unit && <span className="text-sm text-muted-foreground">{unit}</span>}
+          {isLoading ? (
+            <Skeleton className="h-8 w-20" />
+          ) : (
+            <>
+              <span className="text-2xl font-bold text-foreground">{value ?? '—'}</span>
+              {unit && <span className="text-sm text-muted-foreground">{unit}</span>}
+            </>
+          )}
         </div>
         {sublabel && (
           <p className="text-xs text-muted-foreground mt-0.5">{sublabel}</p>
@@ -123,11 +143,13 @@ function KpiCard({ icon, label, value, unit, sublabel }) {
  * @returns {JSX.Element} The completely assembled Overview view.
  */
 export default function Overview() {
-  const { data: plantInfo }  = usePlantInfo()
-  const { data: overview }   = useOverview()
+  const { data: plantInfo, isLoading: isPlantLoading }  = usePlantInfo()
+  const { data: overview, isLoading: isOverviewLoading }   = useOverview()
   const { data: today }      = useToday()
-  const { data: deviceList } = useDeviceList()
+  const { data: deviceList, isLoading: isDeviceLoading } = useDeviceList()
   const { data: weatherData } = useWeather(plantInfo?.latitude, plantInfo?.longitude)
+
+  const isHeaderLoading = isPlantLoading || isOverviewLoading || isDeviceLoading
 
   const inverter     = deviceList?.devices?.find(d => d.type === 7)
   const isOnline     = inverter?.is_online ?? false
@@ -167,6 +189,7 @@ export default function Overview() {
         serialNumber={serialNumber}
         isOnline={isOnline}
         lastUpdate={lastUpdate}
+        isLoading={isHeaderLoading}
       />
 
       <div className="px-4 flex flex-col gap-3 pb-4">
@@ -174,7 +197,13 @@ export default function Overview() {
         {/* Weather and Solar Production KPI side-by-side on desktop, stacked on mobile */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <WeatherCard data={weatherData} />
-          <KpiCard icon={<Sun size={16} />}  label="Solar Production" value={overview?.today_energy_kwh} unit="kWh" />
+          <KpiCard
+            icon={<Sun size={16} />}
+            label="Solar Production"
+            value={overview?.today_energy_kwh}
+            unit="kWh"
+            isLoading={isOverviewLoading}
+          />
         </div>
 
         {/* Grid switching: interactive Node Flow and Intraday Curvage graph side by side on wide screens */}

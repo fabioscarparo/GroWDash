@@ -88,10 +88,10 @@ export default function History() {
             unit="kWh"
           />
           <KpiCard
-            icon={<Calendar size={14} />}
-            label="This month"
-            value={overview?.monthly_energy_kwh}
-            unit="kWh"
+            icon={<Leaf size={14} />}
+            label="Total CO₂ saved"
+            value={overview?.carbon_offset_kg}
+            unit="kg"
           />
           <KpiCard
             icon={<CalendarDays size={14} />}
@@ -100,10 +100,10 @@ export default function History() {
             unit="kWh"
           />
           <KpiCard
-            icon={<Leaf size={14} />}
-            label="Total CO₂ saved"
-            value={overview?.carbon_offset_kg}
-            unit="kg"
+            icon={<Calendar size={14} />}
+            label="This month"
+            value={overview?.monthly_energy_kwh}
+            unit="kWh"
           />
         </div>
 

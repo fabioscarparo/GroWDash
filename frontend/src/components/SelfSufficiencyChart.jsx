@@ -30,6 +30,7 @@ import { BarChart2, ChevronLeft, ChevronRight } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts'
 import { useDailyBreakdown } from '../hooks/useGrowatt'
 import { api } from '../api/growatt'
+import { Skeleton } from '@/components/ui/skeleton'
 
 // ── Chart config ──────────────────────────────────────────────────────────────
 
@@ -191,7 +192,20 @@ export default function SelfSufficiencyChart() {
       <CardContent className="px-3 pb-3 flex flex-col gap-3">
 
         {isLoading ? (
-          <p className="text-sm text-muted-foreground">Loading...</p>
+          <div className="flex flex-col gap-3">
+            <div className="grid grid-cols-4 gap-2">
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+            </div>
+            <Skeleton className="h-[200px] w-full" />
+            <div className="flex justify-center gap-4">
+               <Skeleton className="h-4 w-20" />
+               <Skeleton className="h-4 w-20" />
+               <Skeleton className="h-4 w-20" />
+            </div>
+          </div>
         ) : chartData.length === 0 ? (
           <p className="text-sm text-muted-foreground">No data available.</p>
         ) : (

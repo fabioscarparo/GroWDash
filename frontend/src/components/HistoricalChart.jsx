@@ -13,6 +13,7 @@ import { ChartContainer, ChartTooltip } from '@/components/ui/chart'
 import { BarChart2, ChevronLeft, ChevronRight } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Cell } from 'recharts'
 import { useAggregate } from '../hooks/useGrowatt'
+import { Skeleton } from '@/components/ui/skeleton'
 
 // ── Chart config ───────────────────────────────────────────────────────────────
 
@@ -173,7 +174,7 @@ export default function HistoricalChart() {
 
       <CardContent className="px-3 pb-3">
         {isLoading ? (
-          <p className="text-sm text-muted-foreground">Loading...</p>
+          <Skeleton className="h-[200px] w-full" />
         ) : chartData.length === 0 ? (
           <p className="text-sm text-muted-foreground">No data available.</p>
         ) : (

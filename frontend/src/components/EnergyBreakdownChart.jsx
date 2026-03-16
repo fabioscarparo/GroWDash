@@ -30,6 +30,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts'
 import { useDailyBreakdown } from '../hooks/useGrowatt'
 import { api } from '../api/growatt'
 import SeriesToggle from './SeriesToggle'
+import { Skeleton } from '@/components/ui/skeleton'
 
 // ── Series config ─────────────────────────────────────────────────────────────
 
@@ -228,7 +229,7 @@ export default function EnergyBreakdownChart() {
       <CardContent className="px-3 pb-3 flex flex-col gap-3">
 
         {isLoading ? (
-          <p className="text-sm text-muted-foreground">Loading...</p>
+          <Skeleton className="h-[200px] w-full" />
         ) : chartData.length === 0 ? (
           <p className="text-sm text-muted-foreground">No data available.</p>
         ) : (
