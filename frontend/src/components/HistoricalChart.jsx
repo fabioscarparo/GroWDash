@@ -14,6 +14,7 @@ import { BarChart2, ChevronLeft, ChevronRight } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Cell } from 'recharts'
 import { useAggregate } from '../hooks/useGrowatt'
 import { Skeleton } from '@/components/ui/skeleton'
+import PeriodPicker from './PeriodPicker'
 
 // ── Chart config ───────────────────────────────────────────────────────────────
 
@@ -128,27 +129,15 @@ export default function HistoricalChart() {
             <BarChart2 size={16} className="text-muted-foreground" />
             <CardTitle className="text-sm font-semibold">Solar Production</CardTitle>
           </div>
-          <div className="flex items-center gap-3">
-            {/* Unit Selector First */}
-            <div className="flex rounded-md border border-border overflow-hidden text-xs">
-              {['day', 'month', 'year'].map(u => (
-                <button
-                  key={u}
-                  onClick={() => { setTimeUnit(u); setActiveBar(null) }}
-                  className={`px-2.5 py-1 capitalize transition-colors ${
-                    timeUnit === u
-                      ? 'bg-primary text-primary-foreground font-semibold'
-                      : 'bg-background text-muted-foreground hover:bg-muted'
-                  }`}
-                >
-                  <span className="md:hidden">{u.charAt(0).toUpperCase()}</span>
-                  <span className="hidden md:inline">{u.charAt(0).toUpperCase() + u.slice(1)}</span>
-                </button>
-              ))}
-            </div>
+          <div className="flex items-center gap-2">
+            <PeriodPicker 
+              currentDate={refDate} 
+              onDateChange={(d) => { setRefDate(d); setActiveBar(null) }}
+              timeUnit={timeUnit}
+              onTimeUnitChange={(u) => { setTimeUnit(u); setActiveBar(null) }}
+            />
 
-            {/* Navigation Second */}
-            {timeUnit !== 'year' && (
+            {timeUnit === 'month' && (
               <div className="flex items-center gap-1">
                 <button
                   onClick={prev}
@@ -156,7 +145,6 @@ export default function HistoricalChart() {
                 >
                   <ChevronLeft size={16} />
                 </button>
-                <span className="text-xs text-muted-foreground font-medium min-w-[70px] text-center">{periodLabel}</span>
                 <button
                   onClick={next}
                   disabled={isCurrentPeriod}

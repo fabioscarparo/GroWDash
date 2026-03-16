@@ -31,6 +31,7 @@ import { useDailyBreakdown } from '../hooks/useGrowatt'
 import { api } from '../api/growatt'
 import SeriesToggle from './SeriesToggle'
 import { Skeleton } from '@/components/ui/skeleton'
+import PeriodPicker from './PeriodPicker'
 
 // ── Series config ─────────────────────────────────────────────────────────────
 
@@ -204,24 +205,10 @@ export default function EnergyBreakdownChart() {
           </div>
 
           {/* Month navigation */}
-          <div className="flex items-center gap-1">
-            <button
-              onClick={prev}
-              className="p-1 rounded hover:bg-muted text-muted-foreground transition-colors"
-            >
-              <ChevronLeft size={16} />
-            </button>
-            <span className="text-xs text-muted-foreground w-28 text-center">
-              {periodLabel}
-            </span>
-            <button
-              onClick={next}
-              disabled={isCurrentMonth}
-              className="p-1 rounded hover:bg-muted text-muted-foreground transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-            >
-              <ChevronRight size={16} />
-            </button>
-          </div>
+          <PeriodPicker 
+            currentDate={refDate} 
+            onDateChange={setRefDate} 
+          />
 
         </div>
       </CardHeader>
