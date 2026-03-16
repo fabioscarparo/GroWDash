@@ -5,27 +5,22 @@
  * solar production, home consumption, grid import/export and
  * battery charge/discharge.
  *
- * Navigation: prev/next arrows to move between months.
- * Series toggles to show/hide individual flows.
+ * Navigation: Integrated PeriodPicker for month selection with installation date bounds.
+ * Series toggles: Interactive legend to show/hide individual flows.
  *
- * When navigating months the previous chart stays visible but dimmed
- * while the new data loads, avoiding a jarring blank state.
+ * Key features:
+ *  - Persistent View: Chart stays visible but dimmed during re-fetches.
+ *  - Smart Boundaries: Caps end date to today and respects plant installation date.
+ *  - Background Prefetch: Silently loads adjacent months for instant navigation.
  *
- * End date is capped to today when viewing the current month —
- * there is no point requesting future days the API has no data for.
- *
- * Adjacent months are prefetched in the background while the user
- * views the current month, so prev/next navigation feels instant
- * after the first load.
- *
- * Data source: /energy/daily-breakdown (all flows, arbitrary range)
+ * Data source: /energy/daily-breakdown
  */
 
 import { useState, useMemo, useEffect } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ChartContainer, ChartTooltip } from '@/components/ui/chart'
-import { BarChart2, ChevronLeft, ChevronRight } from 'lucide-react'
+import { BarChart2 } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts'
 import { useDailyBreakdown, usePlantInfo } from '../hooks/useGrowatt'
 import { api } from '../api/growatt'
@@ -161,23 +156,6 @@ export default function EnergyBreakdownChart() {
     }
   }, [refDate])
 
-  // ── Navigation ────────────────────────────────────────────────────────────
-
-  function prev() {
-    setRefDate(d => {
-      const next = new Date(d)
-      next.setMonth(next.getMonth() - 1)
-      return next
-    })
-  }
-
-  function next() {
-    setRefDate(d => {
-      const next = new Date(d)
-      next.setMonth(next.getMonth() + 1)
-      return next
-    })
-  }
 
   // ── Chart data ────────────────────────────────────────────────────────────
 

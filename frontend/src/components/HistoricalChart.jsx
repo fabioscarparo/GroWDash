@@ -1,10 +1,17 @@
 /**
- * HistoricalChart.jsx — Historical solar energy production bar chart.
+ * HistoricalChart.jsx — Multi-scale solar production analytics.
  *
- * Header: day/month/year selector + total for the period.
- * Period navigation with prev/next arrows.
+ * This component provides a deep-dive into historical solar generation, 
+ * allowing users to toggle between Daily, Monthly, and Yearly (All Time) views.
  *
- * Data source: /energy/aggregate
+ * Key features:
+ *  - Unified Navigation: Centralized date and unit management via PeriodPicker.
+ *  - Smart Boundaries: Respects plant installation date to prevent navigating to empty periods.
+ *  - Real-time Filtering: Automatically hides future timestamps in the current period.
+ *
+ * Data source:
+ *  - useAggregate hook: Fetches historical production for the computed range and unit.
+ *  - usePlantInfo hook: Retrieves installation date for boundary enforcement.
  */
 
 import { useState, useMemo } from 'react'
@@ -24,6 +31,10 @@ const chartConfig = {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
+/**
+ * Returns YYYY-MM-DD boundaries for a specific month.
+ * Useful for the 'day' view which displays a full month of daily bars.
+ */
 function monthRange(year, month) {
   const start = new Date(year, month, 1)
   const end   = new Date(year, month + 1, 0)
@@ -31,10 +42,12 @@ function monthRange(year, month) {
   return { start: fmt(start), end: fmt(end) }
 }
 
+/** Extracts the day number for X-Axis labels in Daily view */
 function dayLabel(dateStr) {
   return String(new Date(dateStr + 'T12:00:00').getDate())
 }
 
+/** Formats month names for X-Axis labels in Yearly view */
 function monthLabel(dateStr) {
   return new Date(dateStr + '-01T12:00:00').toLocaleString('en', { month: 'short' })
 }
@@ -49,7 +62,11 @@ export default function HistoricalChart() {
   const { data: plantInfo } = usePlantInfo()
   const minDate = plantInfo?.plant_installation_date ? new Date(plantInfo.plant_installation_date) : null
 
-  // ── Date range ────────────────────────────────────────────────────────────
+  // ── Date range Calculation ──────────────────────────────────────────────────
+  // Based on the selected timeUnit, we compute the API request window:
+  // - day:   Full month containing refDate
+  // - month: Full year containing refDate
+  // - year:  'All time' starting from installation date to current year end
 
   let startDate, endDate, periodLabel
 
@@ -63,6 +80,7 @@ export default function HistoricalChart() {
     endDate     = `${refDate.getFullYear()}-12-31`
     periodLabel = String(refDate.getFullYear())
   } else {
+    // History starts from the plant's birth (installation date)
     startDate   = plantInfo?.plant_installation_date || '2020-01-01'
     endDate     = `${new Date().getFullYear()}-12-31`
     periodLabel = 'All time'
@@ -70,18 +88,12 @@ export default function HistoricalChart() {
 
   const { data: aggregate, isLoading } = useAggregate(startDate, endDate, timeUnit)
 
-
-
-  
-
-
-
   const now = new Date()
   const isCurrentPeriod =
     (timeUnit === 'day'   && refDate.getFullYear() === now.getFullYear() && refDate.getMonth() === now.getMonth()) ||
     (timeUnit === 'month' && refDate.getFullYear() === now.getFullYear())
 
-  // ── Chart data ────────────────────────────────────────────────────────────
+  // ── Chart data Processing ──────────────────────────────────────────────────
 
   const chartData = useMemo(() => {
     let data = (aggregate?.data ?? []).map(d => ({
@@ -91,17 +103,16 @@ export default function HistoricalChart() {
           ? monthLabel(d.date)
           : d.date,
       energy: Number(d.energy),
-      dateStr: d.date, // Keep original date for filtering
+      dateStr: d.date, // Retained for filtering logic
     }))
 
-    // When viewing current month, filter out future days
+    // Safeguard: Do not plot future days when viewing the current month
     if (timeUnit === 'day' && isCurrentPeriod) {
       const today = new Date()
       const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
       data = data.filter(d => d.dateStr <= todayStr)
     }
 
-    // Remove the dateStr before returning for chart display
     return data.map(({ dateStr, ...rest }) => rest)
   }, [aggregate, timeUnit, isCurrentPeriod])
 

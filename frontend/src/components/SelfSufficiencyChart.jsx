@@ -6,18 +6,15 @@
  *   - From battery discharge
  *   - From grid
  *
- * This mirrors the logic of EnergyBreakdownCard on the Overview page,
- * applied to historical daily data instead of today's live totals.
- *
  * Derivation from daily-breakdown fields:
  *   from_solar   = home_kwh - grid_import_kwh - battery_discharged_kwh
  *   from_battery = battery_discharged_kwh
  *   from_grid    = grid_import_kwh
- *   total        = home_kwh  (the three segments always sum to home_kwh)
+ *   total        = home_kwh (the three segments always sum to home_kwh)
  *
- * Navigation: prev/next arrows to move between months.
- * Adjacent months are prefetched in the background so navigation
- * feels instant after the first load.
+ * Features:
+ *  - Navigation: Integrated PeriodPicker with plant installation date boundaries.
+ *  - Background Prefetch: Silently loads adjacent months for seamless paging.
  *
  * Data source: /energy/daily-breakdown
  */
@@ -26,7 +23,7 @@ import { useState, useMemo, useEffect } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ChartContainer, ChartTooltip } from '@/components/ui/chart'
-import { BarChart2, ChevronLeft, ChevronRight } from 'lucide-react'
+import { BarChart2 } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts'
 import { useDailyBreakdown, usePlantInfo } from '../hooks/useGrowatt'
 import { api } from '../api/growatt'
@@ -115,15 +112,6 @@ export default function SelfSufficiencyChart() {
     }
   }, [refDate])
 
-  // ── Navigation ────────────────────────────────────────────────────────────
-
-  function prev() {
-    setRefDate(d => { const n = new Date(d); n.setMonth(n.getMonth() - 1); return n })
-  }
-
-  function next() {
-    setRefDate(d => { const n = new Date(d); n.setMonth(n.getMonth() + 1); return n })
-  }
 
   // ── Chart data ────────────────────────────────────────────────────────────
 
