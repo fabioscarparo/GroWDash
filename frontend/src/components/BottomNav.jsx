@@ -35,6 +35,8 @@ export default function BottomNav({ current, onChange }) {
             onClick={() => onChange(id)}
             className="flex flex-col items-center justify-center gap-1 w-16 h-full
                        border-none bg-transparent cursor-pointer"
+            onPointerDown={(e) => e.preventDefault()}
+            tabIndex={-1}
           >
             <Icon
               size={20}

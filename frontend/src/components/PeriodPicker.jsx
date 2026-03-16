@@ -34,6 +34,7 @@ export default function PeriodPicker({
   onDateChange, 
   timeUnit = 'day', 
   onTimeUnitChange,
+  minDate,
   className 
 }) {
   const isMobile = useIsMobile()
@@ -53,24 +54,22 @@ export default function PeriodPicker({
   ]
 
   const today = new Date()
+  
   const isFutureMonth = (monthIndex) => {
     return viewYear > today.getFullYear() || 
            (viewYear === today.getFullYear() && monthIndex > today.getMonth())
+  }
+
+  const isPastMonth = (monthIndex) => {
+    if (!minDate) return false
+    return viewYear < minDate.getFullYear() ||
+           (viewYear === minDate.getFullYear() && monthIndex < minDate.getMonth())
   }
 
   const handleMonthSelect = (monthIndex) => {
     const newDate = new Date(currentDate)
     newDate.setFullYear(viewYear)
     newDate.setMonth(monthIndex)
-    onDateChange(newDate)
-    setOpen(false)
-  }
-
-  const handleYearSelect = (year) => {
-    const newDate = new Date(currentDate)
-    newDate.setFullYear(year)
-    // When switching to month view, it's safer to keep the month or reset to Jan
-    // but here we just update the year
     onDateChange(newDate)
     setOpen(false)
   }
@@ -83,6 +82,13 @@ export default function PeriodPicker({
     if (timeUnit !== 'day') {
       const newDate = new Date(currentDate)
       newDate.setFullYear(newYear)
+      
+      // Safety check: don't let the selected date go before minDate
+      if (minDate && newDate < minDate) {
+        newDate.setFullYear(minDate.getFullYear())
+        newDate.setMonth(minDate.getMonth())
+      }
+      
       onDateChange(newDate)
     }
   }
@@ -124,12 +130,16 @@ export default function PeriodPicker({
           size="icon" 
           className="h-7 w-7" 
           onClick={() => handleYearChange(-1)}
+          disabled={minDate && viewYear <= minDate.getFullYear()}
           type="button"
-          autoFocus={true}
         >
           <ChevronLeft className="h-4 w-4" />
         </Button>
-        <div className="flex flex-col items-center">
+        <div 
+          className="flex flex-col items-center outline-none"
+          tabIndex={0}
+          autoFocus={true}
+        >
           <span className="text-sm font-semibold">{viewYear}</span>
           {timeUnit !== 'day' && (
             <span className="text-[9px] text-primary font-bold uppercase tracking-tighter">Selected</span>
@@ -154,7 +164,7 @@ export default function PeriodPicker({
             const isSelected = 
               currentDate.getMonth() === index && 
               currentDate.getFullYear() === viewYear
-            const isDisabled = isFutureMonth(index)
+            const isDisabled = isFutureMonth(index) || isPastMonth(index)
 
             return (
               <Button

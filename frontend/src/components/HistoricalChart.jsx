@@ -10,9 +10,9 @@
 import { useState, useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ChartContainer, ChartTooltip } from '@/components/ui/chart'
-import { BarChart2, ChevronLeft, ChevronRight } from 'lucide-react'
+import { BarChart2 } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Cell } from 'recharts'
-import { useAggregate } from '../hooks/useGrowatt'
+import { useAggregate, usePlantInfo } from '../hooks/useGrowatt'
 import { Skeleton } from '@/components/ui/skeleton'
 import PeriodPicker from './PeriodPicker'
 
@@ -46,6 +46,9 @@ export default function HistoricalChart() {
   const [refDate, setRefDate]   = useState(new Date())
   const [activeBar, setActiveBar] = useState(null)
 
+  const { data: plantInfo } = usePlantInfo()
+  const minDate = plantInfo?.plant_installation_date ? new Date(plantInfo.plant_installation_date) : null
+
   // ── Date range ────────────────────────────────────────────────────────────
 
   let startDate, endDate, periodLabel
@@ -60,30 +63,18 @@ export default function HistoricalChart() {
     endDate     = `${refDate.getFullYear()}-12-31`
     periodLabel = String(refDate.getFullYear())
   } else {
-    startDate   = '2020-01-01'
+    startDate   = plantInfo?.plant_installation_date || '2020-01-01'
     endDate     = `${new Date().getFullYear()}-12-31`
     periodLabel = 'All time'
   }
 
   const { data: aggregate, isLoading } = useAggregate(startDate, endDate, timeUnit)
 
-  // ── Navigation ────────────────────────────────────────────────────────────
 
-  function prev() {
-    const d = new Date(refDate)
-    if (timeUnit === 'day')   d.setMonth(d.getMonth() - 1)
-    if (timeUnit === 'month') d.setFullYear(d.getFullYear() - 1)
-    setRefDate(d)
-    setActiveBar(null)
-  }
 
-  function next() {
-    const d = new Date(refDate)
-    if (timeUnit === 'day')   d.setMonth(d.getMonth() + 1)
-    if (timeUnit === 'month') d.setFullYear(d.getFullYear() + 1)
-    setRefDate(d)
-    setActiveBar(null)
-  }
+  
+
+
 
   const now = new Date()
   const isCurrentPeriod =
@@ -119,6 +110,8 @@ export default function HistoricalChart() {
     [chartData]
   )
 
+
+
   return (
     <Card>
       <CardHeader>
@@ -135,25 +128,8 @@ export default function HistoricalChart() {
               onDateChange={(d) => { setRefDate(d); setActiveBar(null) }}
               timeUnit={timeUnit}
               onTimeUnitChange={(u) => { setTimeUnit(u); setActiveBar(null) }}
+              minDate={minDate}
             />
-
-            {timeUnit === 'month' && (
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={prev}
-                  className="p-1 rounded hover:bg-muted text-muted-foreground transition-colors"
-                >
-                  <ChevronLeft size={16} />
-                </button>
-                <button
-                  onClick={next}
-                  disabled={isCurrentPeriod}
-                  className="p-1 rounded hover:bg-muted text-muted-foreground transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                >
-                  <ChevronRight size={16} />
-                </button>
-              </div>
-            )}
           </div>
         </div>
 

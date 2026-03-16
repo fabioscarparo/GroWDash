@@ -28,7 +28,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ChartContainer, ChartTooltip } from '@/components/ui/chart'
 import { BarChart2, ChevronLeft, ChevronRight } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts'
-import { useDailyBreakdown } from '../hooks/useGrowatt'
+import { useDailyBreakdown, usePlantInfo } from '../hooks/useGrowatt'
 import { api } from '../api/growatt'
 import { Skeleton } from '@/components/ui/skeleton'
 import PeriodPicker from './PeriodPicker'
@@ -62,6 +62,9 @@ function dayLabel(dateStr) {
 
 export default function SelfSufficiencyChart() {
   const [refDate, setRefDate] = useState(new Date())
+  
+  const { data: plantInfo } = usePlantInfo()
+  const minDate = plantInfo?.plant_installation_date ? new Date(plantInfo.plant_installation_date) : null
 
   // ── Date range ────────────────────────────────────────────────────────────
 
@@ -171,6 +174,7 @@ export default function SelfSufficiencyChart() {
           <PeriodPicker 
             currentDate={refDate} 
             onDateChange={setRefDate} 
+            minDate={minDate}
           />
 
         </div>
