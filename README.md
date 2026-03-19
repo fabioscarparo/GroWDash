@@ -8,21 +8,28 @@ Built with **FastAPI** + **React**, powered by the [PyPi_GrowattServer](https://
 
 ## Why GroWDash?
 
-GroWDash provides an essential and clean designed dashboard with real-time data, historical charts, and advanced analytics for your photovoltaic system. It serves as a more intuitive, feature-rich, and UI-curated alternative to the official ShinePhone App.
+GroWDash provides an essential and clean designed dashboard with real-time data, historical charts, and advanced analytics for your photovoltaic system. It serves as a more intuitive, feature-rich, and UI-curated alternative to the official ShinePhone App, and can be self-hosted on a NAS or any server with optional secure remote access via Cloudflare Tunnel.
 
 ---
 
 ## ✨ Features
 
-- **Secure Authentication:** Implementation of a robust JWT flow using **HttpOnly Cookies**.
-- **Real-Time Power Flow:** Visual representation of energy moving between solar panels, battery, grid, and home.
-- **Detailed Energy Breakdown:** Analyze daily, monthly, and yearly yields.
-- **Self-Sufficiency Tracking:** Monitor how independent your home is from the grid.
-- **Advanced Charts:** Includes Daily Power curves, Battery State of Charge (SOC) tracking, and historical energy comparisons.
-- **Device Management:** View detailed inverter configuration, firmware status, and settings.
-- **Weather Integration:** Contextualize your solar production with current weather conditions.
-- **Mobile-First Design:** Responsive UI built with Tailwind CSS, shadcn/ui, and ApexCharts/Recharts.
-- **Dark/Light Mode:** Automatic theme switching based on your system preferences.
+- **Secure Authentication:** JWT flow using **HttpOnly Cookies**, protecting tokens from XSS attacks. Credentials stored only on your machine, hashed with Bcrypt.
+- **Real-Time Power Flow:** Visual SVG widget showing live energy moving between solar panels, battery, grid, and home loads.
+- **Accurate Energy Data:** Daily totals read directly from the inverter's internal `*Today` cumulative counters — the same source used by ShinePhone — instead of integrating 5-minute power snapshots, eliminating measurement drift.
+- **Daily Curve Charts:** Area charts for today's power flows (solar, home, battery, grid) and battery State of Charge (SOC) over the day.
+- **Detailed Energy Breakdown:** Per-day breakdown of all energy flows across months, with interactive month navigation and background prefetch for instant page turns.
+- **Solar Production History:** Bar charts aggregated by day, month, or year with gap-free series and future-date filtering.
+- **Self-Sufficiency Tracking:** Stacked bar chart showing how home consumption is covered: from solar, battery, or grid — with a monthly self-sufficiency percentage.
+- **Energy Breakdown Card:** Today's system output split between self-consumed and exported, plus home consumption split by source.
+- **Device Management:** Inverter details, firmware, communication versions, battery pack specs, SOC operational limits, and all connected modules (datalogger, meter).
+- **Inverter Settings:** Read-only view of all inverter configuration registers (work mode, battery settings, grid limits, and more).
+- **Weather Integration:** Real-time weather from Open-Meteo at the plant's coordinates, with solar production context (cloud cover, rain probability).
+- **Pull-to-Refresh:** Native mobile gesture with haptic feedback and animated indicator to manually force a data refresh.
+- **Swipe Navigation:** Horizontal swipe between pages on mobile.
+- **Mobile-First Design:** Responsive layout with a collapsible sidebar on desktop and a fixed bottom navigation bar on mobile, with animated page transitions.
+- **Dark / Light / System Mode:** Three-way theme selector with smooth transitions.
+- **Self-Hosted & Docker-Ready:** Designed to run on a NAS (tested on Synology DSM 7.3) with Docker Compose, accessible remotely via Cloudflare Tunnel without port forwarding.
 
 ---
 
@@ -30,42 +37,44 @@ GroWDash provides an essential and clean designed dashboard with real-time data,
 
 | Layer | Technology |
 |-------|-----------|
-| **Backend** | Python 3.12+ · FastAPI · SQLAlchemy · SQLite · **HttpOnly Cookies** · JWT · Passlib |
+| **Backend** | Python 3.12+ · FastAPI · SQLAlchemy · SQLite · JWT (HttpOnly Cookies) · Passlib · Bcrypt |
 | **PV Integration** | **PyPi_GrowattServer** (Open API V1) |
-| **Frontend** | React · Vite · Tailwind CSS · shadcn/ui · ApexCharts · Recharts · React Query |
-| **Deployment** | Docker · Docker Compose · Nginx (In Progress) |
+| **Frontend** | React 19 · Vite · Tailwind CSS v4 · shadcn/ui · Recharts · TanStack Query |
+| **Deployment** | Docker · Docker Compose · Cloudflare Tunnel |
 
 ---
 
 ## 📂 Project Structure
+
 ```text
 GroWDash/
 ├── backend/                  # FastAPI backend
 │   ├── routers/              # API endpoints organized by domain
-│   │   ├── auth.py           # /auth — token issuance
-│   │   ├── plant.py          # /plant — plant information
-│   │   ├── energy.py         # /energy — energy data & history
+│   │   ├── auth.py           # /auth — login, logout, /me
+│   │   ├── plant.py          # /plant — plant information & coordinates
+│   │   ├── energy.py         # /energy — energy data, history, breakdown
 │   │   └── device.py         # /device — inverter details & settings
 │   ├── utilities/            # Administrative scripts
-│   │   ├── find_plant.py     # Find IDs for initial setup
+│   │   ├── find_plant.py     # Discover plant ID and device serial
 │   │   ├── create_user.py    # Create new dashboard users
 │   │   └── check_db_users.py # List existing dashboard users
 │   ├── services/
-│   │   └── growatt.py        # Growatt V1 API integration layer
-│   ├── auth.py               # Security & JWT logic
+│   │   └── growatt.py        # Growatt V1 API integration + TTL cache
+│   ├── auth.py               # JWT logic, cookie handling
 │   ├── database.py           # SQLite connection setup
-│   ├── models.py             # Database user schemas
-│   ├── main.py               # Application entry point
+│   ├── models.py             # User model (SQLAlchemy)
+│   ├── main.py               # Application entry point + CORS
 │   └── requirements.txt      # Python dependencies
 ├── frontend/                 # React frontend
 │   ├── src/
-│   │   ├── context/          # AuthContext for state management
-│   │   ├── components/       # UI cards and charts
-│   │   ├── pages/            # Views (Login, Overview, History, etc.)
-│   │   └── api/              # Backend communication layer
+│   │   ├── api/              # Backend communication layer (fetch wrapper)
+│   │   ├── context/          # AuthContext (JWT cookie auth state)
+│   │   ├── hooks/            # useGrowatt, useTheme, usePullToRefresh, useSwipeNavigation, useWeather
+│   │   ├── components/       # UI cards, charts, FlowNode, PeriodPicker, ...
+│   │   └── pages/            # Overview, History, Device, DeviceSettings, UserAccount, LoginPage
 ├── .env.example              # Environment variables template
-├── .gitignore                # Root gitignore (OS & IDE files)
-└── docker-compose.yml        # Docker orchestration (coming soon)
+├── .gitignore
+└── docker-compose.yml        # Docker orchestration
 ```
 
 ---
@@ -75,9 +84,9 @@ GroWDash/
 ### Authentication
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/auth/token` | Validates credentials and sets **HttpOnly cookie** |
-| POST | `/auth/logout` | Clears the authentication session cookie |
-| GET | `/auth/me` | Returns current authenticated user session |
+| POST | `/auth/token` | Validates credentials, sets **HttpOnly cookie** |
+| POST | `/auth/logout` | Clears the authentication cookie |
+| GET | `/auth/me` | Returns the current authenticated user |
 
 ### General
 | Method | Endpoint | Description |
@@ -87,25 +96,25 @@ GroWDash/
 ### Plant (Protected)
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/plant/info` | Plant name, location, peak power, status |
+| GET | `/plant/info` | Plant name, location, capacity, coordinates, installation date |
 
 ### Energy (Protected)
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/energy/overview` | KPI summary: today, month, year, total, CO₂ saved |
-| GET | `/energy/today` | Detailed today data including live power flow |
-| GET | `/energy/history` | 5-minute power snapshots for a date range |
-| GET | `/energy/aggregate` | Solar energy history aggregated by day / month / year |
-| GET | `/energy/daily-breakdown`| Full energy breakdown aggregated by day |
+| GET | `/energy/today` | Live power flow (W) + daily totals (kWh) + battery + grid |
+| GET | `/energy/history` | 5-minute power snapshots for a date range (max 7 days) |
+| GET | `/energy/aggregate` | Solar energy aggregated by day / month / year |
+| GET | `/energy/daily-breakdown` | Full energy breakdown by day (all flows) |
 
-### Device
+### Device (Protected)
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/device/list` | All devices connected to the plant |
-| GET | `/device/detail` | Inverter firmware, model, status |
-| GET | `/device/settings` | Full inverter configuration |
+| GET | `/device/detail` | Inverter firmware, model, battery specs, SOC limits |
+| GET | `/device/settings` | Full inverter configuration register dump |
 
-*Interactive API docs available at:* `http://localhost:8000/docs`
+*Interactive API docs: `http://localhost:8000/docs`*
 
 ---
 
@@ -113,155 +122,234 @@ GroWDash/
 
 ### Prerequisites
 - **Python 3.12+**
-- **Node.js 18+** (for frontend development)
+- **Node.js 18+** (for local frontend development)
 - **Git**
-- A **Growatt account** with an API Token (available in the ShinePhone app: **Me → API Token**)
+- A **Growatt account** with an API Token (ShinePhone app: **Me → API Token**)
 
 ---
 
-### 1. Clone the repository
-First, download the project to your local machine:
+### Option A — Local Development
+
+#### 1. Clone the repository
+
 ```bash
 git clone https://github.com/fabioscarparo/GroWDash.git
 cd GroWDash
 ```
 
----
+#### 2. Set up the Backend
 
-### 2. Set up the Backend
-
-Navigate to the `backend` folder and create a Python virtual environment to keep dependencies isolated:
 ```bash
 cd backend
 python -m venv .venv
-```
 
-Activate the virtual environment:
-```bash
 # Windows
 .venv\Scripts\activate
-
 # Mac/Linux
 source .venv/bin/activate
-```
 
-You should see `(.venv)` appear in your terminal prompt. Now, install all required Python dependencies:
-```bash
 pip install -r requirements.txt
 ```
 
----
+#### 3. Configure the environment
 
-### 3. Initial Configuration
-
-Copy the environment template file into the `backend` folder to create your local configuration:
 ```bash
 # Windows
 copy ..\.env.example .env
-
 # Mac/Linux
 cp ../.env.example .env
 ```
 
-Open the newly created `.env` file and provide the two mandatory values required to start the discovery process:
-1. **GROWATT_TOKEN**: This is your primary authorization key. You can find it in the Growatt **ShinePhone App** by navigating to: **Me → API Token**. 
-2. **JWT_SECRET_KEY**: A unique security string used to sign your dashboard sessions.
+Edit `.env` with your values:
 
 ```env
 GROWATT_TOKEN=your_token_here
+GROWATT_PLANT_ID=         # filled in next step
+GROWATT_DEVICE_SN=        # filled in next step
 JWT_SECRET_KEY=your_random_secret_string
-
-# Leave these empty for now; the next step will help you find them
-GROWATT_PLANT_ID=
-GROWATT_DEVICE_SN=
 ```
 
-> [!TIP]
-> **To generate a secure JWT Secret Key**, run this command in your terminal and copy the unique string it produces:
+> **Tip:** Generate a secure JWT secret with:
 > `python -c "import secrets; print(secrets.token_hex(32))"`
 
----
+#### 4. Discover your Plant ID and Device Serial
 
-### 4. Hardware Discovery (Find your IDs)
+```bash
+python utilities/find_plant.py
+```
 
-GroWDash needs to know exactly which plant and inverter to monitor. We provide an automated utility to fetch these IDs from the Growatt servers.
+Copy the printed `GROWATT_PLANT_ID` and `GROWATT_DEVICE_SN` values into your `.env`.
 
-1. **Run the discovery script**:
-   ```bash
-   python utilities/find_plant.py
-   ```
-2. **Update your `.env`**: The script will print a block of configuration at the end. Look for the lines starting with `GROWATT_PLANT_ID` and `GROWATT_DEVICE_SN`. **Copy these whole lines** and paste them into your `.env` file, replacing the empty values.
+#### 5. Create a dashboard user
 
----
+```bash
+python utilities/create_user.py
+```
 
-### 5. Initialize the Database
+#### 6. Start the backend
 
-GroWDash uses a local SQLite database to store your dashboard account. You must create at least one user to be able to log in.
-
-1. **Create your User**: Ensure your virtual environment is active, then run the utility:
-   ```bash
-   # Make sure you are in the /backend folder
-   python utilities/create_user.py
-   ```
-2. Follow the prompts to set your **username** and **password**.
-   - This information is stored only on your machine in `growdash.db`.
-   - Passwords are securely hashed using **Bcrypt**.
-   - If you encounter a "ModuleNotFoundError", ensure you ran `source .venv/bin/activate`.
-
----
-
-### 5. Start the Backend Server
-
-Launch the FastAPI application using Uvicorn:
 ```bash
 uvicorn main:app --reload
 ```
-The backend is now running at **http://localhost:8000**. You can explore the interactive API documentation at `/docs`.
 
----
+Backend runs at **http://localhost:8000**.
 
-### 6. Set up the Frontend
+#### 7. Set up and start the frontend
 
-Open a **new terminal tab**, navigate to the `frontend` folder, and install the necessary Node.js packages:
 ```bash
-cd frontend
+cd ../frontend
 npm install
-```
-
-Start the Vite development server:
-```bash
 npm run dev
 ```
 
-The frontend is now running at **http://localhost:5173**. 
+Frontend runs at **http://localhost:5173**.
 
-*(Note: Make sure the backend is also running in your other terminal so the frontend can retrieve your data).*
+---
+
+### Option B — Docker (Recommended for self-hosting)
+
+This is the recommended deployment method, tested on **Synology DSM 7.3** with Container Manager.
+
+#### 1. Prerequisites
+
+- Docker and Docker Compose installed on your server/NAS.
+- The project files copied to your server (e.g. `/volume1/docker/growdash` on Synology).
+- A `.env` file already configured with all four variables (run steps 3–5 from Option A locally first to populate it, then copy the `growdash.db` database file to the server so your user credentials transfer).
+
+#### 2. `docker-compose.yml`
+
+Below is the reference compose file. Adjust paths to match your environment.
+
+```yaml
+services:
+  backend:
+    build:
+      context: /volume1/docker/growdash/backend   # use absolute paths on Synology
+    restart: unless-stopped
+    env_file:
+      - /volume1/docker/growdash/.env
+    volumes:
+      - /volume1/docker/growdash/backend/growdash.db:/app/growdash.db
+    ports:
+      - "8000:8000"
+
+  frontend:
+    build:
+      context: /volume1/docker/growdash/frontend
+    restart: unless-stopped
+    environment:
+      - VITE_API_URL=http://backend:8000
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      - TUNNEL_TOKEN=your_cloudflare_tunnel_token_here
+    depends_on:
+      - frontend
+      - backend
+```
+
+> **Note on Synology Container Manager:** The GUI requires absolute paths in `build.context`. Relative paths and symlinks are not resolved correctly. Use the full `/volume1/...` path.
+
+#### 3. Build and start
+
+```bash
+docker compose up -d --build
+```
+
+Or via the **Synology Container Manager GUI** → Projects → Create → select your `docker-compose.yml`.
+
+#### 4. Managing users in Docker
+
+To create a dashboard user after the containers are running:
+
+```bash
+docker exec -it <backend_container_name> python utilities/create_user.py
+```
+
+---
+
+### Cloudflare Tunnel (remote access without port forwarding)
+
+Cloudflare Tunnel lets you expose GroWDash to the internet securely without opening ports on your router.
+
+1. Create a free [Cloudflare account](https://dash.cloudflare.com) and add your domain.
+2. Go to **Zero Trust → Networks → Tunnels** and create a new tunnel.
+3. Copy the tunnel token and set it as `TUNNEL_TOKEN` in your `docker-compose.yml` environment.
+4. In the tunnel configuration, add a public hostname pointing to `http://frontend:80` (or `http://localhost:5173` if not using Docker networking).
+5. Optionally add a second hostname for the API at `http://backend:8000`.
+
+The `cloudflared` container in the compose file handles the rest automatically.
+
+> **Tip:** Enable Cloudflare Access on the tunnel for an extra authentication layer on top of GroWDash's own login.
+
+---
+
+## 🔄 Updating GroWDash
+
+### Local development
+
+```bash
+git pull
+cd backend && pip install -r requirements.txt
+cd ../frontend && npm install && npm run dev
+```
+
+### Docker
+
+After pulling or editing files:
+
+```bash
+docker compose up -d --build
+```
+
+For Synology Container Manager: stop the project, then rebuild via the GUI — or build `dist/` locally with `npm run build` and copy only the `frontend/dist/` folder to the NAS to avoid compiling on the NAS hardware.
 
 ---
 
 ## 🖼 Frontend Architecture
 
-The frontend is a single-page application built with **React** and **Vite**.
+The frontend is a single-page application built with **React 19** and **Vite**.
 
-- **Authentication:** Handled via a custom `AuthContext`. Unlike standard implementations, GroWDash uses **HttpOnly Cookies** to store JWT tokens. This makes the token inaccessible to JavaScript, providing strong protection against XSS attacks—essential for exposing the dashboard in a DMZ or on the internet.
-- **Data Fetching:** Managed by **TanStack Query** (`react-query`). Data is cached and automatically refreshed every 5 minutes (standard Growatt reporting interval).
-- **Design System:** Built using **Tailwind CSS** and **shadcn/ui** components for a premium, responsive look.
-- **Charts:** A combination of **ApexCharts** and **Recharts** delivers rich visual analytics.
+- **Authentication:** `AuthContext` manages session state. Tokens are stored exclusively in **HttpOnly Cookies**, invisible to JavaScript. On mount, the app calls `/auth/me` to validate the session; on logout it calls `/auth/logout` to clear the cookie server-side.
+- **Data Fetching:** **TanStack Query** with a 5-minute `refetchInterval` matching the Growatt API update frequency. Historical data uses a 24-hour cache TTL. Long date ranges are split into parallel 7-day chunks on the backend.
+- **Design System:** **Tailwind CSS v4** + **shadcn/ui** (New York style, dark mode) with OKLCH color tokens.
+- **Charts:** **Recharts** for all production charts (area, bar, stacked bar).
+- **Navigation:** Sidebar on desktop, bottom nav on mobile. Horizontal swipe gesture navigates between pages. A global pull-to-refresh chip animates above the page on mobile.
+
+---
+
+## ⚙️ Caching Strategy
+
+| Data type | Cache TTL | Rationale |
+|-----------|-----------|-----------|
+| Live / today data | 5 minutes | Growatt API update frequency |
+| Current month breakdown | 5 minutes | May still be updated today |
+| Past months / years | 24 hours | Historical data never changes |
+| Weather | 15 minutes | Open-Meteo rate limit courtesy |
+
+All caching is in-memory on the backend (TTL dict). No Redis required.
 
 ---
 
 ## 🔌 Compatibility
 
-Currently supports **Growatt MIN inverters** via the V1 Token API.
-*Note: TLX inverters are identified as MIN in the public API and should work seamlessly as well.*
+Currently supports **Growatt MIN inverters** via the V1 Token API. TLX inverters are identified as MIN in the public API and should work seamlessly.
 
 ---
 
 ## ⚠️ Disclaimer
+
 This project is not affiliated with Growatt. Only read operations are used. No inverter settings are modified. Use at your own risk.
 
 ---
 
 ## 📄 License
 
-MIT
+MIT — Copyright (c) 2026 Fabio Scarparo
