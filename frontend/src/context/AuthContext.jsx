@@ -7,7 +7,7 @@ const AuthContext = createContext(null)
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
-  const [error, setError]  = useState(null)
+  const [error, setError] = useState(null)
   const [loading, setLoading] = useState(true)
 
   // On mount, check if we have a valid session cookie
@@ -45,6 +45,11 @@ export function AuthProvider({ children }) {
         credentials: 'include', // Important to receive the cookie
       })
 
+      if (res.status === 429) {
+        setError('Too many login attempts. Please wait a minute.')
+        return false
+      }
+
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
         setError(data.detail || 'Invalid username or password.')
@@ -67,9 +72,9 @@ export function AuthProvider({ children }) {
    */
   const logout = useCallback(async () => {
     try {
-      await fetch(`${BASE_URL}/auth/logout`, { 
-        method: 'POST', 
-        credentials: 'include' 
+      await fetch(`${BASE_URL}/auth/logout`, {
+        method: 'POST',
+        credentials: 'include'
       })
     } finally {
       setUser(null)

@@ -23,3 +23,4 @@ passlib[bcrypt]
 PyJWT
 bcrypt==4.0.1
 python-multipart
+slowapi==0.1.9
