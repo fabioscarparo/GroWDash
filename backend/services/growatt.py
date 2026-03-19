@@ -522,3 +522,5 @@ def get_plant_energy_overview() -> dict:
     """
     api = get_api()
     return api.plant_energy_overview(GROWATT_PLANT_ID)
+
+
