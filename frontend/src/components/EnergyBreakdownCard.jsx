@@ -6,9 +6,7 @@
  *   1. System output — total energy delivered by the inverter, split into:
  *        - Self-consumed: used directly by home loads or via battery discharge
  *        - Exported to grid: excess energy sent to the public grid
- *      Total = selfConsumed + gridExported
- *      NOTE: this is NOT the same as solar production — it includes battery
- *      discharge. It represents everything the inverter "gave" to the house/grid.
+ *      Total = solar + batDischarged
  *
  *   2. Home consumption — total energy consumed by home loads, split into:
  *        - From solar: panels → loads directly (not via battery, not exported)
@@ -169,22 +167,15 @@ export default function EnergyBreakdownCard({ today }) {
 
   const solar         = Number(today?.solar_kwh)              || 0
   const home          = Number(today?.home_kwh)               || 0
-  const selfConsumed  = Number(today?.self_consumed_kwh)      || 0
   const gridExported  = Number(today?.grid_exported_kwh)      || 0
   const gridImported  = Number(today?.grid_imported_kwh)      || 0
-  const batCharged    = Number(today?.battery_charged_kwh)    || 0
   const batDischarged = Number(today?.battery_discharged_kwh) || 0
 
   // ── Derived values ──────────────────────────────────────────────────────────
 
-  /**
-   * Total energy delivered by the inverter to the house and grid.
-   * Includes battery discharge — this is NOT the same as solar production.
-   */
-  const systemOutput = selfConsumed + gridExported
-
-  // selfConsumed already includes battery discharge, so subtract it to get solar-only portion
-  const solarDirect = Math.max(selfConsumed - batDischarged, 0)
+  const systemOutput = solar + batDischarged
+  const selfConsumed = Math.max(systemOutput - gridExported, 0)
+  const solarDirect  = Math.max(home - gridImported - batDischarged, 0)
 
   // ── Render ──────────────────────────────────────────────────────────────────
 
