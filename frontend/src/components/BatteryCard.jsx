@@ -138,7 +138,4 @@ export default function BatteryCard({
       </CardContent>
     </Card>
   )
-}     </CardContent >
-    </Card >
-  )
 }
