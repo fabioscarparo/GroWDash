@@ -119,22 +119,120 @@ export default function PowerFlowCard({
   // Use the higher of export/import for grid node display
   const gridW    = gridExportW > 0 ? gridExportW : gridImportW
 
-  // ── Line style helper ──────────────────────────────────────────────────────
+  // ── Swarm Constants ────────────────────────────────────────────────────────
+
+  const SWARM_SIZE = 8 // Increased for higher density
+  const SWARM_COLORS = ['#3b82f6', '#8b5cf6', '#d946ef', '#06b6d4']
+  const CYCLE_LENGTH = 24 // Fixed cycle for perfect loop synchronization
 
   /**
-   * Returns SVG line styles for an animated flow line.
-   * @param {boolean} active - Whether energy is flowing on this line
-   * @param {boolean} reverse - Whether to reverse the animation direction
+   * Calculates the duration of the flow animation based on wattage.
+   * Velocity is proportional to the energy flow (W) using a logarithmic scale.
+   * Snap wattage to the nearest 50W to prevent micro-fluctuations from 
+   * restarting the CSS animation, which causes "stuttering".
    */
-  const lineStyle = (active, reverse = false) => ({
-    stroke: active ? colors.primary : colors.border,
-    strokeWidth: active ? 2 : 1.5,
-    strokeDasharray: active ? '6 4' : 'none',
-    animation: active
-      ? `flowDash 1s linear infinite ${reverse ? 'reverse' : ''}`
-      : 'none',
-    transition: 'stroke 0.3s',
-  })
+  const getFlowDuration = (w) => {
+    if (w <= THRESHOLD) return '0s'
+    // Snap to nearest 50W for visual stability
+    const snappedW = Math.round(w / 50) * 50 || 50
+    // Map ~5W to 4s (slow) and 10000W to ~0.6s (fast)
+    const duration = Math.max(0.6, 4 - Math.log10(snappedW) * 0.8)
+    return `${duration.toFixed(2)}s`
+  }
+
+  /**
+   * Calculates deterministic properties for a particle.
+   * Ensures dash + gap = CYCLE_LENGTH for a stutter-free loop.
+   */
+  const getSwarmProps = (i, baseDuration) => {
+    const seed = i * 2.5
+    const duration = (parseFloat(baseDuration) * (0.85 + (seed % 0.4))).toFixed(2) + 's'
+    const delay = (seed % 5).toFixed(2) + 's'
+    
+    // Dash length varies (1.5 - 2.5), gap is calculated to keep the total at CYCLE_LENGTH
+    const dash = 1.5 + (seed % 1)
+    const gap = CYCLE_LENGTH - dash
+    
+    const color = SWARM_COLORS[i % SWARM_COLORS.length]
+    // Reduced offset (1.6x) to keep particles within the 18px tube (max span ~13px)
+    const offset = (i - (SWARM_SIZE - 1) / 2) * 1.6
+
+    return { duration, delay, dash: dash.toFixed(1), gap: gap.toFixed(1), color, offset }
+  }
+
+  /**
+   * Renders a "Swarm" of particles moving through a translucent tube.
+   * Matches the high-end Ubiquiti / Unifi Flow Control aesthetic.
+   */
+  const renderConnection = (x1, y1, x2, y2, active, powerW, reverse = false, id) => {
+    const baseDuration = getFlowDuration(powerW)
+
+    const dx = x2 - x1
+    const dy = y2 - y1
+    const angle = Math.atan2(dy, dx)
+    const perpAngle = angle + Math.PI / 2
+
+    // Unique ID for the fade mask
+    const maskId = `glow-mask-${id}`
+
+    return (
+      <g key={`connection-${id}`}>
+        <defs>
+          <linearGradient id={maskId} gradientUnits="userSpaceOnUse" x1={x1} y1={y1} x2={x2} y2={y2}>
+            <stop offset="0%" stopColor="white" stopOpacity="0" />
+            <stop offset="15%" stopColor="white" stopOpacity="1" />
+            <stop offset="85%" stopColor="white" stopOpacity="1" />
+            <stop offset="100%" stopColor="white" stopOpacity="0" />
+          </linearGradient>
+          <mask id={`mask-${id}`}>
+             <rect x="0" y="0" width={W} height={H} fill={`url(#${maskId})`} />
+          </mask>
+        </defs>
+
+        {/* The "Tube" — wider (18px) to safely contain the swarm nodes (span is approx 13px) */}
+        <line
+          x1={x1} y1={y1} x2={x2} y2={y2}
+          stroke={active ? colors.primary : colors.border}
+          strokeWidth={active ? 18 : 1}
+          strokeOpacity={active ? 0.05 : 1}
+          strokeLinecap="round"
+          style={{
+            transition: 'all 0.5s',
+            filter: active ? `drop-shadow(0 0 4px ${colors.primary})` : 'none'
+          }}
+        />
+
+        {/* The Swarm — masked to ensure smooth fade-in/out at nodes */}
+        <g mask={active ? `url(#mask-${id})` : undefined}>
+          {active && Array.from({ length: SWARM_SIZE }).map((_, i) => {
+            const { duration, delay, dash, gap, color, offset } = getSwarmProps(i, baseDuration)
+
+            const jx = Math.cos(perpAngle) * offset
+            const jy = Math.sin(perpAngle) * offset
+
+            return (
+              <line
+                key={i}
+                x1={x1 + jx} y1={y1 + jy}
+                x2={x2 + jx} y2={y2 + jy}
+                stroke={color}
+                strokeWidth={2}
+                strokeDasharray={`${dash} ${gap}`}
+                strokeLinecap="round"
+                style={{
+                  // Loop exactly on CYCLE_LENGTH to prevent jumping/stuttering
+                  animation: `flowDash ${duration} linear infinite ${reverse ? 'reverse' : ''}`,
+                  animationDelay: `-${delay}`,
+                  opacity: 0.9,
+                  transition: 'all 0.5s',
+                }}
+              />
+            )
+          })}
+        </g>
+      </g>
+    )
+  }
 
   return (
     <Card className="gap-2">
@@ -147,11 +245,16 @@ export default function PowerFlowCard({
 
       <CardContent className="px-3 pb-3 flex justify-center">
 
-        {/* CSS keyframes for the animated dashes on active flow lines */}
+        {/* CSS keyframes for animations */}
         <style>{`
           @keyframes flowDash {
-            from { stroke-dashoffset: 20; }
+            from { stroke-dashoffset: ${CYCLE_LENGTH}; }
             to   { stroke-dashoffset: 0; }
+          }
+          @keyframes nodePulse {
+            0% { r: ${R}; stroke-opacity: 0.8; stroke-width: 1; }
+            50% { r: ${R + 4}; stroke-opacity: 0; stroke-width: 3; }
+            100% { r: ${R}; stroke-opacity: 0; stroke-width: 1; }
           }
         `}</style>
 
@@ -161,32 +264,30 @@ export default function PowerFlowCard({
           {/* Drawn before nodes so they appear behind the circles          */}
 
           {/* Solar → Inverter */}
-          <line
-            x1={SOLAR.x} y1={SOLAR.y + R}
-            x2={INV.x}   y2={INV.y - R}
-            style={lineStyle(solarActive)}
-          />
+          {renderConnection(SOLAR.x, SOLAR.y + R, INV.x, INV.y - R, solarActive, solarW, false, 'solar')}
 
           {/* Inverter → Home */}
-          <line
-            x1={INV.x}  y1={INV.y + R}
-            x2={HOME.x} y2={HOME.y - R}
-            style={lineStyle(homeActive)}
-          />
+          {renderConnection(INV.x, INV.y + R, HOME.x, HOME.y - R, homeActive, homeW, false, 'home')}
 
           {/* Battery ↔ Inverter — reversed when battery is discharging */}
-          <line
-            x1={BATTERY.x + R} y1={BATTERY.y}
-            x2={INV.x - R}     y2={INV.y}
-            style={lineStyle(batteryActive, batteryCharging)}
-          />
+          {renderConnection(
+            BATTERY.x + R, BATTERY.y,
+            INV.x - R, INV.y,
+            batteryActive,
+            batteryW,
+            batteryCharging,
+            'battery'
+          )}
 
           {/* Inverter ↔ Grid — reversed when importing from grid */}
-          <line
-            x1={INV.x + R}  y1={INV.y}
-            x2={GRID.x - R} y2={GRID.y}
-            style={lineStyle(gridActive, gridImporting)}
-          />
+          {renderConnection(
+            INV.x + R, INV.y,
+            GRID.x - R, GRID.y,
+            gridActive,
+            gridW,
+            gridImporting,
+            'grid'
+          )}
 
           {/* ── Outer nodes ──────────────────────────────────────────────── */}
 
@@ -222,6 +323,16 @@ export default function PowerFlowCard({
 
           {/* ── Inverter — center node ────────────────────────────────────── */}
           {/* Rendered manually since it has no power value                  */}
+
+          {/* Outer pulse circle when active */}
+          {inverterActive && (
+            <circle
+              cx={INV.x} cy={INV.y} r={R}
+              fill="none"
+              stroke={colors.primary}
+              style={{ animation: 'nodePulse 2s ease-out infinite' }}
+            />
+          )}
 
           <circle
             cx={INV.x} cy={INV.y} r={R}
