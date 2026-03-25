@@ -37,7 +37,7 @@ function getSocColor(soc) {
 function getBatteryStatus(chargeW, dischargeW) {
   if (chargeW > 0) return {
     label: 'Charging',
-    className:'bg-green-500 text-white hover:bg-green-500',
+    className: 'bg-green-500 text-white hover:bg-green-500',
   }
   if (dischargeW > 0) return {
     label: 'Discharging',
@@ -73,7 +73,7 @@ export default function BatteryCard({
   const currentPowerKw = ((chargeW > 0 ? chargeW : dischargeW) / 1000).toFixed(2)
 
   return (
-    <Card  className="gap-2">
+    <Card className="gap-2">
       <CardHeader>
         <div className="flex items-center justify-between">
           {/* Title with battery icon */}
@@ -137,5 +137,8 @@ export default function BatteryCard({
 
       </CardContent>
     </Card>
+  )
+}     </CardContent >
+    </Card >
   )
 }

@@ -24,19 +24,19 @@ import FlowNode from './FlowNode'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const W      = 280      // SVG total width
-const H      = 320      // SVG total height — extra space for bottom node labels
-const CX     = W / 2   // center x
-const CY     = H / 2   // center y
+const W = 280      // SVG total width
+const H = 320      // SVG total height — extra space for bottom node labels
+const CX = W / 2   // center x
+const CY = H / 2   // center y
 const OFFSET = 100     // distance from center to outer nodes
-const R      = 24      // node circle radius
+const R = 24      // node circle radius
 
 // Pre-calculated node center positions
-const SOLAR   = { x: CX,          y: CY - OFFSET }
-const HOME    = { x: CX,          y: CY + OFFSET }
+const SOLAR = { x: CX, y: CY - OFFSET }
+const HOME = { x: CX, y: CY + OFFSET }
 const BATTERY = { x: CX - OFFSET, y: CY }
-const GRID    = { x: CX + OFFSET, y: CY }
-const INV     = { x: CX,          y: CY }
+const GRID = { x: CX + OFFSET, y: CY }
+const INV = { x: CX, y: CY }
 
 // ── Theme colors ──────────────────────────────────────────────────────────────
 
@@ -49,21 +49,21 @@ const INV     = { x: CX,          y: CY }
 function getColors() {
   const dark = document.documentElement.classList.contains('dark')
   return dark ? {
-    foreground:      'oklch(0.985 0 0)',
+    foreground: 'oklch(0.985 0 0)',
     mutedForeground: 'oklch(0.708 0 0)',
-    muted:           'oklch(0.269 0 0)',
-    border:          'oklch(1 0 0 / 10%)',
-    nodeBorder:      'oklch(1 0 0 / 10%)',   // Match shadcn dark border
-    nodeActive:      'oklch(1 0 0 / 25%)',   // Subtle active highlight
-    primary:         '#006fff',
+    muted: 'oklch(0.269 0 0)',
+    border: 'oklch(1 0 0 / 10%)',
+    nodeBorder: 'oklch(1 0 0 / 10%)',   // Match shadcn dark border
+    nodeActive: 'oklch(1 0 0 / 25%)',   // Subtle active highlight
+    primary: '#006fff',
   } : {
-    foreground:      'oklch(0.145 0 0)',
+    foreground: 'oklch(0.145 0 0)',
     mutedForeground: 'oklch(0.556 0 0)',
-    muted:           'oklch(0.97 0 0)',
-    border:          'oklch(0.922 0 0)',    // Match shadcn light border
-    nodeBorder:      'oklch(0.922 0 0)',
-    nodeActive:      'oklch(0.7 0 0)',       // Subtle active highlight
-    primary:         '#006fff',
+    muted: 'oklch(0.97 0 0)',
+    border: 'oklch(0.922 0 0)',    // Match shadcn light border
+    nodeBorder: 'oklch(0.922 0 0)',
+    nodeActive: 'oklch(0.7 0 0)',       // Subtle active highlight
+    primary: '#006fff',
   }
 }
 
@@ -105,19 +105,19 @@ export default function PowerFlowCard({
   // Determine which connections have active power flow
   // Use a small threshold (5W) to avoid visual noise from negligible power
   const THRESHOLD = 5
-  const solarActive        = solarW > THRESHOLD
-  const batteryActive      = batteryChargeW > THRESHOLD || batteryDischargeW > THRESHOLD
+  const solarActive = solarW > THRESHOLD
+  const batteryActive = batteryChargeW > THRESHOLD || batteryDischargeW > THRESHOLD
   const batteryDischarging = batteryDischargeW > THRESHOLD
-  const batteryCharging    = batteryChargeW > THRESHOLD
-  const gridActive         = gridExportW > THRESHOLD || gridImportW > THRESHOLD
-  const gridImporting      = gridImportW > THRESHOLD
-  const homeActive         = homeW > THRESHOLD
-  const inverterActive     = solarActive || homeActive
+  const batteryCharging = batteryChargeW > THRESHOLD
+  const gridActive = gridExportW > THRESHOLD || gridImportW > THRESHOLD
+  const gridImporting = gridImportW > THRESHOLD
+  const homeActive = homeW > THRESHOLD
+  const inverterActive = solarActive || homeActive
 
   // Use the higher of charge/discharge for battery node display
   const batteryW = batteryChargeW > 0 ? batteryChargeW : batteryDischargeW
   // Use the higher of export/import for grid node display
-  const gridW    = gridExportW > 0 ? gridExportW : gridImportW
+  const gridW = gridExportW > 0 ? gridExportW : gridImportW
 
   // ── Swarm Constants ────────────────────────────────────────────────────────
 
@@ -148,11 +148,11 @@ export default function PowerFlowCard({
     const seed = i * 2.5
     const duration = (parseFloat(baseDuration) * (0.85 + (seed % 0.4))).toFixed(2) + 's'
     const delay = (seed % 5).toFixed(2) + 's'
-    
+
     // Dash length varies (1.5 - 2.5), gap is calculated to keep the total at CYCLE_LENGTH
     const dash = 1.5 + (seed % 1)
     const gap = CYCLE_LENGTH - dash
-    
+
     const color = SWARM_COLORS[i % SWARM_COLORS.length]
     // Reduced offset (1.6x) to keep particles within the 18px tube (max span ~13px)
     const offset = (i - (SWARM_SIZE - 1) / 2) * 1.6
@@ -185,7 +185,7 @@ export default function PowerFlowCard({
             <stop offset="100%" stopColor="white" stopOpacity="0" />
           </linearGradient>
           <mask id={`mask-${id}`}>
-             <rect x="0" y="0" width={W} height={H} fill={`url(#${maskId})`} />
+            <rect x="0" y="0" width={W} height={H} fill={`url(#${maskId})`} />
           </mask>
         </defs>
 

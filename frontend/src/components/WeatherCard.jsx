@@ -15,19 +15,19 @@ import { Cloud, Wind, CloudSun, Droplets } from 'lucide-react'
 
 function weatherLabel(code, isDay) {
   if (code === 0) return isDay
-    ? { label: 'Clear sky',    emoji: '☀️' }
-    : { label: 'Clear night',  emoji: '🌙' }
+    ? { label: 'Clear sky', emoji: '☀️' }
+    : { label: 'Clear night', emoji: '🌙' }
   if (code === 1) return isDay
     ? { label: 'Mainly clear', emoji: '🌤️' }
     : { label: 'Mainly clear', emoji: '🌙' }
-  if (code === 2)              return { label: 'Partly cloudy',    emoji: '⛅' }
-  if (code === 3)              return { label: 'Overcast',         emoji: '☁️' }
-  if ([45, 48].includes(code)) return { label: 'Fog',             emoji: '🌫️' }
-  if ([51,53,55].includes(code)) return { label: 'Drizzle',       emoji: '🌦️' }
-  if ([61,63,65].includes(code)) return { label: 'Rain',          emoji: '🌧️' }
-  if ([71,73,75].includes(code)) return { label: 'Snow',          emoji: '❄️' }
-  if ([80,81,82].includes(code)) return { label: 'Rain showers',  emoji: '🌦️' }
-  if ([95,96,99].includes(code)) return { label: 'Thunderstorm',  emoji: '⛈️' }
+  if (code === 2) return { label: 'Partly cloudy', emoji: '⛅' }
+  if (code === 3) return { label: 'Overcast', emoji: '☁️' }
+  if ([45, 48].includes(code)) return { label: 'Fog', emoji: '🌫️' }
+  if ([51, 53, 55].includes(code)) return { label: 'Drizzle', emoji: '🌦️' }
+  if ([61, 63, 65].includes(code)) return { label: 'Rain', emoji: '🌧️' }
+  if ([71, 73, 75].includes(code)) return { label: 'Snow', emoji: '❄️' }
+  if ([80, 81, 82].includes(code)) return { label: 'Rain showers', emoji: '🌦️' }
+  if ([95, 96, 99].includes(code)) return { label: 'Thunderstorm', emoji: '⛈️' }
   return { label: 'Unknown', emoji: '🌡️' }
 }
 
@@ -36,9 +36,9 @@ function weatherLabel(code, isDay) {
 function solarImpact(cloudcover, isDay) {
   if (!isDay) return { label: 'No solar production', color: 'text-muted-foreground' }
   if (cloudcover <= 20) return { label: 'Excellent solar', color: 'text-amber-500' }
-  if (cloudcover <= 50) return { label: 'Good solar',      color: 'text-amber-400' }
-  if (cloudcover <= 80) return { label: 'Reduced solar',   color: 'text-muted-foreground' }
-  return                       { label: 'Poor solar',      color: 'text-muted-foreground' }
+  if (cloudcover <= 50) return { label: 'Good solar', color: 'text-amber-400' }
+  if (cloudcover <= 80) return { label: 'Reduced solar', color: 'text-muted-foreground' }
+  return { label: 'Poor solar', color: 'text-muted-foreground' }
 }
 
 // ── Stat pill ─────────────────────────────────────────────────────────────────
@@ -98,15 +98,15 @@ export default function WeatherCard({ data }) {
   if (!data) return <WeatherSkeleton />
 
   const current = data.current
-  const daily   = data.daily
+  const daily = data.daily
 
-  const code      = current.weathercode
+  const code = current.weathercode
   const { label, emoji } = weatherLabel(code, current.is_day)
-  const impact    = solarImpact(current.cloudcover, current.is_day)
+  const impact = solarImpact(current.cloudcover, current.is_day)
 
-  const tempMax   = Math.round(daily.temperature_2m_max?.[0])
-  const tempMin   = Math.round(daily.temperature_2m_min?.[0])
-  const rainProb  = daily.precipitation_probability_max?.[0]
+  const tempMax = Math.round(daily.temperature_2m_max?.[0])
+  const tempMin = Math.round(daily.temperature_2m_min?.[0])
+  const rainProb = daily.precipitation_probability_max?.[0]
 
   return (
     <Card>
@@ -151,9 +151,9 @@ export default function WeatherCard({ data }) {
 
         {/* Stats row */}
         <div className="flex items-center justify-between">
-          <Stat icon={<Cloud size={13} />}    value={current.cloudcover}            unit="% clouds" />
-          <Stat icon={<Wind size={13} />}     value={Math.round(current.windspeed_10m)} unit="km/h" />
-          <Stat icon={<Droplets size={13} />} value={rainProb ?? 0}                 unit="% rain" />
+          <Stat icon={<Cloud size={13} />} value={current.cloudcover} unit="% clouds" />
+          <Stat icon={<Wind size={13} />} value={Math.round(current.windspeed_10m)} unit="km/h" />
+          <Stat icon={<Droplets size={13} />} value={rainProb ?? 0} unit="% rain" />
         </div>
 
       </CardContent>
