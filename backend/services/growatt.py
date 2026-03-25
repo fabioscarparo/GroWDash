@@ -73,19 +73,20 @@ def ttl_cache(key_fn=None, ttl=CACHE_TTL):
         key_fn: Optional callable that receives (args, kwargs) and returns
                 a string cache key.
         ttl:    Cache lifetime in seconds. Defaults to CACHE_TTL (5 min).
-                Pass CACHE_TTL_LONG (24h) for historical data that never changes.
+                Can be a callable that returns the TTL based on (args, kwargs).
 
     Usage:
         @ttl_cache()
         def get_something(): ...
 
-        @ttl_cache(key_fn=lambda a, k: f"prefix:{a[0]}:{a[1]}", ttl=CACHE_TTL_LONG)
-        def get_something_by_date(start, end): ...
+        @ttl_cache(key_fn=lambda a, k: f"prefix:{a[0]}", ttl=lambda a, k: 3600 if 'hist' in a[0] else 300)
+        def get_dynamic(path): ...
     """
     def decorator(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
             cache_key = key_fn(args, kwargs) if key_fn else f"{func.__name__}:{args}:{kwargs}"
+            actual_ttl = ttl(args, kwargs) if callable(ttl) else ttl
 
             with _cache_lock:
                 if cache_key in _cache:
@@ -96,9 +97,31 @@ def ttl_cache(key_fn=None, ttl=CACHE_TTL):
             result = func(*args, **kwargs)
 
             with _cache_lock:
-                _cache[cache_key] = (result, time.time(), ttl)
+                _cache[cache_key] = (result, time.time(), actual_ttl)
 
             return result
+        return wrapper
+    return decorator
+
+
+def retry_api(retries=3, backoff=2, exceptions=(Exception,)):
+    """
+    Decorator that retries a function call if it raises specific exceptions.
+    Implements exponential backoff between attempts.
+    """
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            last_err = None
+            for i in range(retries):
+                try:
+                    return func(*args, **kwargs)
+                except exceptions as e:
+                    last_err = e
+                    if i < retries - 1:
+                        sleep_time = backoff ** i
+                        time.sleep(sleep_time)
+            raise last_err
         return wrapper
     return decorator
 
@@ -106,6 +129,7 @@ def ttl_cache(key_fn=None, ttl=CACHE_TTL):
 # ── Service functions ─────────────────────────────────────────────────────────
 
 @ttl_cache()
+@retry_api()
 def get_plant_info() -> dict:
     """
     Returns general information about the PV plant:
@@ -123,6 +147,7 @@ def get_plant_info() -> dict:
 
 
 @ttl_cache()
+@retry_api()
 def get_device_list() -> list:
     """
     Returns the list of all devices connected to the plant.
@@ -142,6 +167,7 @@ def get_device_list() -> list:
 
 
 @ttl_cache()
+@retry_api()
 def get_device_detail() -> dict:
     """
     Returns detailed technical data for the MIN inverter:
@@ -155,6 +181,7 @@ def get_device_detail() -> dict:
 
 
 @ttl_cache()
+@retry_api()
 def get_device_settings() -> dict:
     """
     Returns all settings configured on the MIN inverter:
@@ -168,6 +195,7 @@ def get_device_settings() -> dict:
 
 
 @ttl_cache()
+@retry_api()
 def get_energy_today() -> dict:
     """
     Returns all energy data for the MIN inverter for the current day.
@@ -197,6 +225,7 @@ def get_energy_today() -> dict:
 
 
 @ttl_cache(key_fn=lambda a, k: f"history:{a[0]}:{a[1]}")
+@retry_api()
 def get_energy_history(start_date: date = None, end_date: date = None) -> list:
     """
     Returns a time series of 5-minute energy snapshots for a date range.
@@ -281,6 +310,7 @@ def get_energy_history(start_date: date = None, end_date: date = None) -> list:
 
 
 @ttl_cache(key_fn=lambda a, k: f"plant_history:{a[0]}:{a[1]}:{a[2]}")
+@retry_api()
 def get_plant_energy_history(
     start_date: date,
     end_date: date,
@@ -393,39 +423,18 @@ def get_plant_energy_history(
     return complete
 
 
+@ttl_cache(
+    key_fn=lambda a, k: f"daily_breakdown:{a[0]}:{a[1]}",
+    ttl=lambda a, k: CACHE_TTL if a[1] >= date.today() else CACHE_TTL_LONG
+)
 def get_daily_energy_breakdown(start_date: date, end_date: date) -> list:
     """
     Returns daily energy totals by reading the *Today cumulative counters
     from the last 5-minute snapshot of each day.
-
-    These counters (eacToday, elocalLoadToday, etc.) reset at midnight and
-    are updated by the inverter's internal energy meter — the same source
-    used by the ShinePhone app. Taking the last snapshot of each day gives
-    exact daily totals with no integration error.
-
-    Args:
-        start_date: Start date of the range.
-        end_date:   End date of the range (clamped to today).
-
-    Returns:
-        list: One record per day with solar, home, grid, battery and
-              self-consumption totals in kWh, ordered chronologically.
     """
     end_date = min(end_date, date.today())
 
-    cache_key = f"daily_breakdown:{start_date}:{end_date}"
-    now = time.time()
-    if cache_key in _cache:
-        value, ts, ttl = _cache[cache_key]
-        if now - ts < ttl:
-            return value
-
-    today = date.today()
-    is_current_period = (
-        end_date.year == today.year and end_date.month == today.month
-    )
-    cache_ttl = CACHE_TTL if is_current_period else CACHE_TTL_LONG
-
+    @retry_api()
     def fetch_chunk(chunk_start, chunk_end):
         """Fetch all snapshots for a ≤7-day chunk, return only *Today fields."""
         api = growattServer.OpenApiV1(GROWATT_TOKEN)
@@ -506,11 +515,11 @@ def get_daily_energy_breakdown(start_date: date, end_date: date) -> list:
             })
         current += timedelta(days=1)
 
-    _cache[cache_key] = (result, now, cache_ttl)
     return result
 
 
 @ttl_cache()
+@retry_api()
 def get_plant_energy_overview() -> dict:
     """
     Returns the energy overview for the PV plant.
