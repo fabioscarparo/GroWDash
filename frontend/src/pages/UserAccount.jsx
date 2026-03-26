@@ -348,7 +348,7 @@ export default function UserAccount() {
           </Card>
 
           {/* ── Logout ───────────────────────────────────────────────────── */}
-          <div className="pt-2 md:pt-4">
+          <div className="pt-2 md:hidden">
             <Button
               onClick={handleLogout}
               variant="destructive"
