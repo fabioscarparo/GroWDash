@@ -48,6 +48,13 @@ export function useSwipeNavigation({ onNext, onPrev, enabled = true }) {
      * @param {TouchEvent} e - Native mobile touchstart event data payload.
      */
     function onTouchStart(e) {
+      // Ignore swipe events originating inside charts, sliders, or explicit no-swipe elements
+      // so users can freely scroll tooltips or adjust values without triggering a page transition
+      if (e.target.closest('.recharts-wrapper, [role="slider"], input[type="range"], .no-swipe')) {
+        startX.current = null
+        startY.current = null
+        return
+      }
       startX.current = e.touches[0].clientX
       startY.current = e.touches[0].clientY
     }
