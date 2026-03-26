@@ -41,8 +41,13 @@ async function fetchWeather(lat, lon) {
     'weathercode',
     'precipitation_probability_max',
   ].join(','))
+  url.searchParams.set('hourly', [
+    'temperature_2m',
+    'weathercode',
+    'precipitation_probability',
+  ].join(','))
   url.searchParams.set('timezone', 'auto')
-  url.searchParams.set('forecast_days', '1')
+  url.searchParams.set('forecast_days', '2')
 
   const res = await fetch(url)
   if (!res.ok) throw new Error('Weather fetch failed')
@@ -65,11 +70,11 @@ export function useWeather(lat, lon) {
     queryKey: ['weather', lat, lon],
     queryFn: () => fetchWeather(lat, lon),
     enabled: !!lat && !!lon,
-    
+
     // Treat weather data as "fresh" (preventing silent background refetches across UI mounts)
     // for exactly 15 minutes to respect Open-Meteo rate limits while remaining practically accurate.
-    staleTime: 15 * 60 * 1000, 
-    
+    staleTime: 15 * 60 * 1000,
+
     // Automatically poll the endpoint every 15 minutes as long as the page remains open.  
     refetchInterval: 15 * 60 * 1000,
   })

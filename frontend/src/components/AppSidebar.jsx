@@ -60,12 +60,16 @@ export default function AppSidebar({ current, onChange, theme, onToggleTheme, us
 
       <SidebarFooter className="border-t border-sidebar-border p-2 space-y-2">
         {user && (
-          <div className="flex items-center gap-2 px-2 py-2 text-sm rounded-lg bg-sidebar-accent/50">
+          <SidebarMenuButton
+            onClick={() => onChange('account')}
+            tooltip="Account Settings"
+            className="bg-sidebar-accent/50 text-sidebar-foreground"
+          >
             <User size={16} className="shrink-0" />
-            <span className="text-sidebar-foreground truncate group-data-[collapsible=icon]:hidden">
+            <span className="truncate group-data-[collapsible=icon]:hidden">
               {user.username}
             </span>
-          </div>
+          </SidebarMenuButton>
         )}
         
         <SidebarMenuButton

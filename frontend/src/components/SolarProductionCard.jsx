@@ -11,6 +11,9 @@
  * Production estimate formula (standard PV industry):
  *   hourly_kWh = GTI (W/m²) / 1000 × peak_power_kWp × performance_ratio
  *
+ * Chart: dual AreaChart — forecast as a filled grey area, actual production
+ * as an amber filled area overlaid on top. Both share the same time axis.
+ *
  * Data sources:
  *   - /energy/overview → today_energy_kwh, plant_capacity_kw
  *   - /energy/history  → 5-min snapshots, aggregated per hour for actual overlay
@@ -18,10 +21,16 @@
  */
 
 import { useMemo } from 'react'
-import { Card, CardContent } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ChartContainer, ChartTooltip } from '@/components/ui/chart'
 import { Sun } from 'lucide-react'
-import { BarChart, Bar, XAxis, YAxis, Cell } from 'recharts'
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+} from 'recharts'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useSolarForecast } from '../hooks/useSolarForecast'
 import { useSolarSettings } from '../hooks/useSolarSettings'
@@ -35,8 +44,8 @@ function localToday() {
 }
 
 const chartConfig = {
-  estimated: { label: 'Forecast',  color: 'hsl(var(--muted-foreground))' },
-  actual:    { label: 'Actual',    color: '#f59e0b' },
+  estimated: { label: 'Forecast', color: '#94a3b8' },
+  actual: { label: 'Actual', color: '#f59e0b' },
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -56,36 +65,35 @@ export default function SolarProductionCard({
   lon,
   isLoading,
 }) {
-  const { settings }       = useSolarSettings()
-  const today              = localToday()
-  const currentHour        = new Date().getHours()
+  const { settings } = useSolarSettings()
+  const today = localToday()
+  const currentHour = new Date().getHours()
 
   // ── Data fetching ─────────────────────────────────────────────────────────
 
   const { data: forecast } = useSolarForecast({
     lat, lon,
-    tilt:    settings.tilt,
+    tilt: settings.tilt,
     azimuth: settings.azimuth,
   })
 
   const { data: history } = useHistory(today, today)
 
-  // ── Hourly actual production (kWh) from 5-min history snapshots ───────────
-  // Each snapshot has solar_w. Integrating over 5 min: kWh = W × (5/60) / 1000
+  // ── Hourly actual production (kWh) aggregated from 5-min snapshots ────────
+  // Each 5-min snapshot: kWh = solar_w × (5/60) / 1000
 
   const hourlyActual = useMemo(() => {
     const acc = Array(24).fill(0)
-    ;(history?.data ?? []).forEach(point => {
-      const hour = parseInt(point.time?.slice(11, 13) ?? '0', 10)
-      if (hour >= 0 && hour < 24) {
-        acc[hour] += (point.solar_w || 0) * (5 / 60) / 1000
-      }
-    })
+      ; (history?.data ?? []).forEach(point => {
+        const hour = parseInt(point.time?.slice(11, 13) ?? '0', 10)
+        if (hour >= 0 && hour < 24) {
+          acc[hour] += (point.solar_w || 0) * (5 / 60) / 1000
+        }
+      })
     return acc.map(v => Math.round(v * 1000) / 1000)
   }, [history])
 
   // ── Hourly estimated production from GTI + plant capacity + PR ────────────
-  // Open-Meteo returns 24 hourly GTI values (W/m²) for today.
 
   const hourlyEstimated = useMemo(() => {
     const gti = forecast?.hourly?.global_tilted_irradiance ?? []
@@ -103,21 +111,19 @@ export default function SolarProductionCard({
     [hourlyEstimated]
   )
 
-  const hasForecast    = !!(lat && lon && estimatedTotalKwh > 0)
-  const progressPct    = hasForecast && estimatedTotalKwh > 0
+  const hasForecast = !!(lat && lon && estimatedTotalKwh > 0)
+  const progressPct = hasForecast && estimatedTotalKwh > 0
     ? Math.min(Math.round(((actualKwh ?? 0) / estimatedTotalKwh) * 100), 100)
     : 0
 
-  // ── Chart data: 24 hourly bars ────────────────────────────────────────────
-  // Past/current hours show both estimated and actual.
-  // Future hours show only the estimated forecast (dimmed).
+  // ── Chart data: 24 hourly points ──────────────────────────────────────────
+  // Future hours: actual is null so the amber area stops at the current hour.
 
   const chartData = useMemo(() =>
     Array.from({ length: 24 }, (_, h) => ({
-      hour:      `${String(h).padStart(2, '0')}`,
+      hour: `${String(h).padStart(2, '0')}`,
       estimated: hourlyEstimated[h] ?? 0,
-      actual:    h <= currentHour ? hourlyActual[h] : null,
-      isFuture:  h > currentHour,
+      actual: h <= currentHour ? (hourlyActual[h] ?? 0) : null,
     })),
     [hourlyEstimated, hourlyActual, currentHour]
   )
@@ -126,36 +132,51 @@ export default function SolarProductionCard({
 
   return (
     <Card>
-      <CardContent className="pt-4 pb-4">
-
-        {/* Label */}
-        <div className="flex items-center gap-1.5 mb-1">
+      <CardHeader className="pb-2">
+        <div className="flex items-center gap-2">
           <Sun size={16} className="text-muted-foreground" />
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-            Solar Production
-          </p>
+          <CardTitle className="text-sm font-semibold">Solar Production</CardTitle>
         </div>
+      </CardHeader>
+      <CardContent className="pb-4">
 
-        {/* Actual production value */}
-        <div className="flex items-baseline gap-1 mb-3">
-          {isLoading ? (
-            <Skeleton className="h-8 w-20" />
-          ) : (
-            <>
+        {isLoading ? (
+          <div className="space-y-3 pb-2 pt-0">
+            <Skeleton className="h-8 w-24" />
+            <div className="h-px bg-border my-3" />
+            <div className="space-y-2">
+              <div className="flex justify-between">
+                <Skeleton className="h-3 w-24" />
+                <Skeleton className="h-3 w-16" />
+              </div>
+              <Skeleton className="h-1.5 w-full rounded-full" />
+              <div className="flex justify-between mt-1">
+                <Skeleton className="h-2.5 w-20" />
+                <Skeleton className="h-2.5 w-24" />
+              </div>
+            </div>
+            <Skeleton className="h-24 w-full mt-3" />
+            <div className="flex justify-center gap-4 mt-2">
+              <Skeleton className="h-2.5 w-16" />
+              <Skeleton className="h-2.5 w-16" />
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* Actual production value */}
+            <div className="flex items-baseline gap-1 mb-3">
               <span className="text-2xl font-bold text-foreground">
                 {actualKwh ?? '—'}
               </span>
               <span className="text-sm text-muted-foreground">kWh</span>
-            </>
-          )}
-        </div>
+            </div>
 
-        {/* Forecast section — only rendered when lat/lon are available */}
-        {hasForecast && (
-          <>
-            <div className="h-px bg-border mb-3" />
+            {/* Forecast section — only when lat/lon are available */}
+            {hasForecast && (
+              <>
+                <div className="h-px bg-border mb-3" />
 
-            {/* Estimated max + progress */}
+            {/* Estimated max + progress bar */}
             <div className="mb-3">
               <div className="flex items-center justify-between mb-1.5">
                 <span className="text-[11px] text-muted-foreground">
@@ -166,7 +187,6 @@ export default function SolarProductionCard({
                 </span>
               </div>
 
-              {/* Progress bar */}
               <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
                 <div
                   className="h-full bg-amber-500 rounded-full transition-all duration-700"
@@ -184,20 +204,37 @@ export default function SolarProductionCard({
               </div>
             </div>
 
-            {/* Hourly forecast vs actual chart */}
-            <ChartContainer config={chartConfig} className="h-20 w-full">
-              <BarChart
+            {/* Hourly forecast vs actual — dual area chart */}
+            <ChartContainer config={chartConfig} className="h-24 w-full">
+              <AreaChart
                 data={chartData}
-                barCategoryGap="10%"
-                barGap={1}
-                margin={{ top: 2, right: 0, bottom: 0, left: 0 }}
+                margin={{ top: 4, right: 0, bottom: 0, left: 0 }}
               >
+                <defs>
+                  {/* Forecast area gradient — neutral grey */}
+                  <linearGradient id="grad-estimated" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#94a3b8" stopOpacity={0.25} />
+                    <stop offset="95%" stopColor="#94a3b8" stopOpacity={0.03} />
+                  </linearGradient>
+                  {/* Actual area gradient — amber */}
+                  <linearGradient id="grad-actual" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.45} />
+                    <stop offset="95%" stopColor="#f59e0b" stopOpacity={0.05} />
+                  </linearGradient>
+                </defs>
+
+                <CartesianGrid
+                  vertical={false}
+                  stroke="hsl(var(--border))"
+                  strokeDasharray="3 3"
+                />
+
                 <XAxis
                   dataKey="hour"
                   tickLine={false}
                   axisLine={false}
                   tick={{ fontSize: 8, fill: 'hsl(var(--muted-foreground))' }}
-                  // Show only every 6 hours (00, 06, 12, 18)
+                  // Show only 00, 06, 12, 18
                   tickFormatter={(v, i) => (i % 6 === 0 ? v : '')}
                   interval={0}
                 />
@@ -213,7 +250,7 @@ export default function SolarProductionCard({
                         <p className="text-muted-foreground font-medium mb-1">{label}:00</p>
                         <div className="flex items-center justify-between gap-4 mb-0.5">
                           <div className="flex items-center gap-1.5">
-                            <span className="inline-block w-2 h-2 rounded-full bg-muted-foreground/40" />
+                            <span className="inline-block w-2 h-2 rounded-full bg-foreground/40" />
                             <span className="text-muted-foreground">Forecast</span>
                           </div>
                           <span className="font-semibold text-foreground">
@@ -236,46 +273,52 @@ export default function SolarProductionCard({
                   }}
                 />
 
-                {/* Forecast bars (background, dimmed) */}
-                <Bar dataKey="estimated" maxBarSize={7} radius={[2, 2, 0, 0]}>
-                  {chartData.map((entry, i) => (
-                    <Cell
-                      key={i}
-                      fill={
-                        entry.isFuture
-                          ? 'hsl(var(--muted-foreground) / 0.15)'
-                          : 'hsl(var(--muted-foreground) / 0.25)'
-                      }
-                    />
-                  ))}
-                </Bar>
-
-                {/* Actual production bars (amber, overlaid) */}
-                <Bar
-                  dataKey="actual"
-                  maxBarSize={7}
-                  fill="#f59e0b"
-                  radius={[2, 2, 0, 0]}
+                {/* Forecast area — rendered first so it sits behind actual */}
+                <Area
+                  type="monotone"
+                  dataKey="estimated"
+                  stroke="#94a3b8"
+                  strokeOpacity={0.4}
+                  strokeWidth={1.5}
+                  strokeDasharray="4 3"
+                  fill="url(#grad-estimated)"
+                  dot={false}
+                  activeDot={{ r: 3, fill: '#94a3b8' }}
+                  connectNulls
                 />
 
-              </BarChart>
+                {/* Actual area — amber, stops at current hour (nulls not connected) */}
+                <Area
+                  type="monotone"
+                  dataKey="actual"
+                  stroke="#f59e0b"
+                  strokeWidth={2}
+                  fill="url(#grad-actual)"
+                  dot={false}
+                  activeDot={{ r: 3, fill: '#f59e0b' }}
+                  connectNulls={false}
+                />
+
+              </AreaChart>
             </ChartContainer>
 
             {/* Legend */}
-            <div className="flex justify-center gap-4 mt-1.5">
+            <div className="flex justify-center gap-4 mt-2">
               <div className="flex items-center gap-1.5">
-                <span className="inline-block w-2.5 h-2.5 rounded-sm bg-muted-foreground/25" />
+                <span className="inline-block w-3 h-[2px] rounded bg-foreground/40" />
                 <span className="text-[10px] text-muted-foreground">Forecast</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <span className="inline-block w-2.5 h-2.5 rounded-sm bg-amber-500" />
+                <span className="inline-block w-3 h-[2px] rounded bg-amber-500" />
                 <span className="text-[10px] text-muted-foreground">Actual</span>
               </div>
             </div>
           </>
         )}
+          </>
+        )}
 
-        {/* Prompt shown when plant coordinates are not available */}
+        {/* Prompt when plant coordinates are not available */}
         {!lat && !lon && !isLoading && (
           <p className="text-[11px] text-muted-foreground mt-1">
             Set panel orientation in Account → Solar Panel Settings to enable forecast.
