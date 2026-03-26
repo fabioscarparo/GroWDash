@@ -62,7 +62,7 @@ function Stat({ icon, value, unit }) {
 
 function WeatherSkeleton() {
   return (
-    <Card className="animate-pulse h-full flex flex-col">
+    <Card className="h-full flex flex-col animate-pulse">
       <CardHeader className="pb-2 flex-none">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -72,25 +72,45 @@ function WeatherSkeleton() {
           <div className="w-20 h-4 rounded bg-muted" />
         </div>
       </CardHeader>
-      <CardContent className="flex flex-col gap-4 grow justify-between">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-full bg-muted" />
+
+      <CardContent className="flex flex-col grow gap-4">
+        {/* Icon + temp */}
+        <div className="flex items-center justify-between mt-1">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 rounded-full bg-muted" />
             <div className="space-y-2">
-              <div className="w-12 h-8 rounded bg-muted" />
-              <div className="w-16 h-3 rounded bg-muted" />
+              <div className="w-14 h-9 rounded bg-muted" />
+              <div className="w-20 h-3 rounded bg-muted" />
             </div>
           </div>
-          <div className="space-y-2">
-            <div className="w-16 h-4 rounded bg-muted" />
-            <div className="w-10 h-3 ml-auto rounded bg-muted" />
+          <div className="space-y-2 text-right">
+            <div className="w-16 h-4 rounded bg-muted ml-auto" />
+            <div className="w-8 h-3 rounded bg-muted ml-auto" />
           </div>
         </div>
-        <div className="h-px bg-border" />
-        <div className="flex items-center justify-between pt-1">
+
+        {/* Divider */}
+        <div className="h-px bg-border w-full" />
+
+        {/* Stats row */}
+        <div className="flex items-center justify-between py-1">
+          <div className="w-20 h-3 rounded bg-muted" />
           <div className="w-16 h-3 rounded bg-muted" />
           <div className="w-16 h-3 rounded bg-muted" />
-          <div className="w-16 h-3 rounded bg-muted" />
+        </div>
+
+        {/* Hourly strip — desktop only */}
+        <div className="mt-auto hidden md:block pt-3 border-t border-border border-dashed">
+          <div className="w-24 h-3 rounded bg-muted mb-4" />
+          <div className="flex items-center justify-between px-1">
+            {[0, 1, 2, 3].map(i => (
+              <div key={i} className="flex flex-col items-center gap-2">
+                <div className="w-8 h-3 rounded bg-muted" />
+                <div className="w-5 h-5 rounded-full bg-muted" />
+                <div className="w-6 h-3 rounded bg-muted" />
+              </div>
+            ))}
+          </div>
         </div>
       </CardContent>
     </Card>
