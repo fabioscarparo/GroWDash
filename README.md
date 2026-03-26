@@ -18,16 +18,19 @@ GroWDash provides an essential and clean designed dashboard with real-time data,
 - **Real-Time Power Flow:** Visual SVG widget showing live energy moving between solar panels, battery, grid, and home loads.
 - **Accurate Energy Data:** Daily totals read directly from the inverter's internal `*Today` cumulative counters — the same source used by ShinePhone — instead of integrating 5-minute power snapshots, eliminating measurement drift.
 - **Daily Curve Charts:** Area charts for today's power flows (solar, home, battery, grid) and battery State of Charge (SOC) over the day.
+- **Solar Production Forecast:** Hourly estimated output (from Open-Meteo GHI radiation) overlaid with actual measured production on the same area chart, accounting for plant capacity, panel tilt, orientation, and performance ratio.
 - **Detailed Energy Breakdown:** Per-day breakdown of all energy flows across months, with interactive month navigation and background prefetch for instant page turns.
 - **Solar Production History:** Bar charts aggregated by day, month, or year with gap-free series and future-date filtering.
 - **Self-Sufficiency Tracking:** Stacked bar chart showing how home consumption is covered: from solar, battery, or grid — with a monthly self-sufficiency percentage.
 - **Energy Breakdown Card:** Today's system output split between self-consumed and exported, plus home consumption split by source.
 - **Device Management:** Inverter details, firmware, communication versions, battery pack specs, SOC operational limits, and all connected modules (datalogger, meter).
 - **Inverter Settings:** Read-only view of all inverter configuration registers (work mode, battery settings, grid limits, and more).
-- **Weather Integration:** Real-time weather from Open-Meteo at the plant's coordinates, with solar production context (cloud cover, rain probability).
-- **Pull-to-Refresh:** Native mobile gesture with haptic feedback and animated indicator to manually force a data refresh.
-- **Swipe Navigation:** Horizontal swipe between pages on mobile.
+- **Solar Panel Settings:** User-configurable plant parameters (panel tilt, orientation via interactive compass rose, system efficiency / performance ratio) that feed directly into the forecast model.
+- **Weather Widget:** Real-time weather from Open-Meteo using polished Lucide icons mapped to WMO weather codes, with solar production context (cloud cover, rain probability, min/max temperature). On desktop, an **upcoming hours** forecast strip shows the next 4 hours at a glance.
+- **Pull-to-Refresh:** Native mobile gesture with haptic feedback and animated indicator to manually force a data refresh. Gesture is automatically suppressed when the touch starts inside a chart or slider, preventing accidental page changes.
+- **Swipe Navigation:** Horizontal swipe between pages on mobile, smart-disabled over interactive chart and slider areas.
 - **Mobile-First Design:** Responsive layout with a collapsible sidebar on desktop and a fixed bottom navigation bar on mobile, with animated page transitions.
+- **Account Settings — Desktop Layout:** Two-column card layout on wider screens, clickable sidebar username for quick access, logout button hidden on desktop (accessible from the sidebar).
 - **Dark / Light / System Mode:** Three-way theme selector with smooth transitions.
 - **Self-Hosted & Docker-Ready:** Designed to run on a NAS (tested on Synology DSM 7.3) with Docker Compose, accessible remotely via Cloudflare Tunnel without port forwarding.
 
@@ -69,8 +72,8 @@ GroWDash/
 │   ├── src/
 │   │   ├── api/              # Backend communication layer (fetch wrapper)
 │   │   ├── context/          # AuthContext (JWT cookie auth state)
-│   │   ├── hooks/            # useGrowatt, useTheme, usePullToRefresh, useSwipeNavigation, useWeather
-│   │   ├── components/       # UI cards, charts, FlowNode, PeriodPicker, ...
+│   │   ├── hooks/            # useGrowatt, useTheme, usePullToRefresh, useSwipeNavigation, useWeather, useSolarForecast, useSolarSettings
+│   │   ├── components/       # UI cards, charts, FlowNode, PeriodPicker, WeatherCard, SolarProductionCard, ...
 │   │   └── pages/            # Overview, History, Device, DeviceSettings, UserAccount, LoginPage
 ├── .env.example              # Environment variables template
 ├── .gitignore
