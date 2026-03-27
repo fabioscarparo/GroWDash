@@ -1,11 +1,13 @@
 <p align="center">
-  <img src="./assets/logo.png" alt="GroWDash logo" width="110"/>
+  <img src="/assets/logo.png" alt="GroWDash logo" width="110"/>
 </p>
 
 <h1 align="center">GroWDash</h1>
 
 <p align="center">
-  Modern dashboard for Growatt MIN inverters
+  A modern, clean, and comprehensive dashboard for **Growatt MIN inverters**.
+
+  Built with **FastAPI** + **React**, powered by the [PyPi_GrowattServer](https://github.com/indykoning/PyPi_GrowattServer) library and the official Growatt V1 (Token) API.
 </p>
 
 <p align="center">
@@ -13,14 +15,6 @@
   <img src="https://img.shields.io/badge/React-0A7?logo=react&logoColor=white" />
   <img src="https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white" />
 </p>
-
-# GroWDash
-
-A modern, clean, and comprehensive dashboard for **Growatt MIN inverters**.
-
-Built with **FastAPI** + **React**, powered by the [PyPi_GrowattServer](https://github.com/indykoning/PyPi_GrowattServer) library and the official Growatt V1 (Token) API.
-
----
 
 ## Why GroWDash?
 
