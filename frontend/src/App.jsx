@@ -50,8 +50,6 @@
 import { useState, useCallback, useEffect } from 'react'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { SidebarProvider } from '@/components/ui/sidebar'
-import { Button } from '@/components/ui/button'
-import { Sun, Moon } from 'lucide-react'
 import AppSidebar from './components/AppSidebar'
 import BottomNav from './components/BottomNav'
 import Overview from './pages/Overview'
@@ -64,7 +62,6 @@ import { useTheme } from './hooks/useTheme'
 import { useSwipeNavigation } from './hooks/useSwipeNavigation'
 import { useAuth } from './context/AuthContext'
 import PullToRefreshChip from './components/PullToRefreshChip'
-import Splash from './components/Splash'
 
 /**
  * Ordered list of page IDs.
