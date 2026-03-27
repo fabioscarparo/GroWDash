@@ -17,7 +17,7 @@ Required environment variables (.env):
 
 import growattServer
 from dotenv import load_dotenv
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime, timezone as dt_timezone
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from functools import wraps
 import threading
@@ -146,6 +146,34 @@ def get_plant_info() -> dict:
     return plants[0]
 
 
+def get_plant_local_date() -> date:
+    """
+    Calculates the current local date at the PV plant based on its 
+    configured timezone offset (e.g., 'GMT+1'). 
+    
+    This ensures that 'Today' data is correctly identified regardless 
+    of the server's system time (which is usually UTC).
+    """
+    try:
+        overview = get_plant_energy_overview()
+        tz_str = overview.get("timezone", "GMT+0")
+        
+        # Parse 'GMT+N' or 'GMT-N'
+        offset = 0
+        if "GMT" in tz_str:
+            offset_str = tz_str.replace("GMT", "").strip()
+            if offset_str:
+                offset = int(offset_str)
+        
+        # Calculate local time from UTC
+        utc_now = datetime.now(dt_timezone.utc)
+        local_now = utc_now + timedelta(hours=offset)
+        return local_now.date()
+    except Exception:
+        # Fallback to server date if timezone lookup fails
+        return date.today()
+
+
 @ttl_cache()
 @retry_api()
 def get_device_list() -> list:
@@ -244,7 +272,7 @@ def get_energy_history(start_date: date = None, end_date: date = None) -> list:
               timestamp, power flows (W), voltage and temperature.
     """
     if start_date is None:
-        start_date = date.today()
+        start_date = get_plant_local_date()
     if end_date is None:
         end_date = start_date
 
@@ -425,14 +453,14 @@ def get_plant_energy_history(
 
 @ttl_cache(
     key_fn=lambda a, k: f"daily_breakdown:{a[0]}:{a[1]}",
-    ttl=lambda a, k: CACHE_TTL if a[1] >= date.today() else CACHE_TTL_LONG
+    ttl=lambda a, k: CACHE_TTL if a[1] >= get_plant_local_date() else CACHE_TTL_LONG
 )
 def get_daily_energy_breakdown(start_date: date, end_date: date) -> list:
     """
     Returns daily energy totals by reading the *Today cumulative counters
     from the last 5-minute snapshot of each day.
     """
-    end_date = min(end_date, date.today())
+    end_date = min(end_date, get_plant_local_date())
 
     @retry_api()
     def fetch_chunk(chunk_start, chunk_end):

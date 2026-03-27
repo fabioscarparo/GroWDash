@@ -22,6 +22,7 @@ from services.growatt import (
     get_plant_energy_history,
     get_plant_energy_overview,
     get_daily_energy_breakdown,
+    get_plant_local_date,
 )
 
 router = APIRouter(
@@ -175,9 +176,10 @@ def energy_history(
     if not data:
         raise HTTPException(status_code=404, detail="No historical data available")
 
+    local_today = get_plant_local_date()
     return {
-        "start_date": str(start_date or date.today()),
-        "end_date":   str(end_date or start_date or date.today()),
+        "start_date": str(start_date or local_today),
+        "end_date":   str(end_date or start_date or local_today),
         "count":      len(data),
         "data":       data,
     }
