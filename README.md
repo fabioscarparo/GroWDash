@@ -1,3 +1,19 @@
+<p align="center">
+  <img src="./assets/logo.png" alt="GroWDash logo" width="110"/>
+</p>
+
+<h1 align="center">GroWDash</h1>
+
+<p align="center">
+  Modern dashboard for Growatt MIN inverters
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/FastAPI-0A2?logo=fastapi&logoColor=white" />
+  <img src="https://img.shields.io/badge/React-0A7?logo=react&logoColor=white" />
+  <img src="https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white" />
+</p>
+
 # GroWDash
 
 A modern, clean, and comprehensive dashboard for **Growatt MIN inverters**.
