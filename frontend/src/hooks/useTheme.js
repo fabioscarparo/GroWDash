@@ -43,6 +43,14 @@ export function useTheme() {
       } else {
         root.classList.remove('dark')
       }
+
+      const metaTheme = document.querySelector('meta[name="theme-color"]')
+      if (metaTheme) {
+        metaTheme.setAttribute(
+          'content',
+          resolvedTheme === 'dark' ? '#0f0f0f' : '#ffffff'
+        )
+      }
     }
 
     applyTheme(theme)
