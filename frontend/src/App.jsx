@@ -64,6 +64,7 @@ import { useTheme } from './hooks/useTheme'
 import { useSwipeNavigation } from './hooks/useSwipeNavigation'
 import { useAuth } from './context/AuthContext'
 import PullToRefreshChip from './components/PullToRefreshChip'
+import Splash from './components/Splash'
 
 /**
  * Ordered list of page IDs.

@@ -4,6 +4,7 @@
   "description": "Solar energy monitoring dashboard for Growatt inverters",
   "start_url": "/",
   "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone"],
   "orientation": "portrait-primary",
   "background_color": "#0a0a0a",
   "theme_color": "#6EB92B",
@@ -58,6 +59,12 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
     },
     {
       "src": "/favicon.svg",
