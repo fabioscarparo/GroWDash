@@ -18,7 +18,7 @@ GroWDash provides an essential and clean designed dashboard with real-time data,
 - **Real-Time Power Flow:** Visual SVG widget showing live energy moving between solar panels, battery, grid, and home loads.
 - **Accurate Energy Data:** Daily totals read directly from the inverter's internal `*Today` cumulative counters — the same source used by ShinePhone — instead of integrating 5-minute power snapshots, eliminating measurement drift.
 - **Daily Curve Charts:** Area charts for today's power flows (solar, home, battery, grid) and battery State of Charge (SOC) over the day.
-- **Solar Production Forecast:** Hourly estimated output (from Open-Meteo GHI radiation) overlaid with actual measured production on the same area chart, accounting for plant capacity, panel tilt, orientation, and performance ratio.
+- **Solar Production Forecast:** Hourly estimated output (from Open-Meteo GHI radiation) overlaid with actual measured production. Calculations are performed on the backend using plant capacity, panel tilt, orientation, and performance ratio, with 1-hour server-side caching.
 - **Detailed Energy Breakdown:** Per-day breakdown of all energy flows across months, with interactive month navigation and background prefetch for instant page turns.
 - **Solar Production History:** Bar charts aggregated by day, month, or year with gap-free series and future-date filtering.
 - **Self-Sufficiency Tracking:** Stacked bar chart showing how home consumption is covered: from solar, battery, or grid — with a monthly self-sufficiency percentage.
@@ -26,7 +26,8 @@ GroWDash provides an essential and clean designed dashboard with real-time data,
 - **Device Management:** Inverter details, firmware, communication versions, battery pack specs, SOC operational limits, and all connected modules (datalogger, meter).
 - **Inverter Settings:** Read-only view of all inverter configuration registers (work mode, battery settings, grid limits, and more).
 - **Solar Panel Settings:** User-configurable plant parameters (panel tilt, orientation via interactive compass rose, system efficiency / performance ratio) that feed directly into the forecast model.
-- **Weather Widget:** Real-time weather from Open-Meteo using polished Lucide icons mapped to WMO weather codes, with solar production context (cloud cover, rain probability, min/max temperature). On desktop, an **upcoming hours** forecast strip shows the next 4 hours at a glance.
+- **Weather Widget:** Real-time weather via a backend proxy to Open-Meteo. Uses polished Lucide icons mapped to WMO weather codes, with solar production context (cloud cover, rain probability, min/max temperature). Data is cached for 15 minutes to improve performance and respect rate limits.
+- **Timezone-Aware Accuracy:** Automatically detects the plant's local timezone (e.g., GMT+1) to ensure "Today's" data and charts accurately reset at local midnight, regardless of the server's system time (UTC).
 - **Pull-to-Refresh:** Native mobile gesture with haptic feedback and animated indicator to manually force a data refresh. Gesture is automatically suppressed when the touch starts inside a chart or slider, preventing accidental page changes.
 - **Swipe Navigation:** Horizontal swipe between pages on mobile, smart-disabled over interactive chart and slider areas.
 - **Mobile-First Design:** Responsive layout with a collapsible sidebar on desktop and a fixed bottom navigation bar on mobile, with animated page transitions.
@@ -56,13 +57,15 @@ GroWDash/
 │   │   ├── auth.py           # /auth — login, logout, /me
 │   │   ├── plant.py          # /plant — plant information & coordinates
 │   │   ├── energy.py         # /energy — energy data, history, breakdown
-│   │   └── device.py         # /device — inverter details & settings
+│   │   ├── device.py         # /device — inverter details & settings
+│   │   └── weather.py        # /weather — current weather & solar forecast
 │   ├── utilities/            # Administrative scripts
 │   │   ├── find_plant.py     # Discover plant ID and device serial
 │   │   ├── create_user.py    # Create new dashboard users
 │   │   └── check_db_users.py # List existing dashboard users
 │   ├── services/
-│   │   └── growatt.py        # Growatt V1 API integration + TTL cache
+│   │   ├── growatt.py        # Growatt V1 API integration + TTL cache
+│   │   └── weather.py        # Open-Meteo integration + solar forecast logic
 │   ├── auth.py               # JWT logic, cookie handling
 │   ├── database.py           # SQLite connection setup
 │   ├── models.py             # User model (SQLAlchemy)
@@ -116,6 +119,8 @@ GroWDash/
 | GET | `/device/list` | All devices connected to the plant |
 | GET | `/device/detail` | Inverter firmware, model, battery specs, SOC limits |
 | GET | `/device/settings` | Full inverter configuration register dump |
+| GET | `/weather/current` | Current weather and daily forecast |
+| GET | `/weather/solar-forecast` | Hourly solar production forecast (GTI) |
 
 *Interactive API docs: `http://localhost:8000/docs`*
 
@@ -336,6 +341,7 @@ The frontend is a single-page application built with **React 19** and **Vite**.
 | Current month breakdown | 5 minutes | May still be updated today |
 | Past months / years | 24 hours | Historical data never changes |
 | Weather | 15 minutes | Open-Meteo rate limit courtesy |
+| Solar Forecast | 1 hour | Solar irradiance updates slowly |
 
 All caching is in-memory on the backend (TTL dict). No Redis required.
 
