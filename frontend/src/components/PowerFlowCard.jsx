@@ -53,16 +53,16 @@ function getColors() {
     mutedForeground: 'oklch(0.708 0 0)',
     muted: 'oklch(0.269 0 0)',
     border: 'oklch(1 0 0 / 10%)',
-    nodeBorder: 'oklch(1 0 0 / 10%)',   // Match shadcn dark border
-    nodeActive: 'oklch(1 0 0 / 25%)',   // Subtle active highlight
+    nodeBorder: 'oklch(1 0 0 / 10%)',
+    nodeActive: 'oklch(1 0 0 / 25%)',
     primary: '#006fff',
   } : {
     foreground: 'oklch(0.145 0 0)',
     mutedForeground: 'oklch(0.556 0 0)',
     muted: 'oklch(0.97 0 0)',
-    border: 'oklch(0.922 0 0)',    // Match shadcn light border
+    border: 'oklch(0.922 0 0)',
     nodeBorder: 'oklch(0.922 0 0)',
-    nodeActive: 'oklch(0.7 0 0)',       // Subtle active highlight
+    nodeActive: 'oklch(0.7 0 0)',
     primary: '#006fff',
   }
 }
@@ -121,9 +121,9 @@ export default function PowerFlowCard({
 
   // ── Swarm Constants ────────────────────────────────────────────────────────
 
-  const SWARM_SIZE = 8 // Increased for higher density
+  const SWARM_SIZE = 8 
   const SWARM_COLORS = ['#3b82f6', '#8b5cf6', '#d946ef', '#06b6d4']
-  const CYCLE_LENGTH = 24 // Fixed cycle for perfect loop synchronization
+  const CYCLE_LENGTH = 24 
 
   /**
    * Calculates the duration of the flow animation based on wattage.
@@ -135,7 +135,7 @@ export default function PowerFlowCard({
     if (w <= THRESHOLD) return '0s'
     // Snap to nearest 50W for visual stability
     const snappedW = Math.round(w / 50) * 50 || 50
-    // Map ~5W to 4s (slow) and 10000W to ~0.6s (fast)
+    // Fast durations for higher energy feel
     const duration = Math.max(0.6, 4 - Math.log10(snappedW) * 0.8)
     return `${duration.toFixed(2)}s`
   }
@@ -149,8 +149,8 @@ export default function PowerFlowCard({
     const duration = (parseFloat(baseDuration) * (0.85 + (seed % 0.4))).toFixed(2) + 's'
     const delay = (seed % 5).toFixed(2) + 's'
 
-    // Dash length varies (1.5 - 2.5), gap is calculated to keep the total at CYCLE_LENGTH
-    const dash = 1.5 + (seed % 1)
+    // Dot size: dash must be 0 or very small (0.1) with round caps
+    const dash = 0.1
     const gap = CYCLE_LENGTH - dash
 
     const color = SWARM_COLORS[i % SWARM_COLORS.length]
@@ -193,12 +193,12 @@ export default function PowerFlowCard({
         <line
           x1={x1} y1={y1} x2={x2} y2={y2}
           stroke={active ? colors.primary : colors.border}
-          strokeWidth={active ? 18 : 1}
-          strokeOpacity={active ? 0.05 : 1}
+          strokeWidth={active ? 12 : 1}
+          strokeOpacity={active ? 0.08 : 1}
           strokeLinecap="round"
           style={{
             transition: 'all 0.5s',
-            filter: active ? `drop-shadow(0 0 4px ${colors.primary})` : 'none'
+            filter: active ? `blur(4px)` : 'none'
           }}
         />
 
@@ -216,14 +216,13 @@ export default function PowerFlowCard({
                 x1={x1 + jx} y1={y1 + jy}
                 x2={x2 + jx} y2={y2 + jy}
                 stroke={color}
-                strokeWidth={2}
+                strokeWidth={3} // Wider for round dots
                 strokeDasharray={`${dash} ${gap}`}
                 strokeLinecap="round"
                 style={{
-                  // Loop exactly on CYCLE_LENGTH to prevent jumping/stuttering
                   animation: `flowDash ${duration} linear infinite ${reverse ? 'reverse' : ''}`,
                   animationDelay: `-${delay}`,
-                  opacity: 0.9,
+                  opacity: 0.8,
                   transition: 'all 0.5s',
                 }}
               />
@@ -250,11 +249,6 @@ export default function PowerFlowCard({
           @keyframes flowDash {
             from { stroke-dashoffset: ${CYCLE_LENGTH}; }
             to   { stroke-dashoffset: 0; }
-          }
-          @keyframes nodePulse {
-            0% { r: ${R}; stroke-opacity: 0.8; stroke-width: 1; }
-            50% { r: ${R + 4}; stroke-opacity: 0; stroke-width: 3; }
-            100% { r: ${R}; stroke-opacity: 0; stroke-width: 1; }
           }
         `}</style>
 
@@ -324,15 +318,6 @@ export default function PowerFlowCard({
           {/* ── Inverter — center node ────────────────────────────────────── */}
           {/* Rendered manually since it has no power value                  */}
 
-          {/* Outer pulse circle when active */}
-          {inverterActive && (
-            <circle
-              cx={INV.x} cy={INV.y} r={R}
-              fill="none"
-              stroke={colors.primary}
-              style={{ animation: 'nodePulse 2s ease-out infinite' }}
-            />
-          )}
 
           <circle
             cx={INV.x} cy={INV.y} r={R}
