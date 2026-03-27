@@ -107,4 +107,19 @@ export const api = {
    * @returns {Promise<Object>} A list of connected devices (e.g., inverters, dataloggers).
    */
   getDeviceList: () => fetcher('/device/list'),
+
+  /**
+   * Retrieves current weather and daily forecast.
+   * @returns {Promise<Object>} Weather telemetry from the backend.
+   */
+  getWeather: () => fetcher('/weather/current'),
+
+  /**
+   * Retrieves hourly solar irradiance forecast (GTI).
+   * @param {number} tilt - Panel tilt.
+   * @param {number} azimuth - Panel azimuth.
+   * @returns {Promise<Object>} Solar irradiance forecast data.
+   */
+  getSolarForecast: (tilt, azimuth) =>
+    fetcher(`/weather/solar-forecast?tilt=${tilt}&azimuth=${azimuth}`),
 };

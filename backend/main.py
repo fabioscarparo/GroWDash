@@ -58,7 +58,7 @@ from slowapi.errors import RateLimitExceeded
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from routers import plant, energy, device, auth
+from routers import plant, energy, device, auth, weather
 import models
 from database import engine
 
@@ -145,6 +145,8 @@ app.include_router(auth.router)     # POST /auth/token, POST /auth/logout, GET /
 app.include_router(plant.router)    # GET  /plant/info
 app.include_router(energy.router)   # GET  /energy/overview, /today, /history, /aggregate, /daily-breakdown
 app.include_router(device.router)   # GET  /device/list, /detail, /settings
+app.include_router(weather.router)  # GET  /weather/current, /solar-forecast
+
 
 
 # ---------------------------------------------------------------------------

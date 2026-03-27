@@ -1,8 +1,8 @@
 """
-Router per le informazioni dell'impianto fotovoltaico.
-======================================================
-Espone gli endpoint relativi ai dati generali dell'impianto,
-come nome, posizione, potenza di picco e stato attuale.
+Router for PV Plant Information.
+=================================
+Exposes endpoints related to general plant data,
+such as name, location, peak power, and current state.
 """
 
 from fastapi import APIRouter, HTTPException, Query, Depends
@@ -10,23 +10,23 @@ from services.growatt import get_plant_info
 from typing import Optional
 from auth import get_current_user
 
-# Crea il router con prefisso /plant
+# Create router with prefix /plant
 router = APIRouter(
     prefix="/plant",
-    tags=["Impianto"],
+    tags=["Plant"],
 )
 
 
-@router.get("/info", summary="Informazioni impianto")
+@router.get("/info", summary="Plant information")
 def plant_info(current_user = Depends(get_current_user)):
     """
-    Restituisce le informazioni generali dell'impianto fotovoltaico:
-    nome, città, potenza di picco, energia totale prodotta e stato.
+    Returns general information about the PV plant:
+    name, city, peak power, total energy produced, and status.
     """
     data = get_plant_info()
 
     if not data:
-        raise HTTPException(status_code=404, detail="Impianto non trovato")
+        raise HTTPException(status_code=404, detail="Plant not found")
 
     return {
         "name": data.get("name"),

@@ -28,7 +28,6 @@ import {
   AreaChart,
   Area,
   XAxis,
-  YAxis,
   CartesianGrid,
 } from 'recharts'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -54,15 +53,11 @@ const chartConfig = {
  * @param {object}  props
  * @param {number}  props.actualKwh          - Today's actual production from Growatt
  * @param {number}  props.plantCapacityKw    - Plant peak power in kWp
- * @param {number}  props.lat                - Plant latitude
- * @param {number}  props.lon                - Plant longitude
  * @param {boolean} props.isLoading          - True while overview data is loading
  */
 export default function SolarProductionCard({
   actualKwh,
   plantCapacityKw,
-  lat,
-  lon,
   isLoading,
 }) {
   const { settings } = useSolarSettings()
@@ -72,7 +67,6 @@ export default function SolarProductionCard({
   // ── Data fetching ─────────────────────────────────────────────────────────
 
   const { data: forecast } = useSolarForecast({
-    lat, lon,
     tilt: settings.tilt,
     azimuth: settings.azimuth,
   })
@@ -111,7 +105,7 @@ export default function SolarProductionCard({
     [hourlyEstimated]
   )
 
-  const hasForecast = !!(lat && lon && estimatedTotalKwh > 0)
+  const hasForecast = !!(estimatedTotalKwh > 0)
   const progressPct = hasForecast && estimatedTotalKwh > 0
     ? Math.min(Math.round(((actualKwh ?? 0) / estimatedTotalKwh) * 100), 100)
     : 0
@@ -171,158 +165,155 @@ export default function SolarProductionCard({
               <span className="text-sm text-muted-foreground">kWh</span>
             </div>
 
-            {/* Forecast section — only when lat/lon are available */}
-            {hasForecast && (
+            {/* Forecast section */}
+            {hasForecast ? (
               <>
                 <div className="h-px bg-border mb-3" />
 
-            {/* Estimated max + progress bar */}
-            <div className="mb-3">
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="text-[11px] text-muted-foreground">
-                  Estimated max today
-                </span>
-                <span className="text-[11px] font-semibold text-foreground">
-                  {estimatedTotalKwh} kWh
-                </span>
-              </div>
+                {/* Estimated max + progress bar */}
+                <div className="mb-3">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-[11px] text-muted-foreground">
+                      Estimated max today
+                    </span>
+                    <span className="text-[11px] font-semibold text-foreground">
+                      {estimatedTotalKwh} kWh
+                    </span>
+                  </div>
 
-              <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-amber-500 rounded-full transition-all duration-700"
-                  style={{ width: `${progressPct}%` }}
-                />
-              </div>
+                  <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-amber-500 rounded-full transition-all duration-700"
+                      style={{ width: `${progressPct}%` }}
+                    />
+                  </div>
 
-              <div className="flex justify-between mt-1">
-                <span className="text-[10px] text-muted-foreground">
-                  {progressPct}% of forecast
-                </span>
-                <span className="text-[10px] text-muted-foreground">
-                  PR {Math.round(settings.performanceRatio * 100)}% · {settings.tilt}° tilt
-                </span>
-              </div>
-            </div>
+                  <div className="flex justify-between mt-1">
+                    <span className="text-[10px] text-muted-foreground">
+                      {progressPct}% of forecast
+                    </span>
+                    <span className="text-[10px] text-muted-foreground">
+                      PR {Math.round(settings.performanceRatio * 100)}% · {settings.tilt}° tilt
+                    </span>
+                  </div>
+                </div>
 
-            {/* Hourly forecast vs actual — dual area chart */}
-            <ChartContainer config={chartConfig} className="h-24 w-full">
-              <AreaChart
-                data={chartData}
-                margin={{ top: 4, right: 0, bottom: 0, left: 0 }}
-              >
-                <defs>
-                  {/* Forecast area gradient — neutral grey */}
-                  <linearGradient id="grad-estimated" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#94a3b8" stopOpacity={0.25} />
-                    <stop offset="95%" stopColor="#94a3b8" stopOpacity={0.03} />
-                  </linearGradient>
-                  {/* Actual area gradient — amber */}
-                  <linearGradient id="grad-actual" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.45} />
-                    <stop offset="95%" stopColor="#f59e0b" stopOpacity={0.05} />
-                  </linearGradient>
-                </defs>
+                {/* Hourly forecast vs actual — dual area chart */}
+                <ChartContainer config={chartConfig} className="h-24 w-full">
+                  <AreaChart
+                    data={chartData}
+                    margin={{ top: 4, right: 0, bottom: 0, left: 0 }}
+                  >
+                    <defs>
+                      {/* Forecast area gradient — neutral grey */}
+                      <linearGradient id="grad-estimated" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#94a3b8" stopOpacity={0.25} />
+                        <stop offset="95%" stopColor="#94a3b8" stopOpacity={0.03} />
+                      </linearGradient>
+                      {/* Actual area gradient — amber */}
+                      <linearGradient id="grad-actual" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.45} />
+                        <stop offset="95%" stopColor="#f59e0b" stopOpacity={0.05} />
+                      </linearGradient>
+                    </defs>
 
-                <CartesianGrid
-                  vertical={false}
-                  stroke="hsl(var(--border))"
-                  strokeDasharray="3 3"
-                />
+                    <CartesianGrid
+                      vertical={false}
+                      stroke="hsl(var(--border))"
+                      strokeDasharray="3 3"
+                    />
 
-                <XAxis
-                  dataKey="hour"
-                  tickLine={false}
-                  axisLine={false}
-                  tick={{ fontSize: 8, fill: 'hsl(var(--muted-foreground))' }}
-                  // Show only 00, 06, 12, 18
-                  tickFormatter={(v, i) => (i % 6 === 0 ? v : '')}
-                  interval={0}
-                />
+                    <XAxis
+                      dataKey="hour"
+                      tickLine={false}
+                      axisLine={false}
+                      tick={{ fontSize: 8, fill: 'hsl(var(--muted-foreground))' }}
+                      // Show only 00, 06, 12, 18
+                      tickFormatter={(v, i) => (i % 6 === 0 ? v : '')}
+                      interval={0}
+                    />
 
-                <ChartTooltip
-                  cursor={false}
-                  content={({ active, payload, label }) => {
-                    if (!active || !payload?.length) return null
-                    const est = payload.find(p => p.dataKey === 'estimated')?.value ?? 0
-                    const act = payload.find(p => p.dataKey === 'actual')?.value
-                    return (
-                      <div className="bg-background border border-border rounded px-2.5 py-2 text-xs shadow-md">
-                        <p className="text-muted-foreground font-medium mb-1">{label}:00</p>
-                        <div className="flex items-center justify-between gap-4 mb-0.5">
-                          <div className="flex items-center gap-1.5">
-                            <span className="inline-block w-2 h-2 rounded-full bg-foreground/40" />
-                            <span className="text-muted-foreground">Forecast</span>
-                          </div>
-                          <span className="font-semibold text-foreground">
-                            {est.toFixed(2)} kWh
-                          </span>
-                        </div>
-                        {act != null && (
-                          <div className="flex items-center justify-between gap-4">
-                            <div className="flex items-center gap-1.5">
-                              <span className="inline-block w-2 h-2 rounded-full bg-amber-500" />
-                              <span className="text-muted-foreground">Actual</span>
+                    <ChartTooltip
+                      cursor={false}
+                      content={({ active, payload, label }) => {
+                        if (!active || !payload?.length) return null
+                        const est = payload.find(p => p.dataKey === 'estimated')?.value ?? 0
+                        const act = payload.find(p => p.dataKey === 'actual')?.value
+                        return (
+                          <div className="bg-background border border-border rounded px-2.5 py-2 text-xs shadow-md">
+                            <p className="text-muted-foreground font-medium mb-1">{label}:00</p>
+                            <div className="flex items-center justify-between gap-4 mb-0.5">
+                              <div className="flex items-center gap-1.5">
+                                <span className="inline-block w-2 h-2 rounded-full bg-foreground/40" />
+                                <span className="text-muted-foreground">Forecast</span>
+                              </div>
+                              <span className="font-semibold text-foreground">
+                                {est.toFixed(2)} kWh
+                              </span>
                             </div>
-                            <span className="font-semibold text-amber-500">
-                              {act.toFixed(2)} kWh
-                            </span>
+                            {act != null && (
+                              <div className="flex items-center justify-between gap-4">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="inline-block w-2 h-2 rounded-full bg-amber-500" />
+                                  <span className="text-muted-foreground">Actual</span>
+                                </div>
+                                <span className="font-semibold text-amber-500">
+                                  {act.toFixed(2)} kWh
+                                </span>
+                              </div>
+                            )}
                           </div>
-                        )}
-                      </div>
-                    )
-                  }}
-                />
+                        )
+                      }}
+                    />
 
-                {/* Forecast area — rendered first so it sits behind actual */}
-                <Area
-                  type="monotone"
-                  dataKey="estimated"
-                  stroke="#94a3b8"
-                  strokeOpacity={0.4}
-                  strokeWidth={1.5}
-                  strokeDasharray="4 3"
-                  fill="url(#grad-estimated)"
-                  dot={false}
-                  activeDot={{ r: 3, fill: '#94a3b8' }}
-                  connectNulls
-                />
+                    {/* Forecast area — rendered first so it sits behind actual */}
+                    <Area
+                      type="monotone"
+                      dataKey="estimated"
+                      stroke="#94a3b8"
+                      strokeOpacity={0.4}
+                      strokeWidth={1.5}
+                      strokeDasharray="4 3"
+                      fill="url(#grad-estimated)"
+                      dot={false}
+                      activeDot={{ r: 3, fill: '#94a3b8' }}
+                      connectNulls
+                    />
 
-                {/* Actual area — amber, stops at current hour (nulls not connected) */}
-                <Area
-                  type="monotone"
-                  dataKey="actual"
-                  stroke="#f59e0b"
-                  strokeWidth={2}
-                  fill="url(#grad-actual)"
-                  dot={false}
-                  activeDot={{ r: 3, fill: '#f59e0b' }}
-                  connectNulls={false}
-                />
+                    {/* Actual area — amber, stops at current hour (nulls not connected) */}
+                    <Area
+                      type="monotone"
+                      dataKey="actual"
+                      stroke="#f59e0b"
+                      strokeWidth={2}
+                      fill="url(#grad-actual)"
+                      dot={false}
+                      activeDot={{ r: 3, fill: '#f59e0b' }}
+                      connectNulls={false}
+                    />
 
-              </AreaChart>
-            </ChartContainer>
+                  </AreaChart>
+                </ChartContainer>
 
-            {/* Legend */}
-            <div className="flex justify-center gap-4 mt-2">
-              <div className="flex items-center gap-1.5">
-                <span className="inline-block w-3 h-[2px] rounded bg-foreground/40" />
-                <span className="text-[10px] text-muted-foreground">Forecast</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="inline-block w-3 h-[2px] rounded bg-amber-500" />
-                <span className="text-[10px] text-muted-foreground">Actual</span>
-              </div>
-            </div>
+                {/* Legend */}
+                <div className="flex justify-center gap-4 mt-2">
+                  <div className="flex items-center gap-1.5">
+                    <span className="inline-block w-3 h-[2px] rounded bg-foreground/40" />
+                    <span className="text-[10px] text-muted-foreground">Forecast</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="inline-block w-3 h-[2px] rounded bg-amber-500" />
+                    <span className="text-[10px] text-muted-foreground">Actual</span>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Forecast currently unavailable.
+              </p>
+            )}
           </>
-        )}
-          </>
-        )}
-
-        {/* Prompt when plant coordinates are not available */}
-        {!lat && !lon && !isLoading && (
-          <p className="text-[11px] text-muted-foreground mt-1">
-            Set panel orientation in Account → Solar Panel Settings to enable forecast.
-          </p>
         )}
 
       </CardContent>

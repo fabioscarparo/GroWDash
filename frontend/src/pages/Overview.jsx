@@ -103,7 +103,7 @@ export default function Overview() {
   const { data: overview, isLoading: isOverviewLoading } = useOverview()
   const { data: today } = useToday()
   const { data: deviceList, isLoading: isDeviceLoading } = useDeviceList()
-  const { data: weatherData } = useWeather(plantInfo?.latitude, plantInfo?.longitude)
+  const { data: weatherData } = useWeather()
 
   const isHeaderLoading = isPlantLoading || isOverviewLoading || isDeviceLoading
 
@@ -150,8 +150,6 @@ export default function Overview() {
           <SolarProductionCard
             actualKwh={overview?.today_energy_kwh}
             plantCapacityKw={overview?.plant_capacity_kw}
-            lat={plantInfo?.latitude}
-            lon={plantInfo?.longitude}
             isLoading={isOverviewLoading || isPlantLoading}
           />
         </div>
