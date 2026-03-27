@@ -10,8 +10,6 @@
   <img src="https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white" />
 </p>
 
-# GroWDash
-
 A modern, clean, and comprehensive dashboard for **Growatt MIN inverters**.
 
 Built with **FastAPI** + **React**, powered by the [PyPi_GrowattServer](https://github.com/indykoning/PyPi_GrowattServer) library and the official Growatt V1 (Token) API.
