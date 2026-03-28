@@ -4,13 +4,19 @@
   "description": "Solar energy monitoring dashboard for Growatt inverters",
   "start_url": "/",
   "display": "standalone",
-  "display_override": ["window-controls-overlay", "standalone"],
+  "display_override": [
+    "window-controls-overlay",
+    "standalone"
+  ],
   "orientation": "portrait-primary",
   "background_color": "#0a0a0a",
-  "theme_color": "#6EB92B",
+  "theme_color": "#ffffff",
   "lang": "en",
   "scope": "/",
-  "categories": ["utilities", "productivity"],
+  "categories": [
+    "utilities",
+    "productivity"
+  ],
   "icons": [
     {
       "src": "/icons/icon-72.png",
@@ -88,14 +94,24 @@
       "short_name": "Overview",
       "description": "Live power flow",
       "url": "/",
-      "icons": [{ "src": "/icons/icon-96.png", "sizes": "96x96" }]
+      "icons": [
+        {
+          "src": "/icons/icon-96.png",
+          "sizes": "96x96"
+        }
+      ]
     },
     {
       "name": "History",
       "short_name": "History",
       "description": "Energy history",
       "url": "/?page=history",
-      "icons": [{ "src": "/icons/icon-96.png", "sizes": "96x96" }]
+      "icons": [
+        {
+          "src": "/icons/icon-96.png",
+          "sizes": "96x96"
+        }
+      ]
     }
   ]
 }
