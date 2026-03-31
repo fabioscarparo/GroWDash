@@ -1,112 +1,191 @@
 /**
  * App.jsx — Root application component.
  *
- * Handles page routing, navigation, theme management and layout.
+ * Owns the top-level concerns of the GroWDash single-page application:
+ * authentication gating, special-purpose route handling, page routing,
+ * animated page transitions, layout composition, and theme management.
+ *
+ * ── Authentication gating ─────────────────────────────────────────────────────
+ *
+ *   On every mount, AuthContext calls GET /auth/me to verify the session
+ *   cookie.  While that check is in flight the app renders a loading screen.
+ *   Once resolved:
+ *     - Unauthenticated → LoginPage (no layout, no navigation)
+ *     - Google Home linking path → GoogleHomeLinking (no layout, no navigation)
+ *     - Authenticated → full dashboard layout
+ *
+ * ── Special-purpose routes ────────────────────────────────────────────────────
+ *
+ *   Because GroWDash is a single-page application served from a single HTML
+ *   file, traditional path-based routing is handled by inspecting
+ *   window.location.pathname before rendering the main layout.
+ *
+ *   /google-home-link
+ *     Rendered when Google redirects the user here during the Smart Home
+ *     account linking OAuth2 flow.  GoogleHomeLinking is rendered outside
+ *     the normal sidebar / bottom-nav layout because Google opens it inside
+ *     its own in-app browser and the standard chrome would be confusing.
+ *     The user must still be authenticated — the component itself shows a
+ *     "login required" message if the session cookie is absent.
  *
  * ── Layout ────────────────────────────────────────────────────────────────────
  *
- *   Desktop (md+):
- *     Collapsible sidebar on the left, main content area on the right.
- *     The sidebar contains navigation items and a theme toggle in the footer.
+ *   Desktop (md+)
+ *     Collapsible sidebar (AppSidebar) on the left, main content area on the
+ *     right.  The sidebar contains navigation items, a theme toggle, the
+ *     username, and a logout button.
  *
- *   Mobile:
- *     Full-width content area with a fixed bottom navigation bar.
- *     A floating button above the bottom nav handles theme toggling.
+ *   Mobile
+ *     Full-width content area with a fixed BottomNav bar pinned to the bottom
+ *     of the viewport.  Safe-area insets are respected for devices with a
+ *     home indicator.  A PullToRefreshChip floats above the content area and
+ *     handles the native pull-to-refresh gesture.
  *
  * ── Navigation ────────────────────────────────────────────────────────────────
  *
- *   Three input methods all call the same navigate() function:
+ *   All three navigation methods funnel through the same navigate() callback:
  *     - Sidebar menu items (desktop)
  *     - BottomNav icon buttons (mobile)
  *     - Horizontal swipe gesture (mobile, via useSwipeNavigation)
  *
- *   Pages are ordered in PAGE_ORDER. The relative position of the current
- *   and target page determines the slide direction:
- *     forward (higher index) → left
- *     backward (lower index) → right
+ *   Pages are ordered in PAGE_ORDER.  The position of the target page relative
+ *   to the current page determines the slide direction:
+ *     target at higher index → slides left  (forward)
+ *     target at lower index  → slides right (backward)
  *
  * ── Page transitions ──────────────────────────────────────────────────────────
  *
- *   Mobile:
- *     Realistic slide — the outgoing page exits in the navigation direction
- *     while the incoming page enters simultaneously from the opposite side.
- *     Both pages are rendered during the transition inside an overflow-hidden
- *     container. The outgoing page is absolutely positioned so it overlaps
- *     the incoming one without affecting layout. After ANIM_DURATION ms,
- *     the outgoing page is unmounted and animation state is reset.
+ *   Mobile
+ *     A realistic simultaneous slide: the outgoing page exits in the direction
+ *     of navigation while the incoming page enters from the opposite side.
+ *     Both pages are present in the DOM for ANIM_DURATION milliseconds inside
+ *     an overflow-hidden container.  The outgoing page is absolutely positioned
+ *     so it does not affect the layout flow of the incoming page.  After the
+ *     animation completes, the outgoing page is unmounted and animation state
+ *     is reset to avoid replaying animations on unrelated re-renders.
  *
- *   Desktop (md+):
- *     Simple fade-in / fade-out. More appropriate for a sidebar layout
- *     where pages don't conceptually "slide" horizontally.
- *     Implemented by overriding the slide animation class with
- *     md:animate-fade-in / md:animate-fade-out at the breakpoint.
+ *   Desktop (md+)
+ *     Instant switch — no animation.  The Tailwind md: breakpoint overrides
+ *     the slide keyframe classes, giving a clean instant transition that is
+ *     more appropriate for the wider sidebar layout.
  *
  * ── Theme ─────────────────────────────────────────────────────────────────────
  *
- *   Managed by useTheme — toggles the .dark class on <html> and persists
- *   the preference to localStorage. Falls back to prefers-color-scheme.
+ *   Managed by useTheme.  Supports three modes: light, dark, and system
+ *   (follows prefers-color-scheme).  The active mode is persisted to
+ *   localStorage and applied by toggling the .dark class on <html>.
+ *
+ * @module App
  */
 
-import { useState, useCallback, useEffect } from 'react'
-import { TooltipProvider } from '@/components/ui/tooltip'
+import { useCallback, useEffect, useState } from 'react'
 import { SidebarProvider } from '@/components/ui/sidebar'
+import { TooltipProvider } from '@/components/ui/tooltip'
 import AppSidebar from './components/AppSidebar'
 import BottomNav from './components/BottomNav'
-import Overview from './pages/Overview'
-import History from './pages/History'
+import PullToRefreshChip from './components/PullToRefreshChip'
+import { useAuth } from './context/AuthContext'
+import { useSwipeNavigation } from './hooks/useSwipeNavigation'
+import { useTheme } from './hooks/useTheme'
 import Device from './pages/Device'
 import DeviceSettings from './pages/DeviceSettings'
-import UserAccount from './pages/UserAccount'
+import GoogleHomeLinking from './pages/GoogleHomeLinking'
+import History from './pages/History'
 import LoginPage from './pages/LoginPage'
-import { useTheme } from './hooks/useTheme'
-import { useSwipeNavigation } from './hooks/useSwipeNavigation'
-import { useAuth } from './context/AuthContext'
-import PullToRefreshChip from './components/PullToRefreshChip'
+import Overview from './pages/Overview'
+import UserAccount from './pages/UserAccount'
+
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
 
 /**
- * Ordered list of page IDs.
- * The order determines slide direction when navigating:
- * moving to a higher index slides left, lower index slides right.
+ * Canonical ordered list of main page IDs.
+ *
+ * The index of each entry determines the slide direction when navigating:
+ * moving to a higher index slides the viewport left (forward), moving to a
+ * lower index slides right (backward).  This list must stay in sync with
+ * the keys of PAGES and with the IDs used in AppSidebar / BottomNav.
  */
 const PAGE_ORDER = ['overview', 'history', 'device', 'settings', 'account']
 
 /**
- * Map of page ID → JSX element.
- * Defined at module level to avoid recreating elements on every render.
+ * Pre-instantiated page elements keyed by page ID.
+ *
+ * Defined at module level (outside the component) so the JSX elements are
+ * created once and reused across renders rather than being recreated on
+ * every state change.  This avoids unnecessary unmount/remount cycles for
+ * pages that are not currently transitioning.
  */
 const PAGES = {
   overview: <Overview />,
-  history:  <History />,
-  device:   <Device />,
+  history: <History />,
+  device: <Device />,
   settings: <DeviceSettings />,
-  account:  <UserAccount />,
+  account: <UserAccount />,
 }
 
 /**
- * Duration of the page transition animation in milliseconds.
- * Must match the animation duration defined in index.css.
+ * Duration of the page slide animation in milliseconds.
+ *
+ * Must match the ``animation-duration`` value defined in index.css for the
+ * ``animate-slide-*`` keyframe classes.  The cleanup ``setTimeout`` in the
+ * transition effect uses this value to unmount the outgoing page only after
+ * the CSS animation has fully completed.
  */
 const ANIM_DURATION = 400
 
+
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
+
+/**
+ * App — root application component.
+ *
+ * Renders one of three top-level views depending on application state:
+ *   1. Loading screen    — session check in progress
+ *   2. LoginPage         — user is not authenticated
+ *   3. GoogleHomeLinking — current path is /google-home-link
+ *   4. Dashboard layout  — user is authenticated, normal navigation
+ *
+ * All hooks are called unconditionally (React rules) and the conditional
+ * returns appear after the hook block.
+ *
+ * @returns {JSX.Element}
+ */
 export default function App() {
   const { theme, setTheme } = useTheme()
-
   const { isAuthenticated, loading, user, logout } = useAuth()
 
-  const [current,   setCurrent]   = useState('overview')
-  const [previous,  setPrevious]  = useState(null)
-  const [dir,       setDir]       = useState(null)
+  // ── Transition state ────────────────────────────────────────────────────
+  // current   : ID of the page currently visible (or sliding in)
+  // previous  : ID of the page sliding out; null when no transition is active
+  // dir       : slide direction — 'left' (forward) or 'right' (backward)
+  // animating : true while a transition is in progress; blocks new navigations
+  const [current, setCurrent] = useState('overview')
+  const [previous, setPrevious] = useState(null)
+  const [dir, setDir] = useState(null)
   const [animating, setAnimating] = useState(false)
 
+  // ── navigate() ──────────────────────────────────────────────────────────
+
   /**
-   * Navigates to a new page.
+   * Navigate to a new page, triggering a slide transition on mobile.
    *
-   * Determines the slide direction based on the relative index of the
-   * current and target pages, then starts the transition by setting
-   * the previous page (outgoing) and current page (incoming).
+   * On desktop (viewport width ≥ 768 px) the switch is instant — no animation
+   * is applied because the sidebar layout does not benefit from horizontal
+   * slides.
    *
-   * No-ops if the target is already the current page or a transition
-   * is already running (prevents stacking animations).
+   * On mobile, the direction is derived by comparing the index of the target
+   * page against the current page in PAGE_ORDER.  The outgoing page is stored
+   * in ``previous`` so it can be rendered with an exit animation while the
+   * incoming page renders with an entrance animation.
+   *
+   * Guards
+   * ------
+   * - No-ops when the target is already the current page.
+   * - No-ops when a transition is already running to prevent stacked animations.
    *
    * @param {string} newPage - ID of the page to navigate to.
    */
@@ -116,13 +195,12 @@ export default function App() {
     const isDesktop = window.innerWidth >= 768
 
     if (isDesktop) {
-      // Instant switch on desktop
       setCurrent(newPage)
       return
     }
 
     const currentIdx = PAGE_ORDER.indexOf(current)
-    const newIdx     = PAGE_ORDER.indexOf(newPage)
+    const newIdx = PAGE_ORDER.indexOf(newPage)
 
     setDir(newIdx > currentIdx ? 'left' : 'right')
     setPrevious(current)
@@ -130,9 +208,16 @@ export default function App() {
     setAnimating(true)
   }, [current, animating])
 
+  // ── Transition cleanup ───────────────────────────────────────────────────
+
   /**
-   * Cleans up transition state after the animation completes.
-   * Unmounts the outgoing page and resets direction and animating flag.
+   * Unmounts the outgoing page and resets transition state after the CSS
+   * animation has finished.
+   *
+   * The timeout duration matches ANIM_DURATION so the cleanup fires only
+   * after the slide keyframe has fully completed.  Clearing the timeout on
+   * effect cleanup prevents a stale state update if the component unmounts
+   * mid-transition (e.g. during a logout that happens while navigating).
    */
   useEffect(() => {
     if (!animating) return
@@ -144,15 +229,26 @@ export default function App() {
     return () => clearTimeout(t)
   }, [animating])
 
-  // Current page index — used to determine swipe nav boundaries
+  // ── Derived values ───────────────────────────────────────────────────────
+
+  /** Index of the current page in PAGE_ORDER — used for swipe boundary checks. */
   const currentIdx = PAGE_ORDER.indexOf(current)
 
-  // Stable toggle for sidebar (Desktop)
+  /**
+   * Stable theme toggle callback passed to AppSidebar.
+   * Cycles between light and dark; system mode is set from UserAccount only.
+   */
   const toggleTheme = useCallback(() => {
     setTheme(prev => prev === 'dark' ? 'light' : 'dark')
   }, [setTheme])
 
-  // Register horizontal swipe gesture for mobile navigation
+  // ── Swipe navigation ─────────────────────────────────────────────────────
+
+  /**
+   * Register horizontal swipe gesture listeners.
+   * Swiping left advances to the next page; swiping right goes back.
+   * Both directions are clamped to the PAGE_ORDER boundaries.
+   */
   useSwipeNavigation({
     onNext: () => {
       if (currentIdx < PAGE_ORDER.length - 1)
@@ -164,8 +260,12 @@ export default function App() {
     },
   })
 
-  // --- CONDITIONAL RENDERS (Must be AFTER all hooks) ---
+  // ── Conditional renders (always after all hooks) ─────────────────────────
 
+  /**
+   * Loading screen — shown while AuthContext verifies the session cookie
+   * via GET /auth/me on application mount.
+   */
   if (loading) {
     return (
       <div className="min-h-dvh bg-background flex items-center justify-center">
@@ -176,17 +276,40 @@ export default function App() {
     )
   }
 
+  /**
+   * Login page — shown when no valid session cookie is present.
+   * Rendered without any layout chrome so it fills the full viewport.
+   */
   if (!isAuthenticated) {
     return <LoginPage />
   }
+
+  /**
+   * Google Home linking page — rendered when Google redirects the user to
+   * /google-home-link during the Smart Home account linking OAuth2 flow.
+   *
+   * This route is intentionally handled here rather than inside the main
+   * layout for two reasons:
+   *   1. Google opens it inside an in-app browser where the sidebar and
+   *      bottom navigation would be confusing and waste screen space.
+   *   2. The linking page must remain accessible to authenticated users
+   *      only, so it lives after the isAuthenticated guard above.
+   */
+  if (window.location.pathname === '/google-home-link') {
+    return <GoogleHomeLinking />
+  }
+
+  // ── Main dashboard layout ─────────────────────────────────────────────────
 
   return (
     <TooltipProvider>
       <SidebarProvider>
         <div className="min-h-dvh bg-background flex w-full">
+
+          {/* Pull-to-refresh chip — floats above all content on mobile */}
           <PullToRefreshChip />
 
-          {/* Sidebar — desktop only (md+) */}
+          {/* ── Sidebar (desktop only, md+) ──────────────────────────────── */}
           <div className="hidden md:block">
             <AppSidebar
               current={current}
@@ -194,30 +317,31 @@ export default function App() {
               theme={theme}
               onToggleTheme={toggleTheme}
               user={user}
-
               onLogout={logout}
             />
           </div>
 
           {/*
-           * Main content area.
-           * overflow-hidden clips the outgoing page as it slides out.
-           * position: relative is required for the absolutely positioned
-           * outgoing page to be contained within this element.
+           * ── Main content area ───────────────────────────────────────────
+           *
+           * overflow-hidden clips the outgoing page as it slides beyond the
+           * viewport edge.  position: relative is required so the absolutely
+           * positioned outgoing page is contained within this element and
+           * does not affect the document flow of the incoming page.
            */}
           <main className="flex-1 pb-16 md:pb-0 relative overflow-hidden">
 
             {/*
-             * Outgoing page — rendered only during a transition.
+             * Outgoing page — present in the DOM only during a transition.
              *
-             * Absolutely positioned so it overlaps the incoming page
-             * without pushing it out of the layout. Slides out on mobile
-             * and fades out on desktop (md:animate-fade-out overrides the
-             * slide class at the md breakpoint).
+             * Absolutely positioned so it overlaps the incoming page without
+             * displacing it.  Exits left or right on mobile; the md: prefix
+             * on the animation class overrides to an instant disappearance
+             * on desktop where slide animations are disabled.
              *
-             * The key includes the page ID prefixed with "prev-" to avoid
-             * colliding with the incoming page's key when navigating back
-             * to a page that was previously the outgoing one.
+             * The "prev-" key prefix prevents React from reusing the same
+             * DOM node when navigating back to a page that was recently the
+             * outgoing element.
              */}
             {previous && (
               <div
@@ -233,9 +357,11 @@ export default function App() {
             )}
 
             {/*
-             * Incoming page — slides in on mobile, fades in on desktop.
-             * No animation class applied when idle (no transition running)
-             * to avoid replaying the animation on unrelated re-renders.
+             * Incoming page — slides in on mobile, appears instantly on desktop.
+             *
+             * No animation class is applied outside of a transition (animating
+             * === false) to avoid replaying the entrance animation on unrelated
+             * re-renders such as theme changes or data refetches.
              */}
             <div
               key={current}
@@ -249,7 +375,7 @@ export default function App() {
 
           </main>
 
-          {/* Bottom navigation bar — mobile only */}
+          {/* ── Bottom navigation bar (mobile only) ─────────────────────── */}
           <div className="md:hidden">
             <BottomNav current={current} onChange={navigate} />
           </div>

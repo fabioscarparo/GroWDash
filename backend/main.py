@@ -2,172 +2,234 @@
 GroWDash — Core API Gateway
 ============================
 
-This module serves as the primary entry point and orchestrator for the GroWDash
-FastAPI backend service. It bridges the gap between the React-based frontend
-dashboard and the external Growatt server infrastructure.
+This module is the primary entry point and orchestrator for the GroWDash
+FastAPI backend service.  It bridges the React dashboard frontend with the
+external Growatt Cloud API and the Google Smart Home platform.
 
-Key Responsibilities:
----------------------
-1. **Application Initialization**: Bootstraps the FastAPI instance with project
-   metadata including title, description and version for OpenAPI documentation.
+Key responsibilities
+--------------------
+Application initialisation
+    Bootstraps the FastAPI instance with metadata (title, description,
+    version) that is surfaced in the auto-generated OpenAPI schema and
+    displayed prominently in the Swagger UI and ReDoc documentation pages.
 
-2. **Rate Limiting**: Registers a global slowapi Limiter instance on the
-   application state, enabling per-endpoint rate limiting across all routers.
-   The RateLimitExceeded exception handler ensures clients receive a well-formed
-   HTTP 429 response rather than an unhandled 500 error.
+Rate limiting
+    Registers a global slowapi ``Limiter`` on ``app.state`` so every router
+    can apply per-endpoint rate limits via the ``@limiter.limit()`` decorator.
+    The ``RateLimitExceeded`` exception handler ensures clients receive a
+    well-formed HTTP 429 response with a ``Retry-After`` header rather than
+    an unhandled 500 error.
 
-3. **CORS Configuration**: Establishes Cross-Origin Resource Sharing policies
-   to allow the React frontend to communicate with the API across different
-   origins during both local development and production deployments.
+CORS policy
+    Establishes Cross-Origin Resource Sharing rules that allow the React
+    frontend (Vite dev server or the nginx container) to call the API across
+    origins.  ``allow_credentials=True`` is required by the HttpOnly cookie
+    authentication flow — without it browsers silently drop cookies on
+    cross-origin requests regardless of the ``SameSite`` attribute.
 
-4. **Router Delegation**: Mounts domain-specific route handlers for authentication,
-   plant metadata, energy data and device telemetry under a unified app instance.
+Router registration
+    Each router module owns a single domain of the API surface.  Keeping them
+    separate makes each file independently testable and keeps the total line
+    count manageable.  Routers currently registered:
 
-5. **Health Monitoring**: Exposes a lightweight root endpoint for container
-   liveness probes and connectivity verification.
+    +-----------------------+--------------------------------------------------+
+    | Router                | Endpoints                                        |
+    +=======================+==================================================+
+    | auth                  | POST /auth/token                                 |
+    |                       | POST /auth/logout                                |
+    |                       | GET  /auth/me                                    |
+    |                       | POST /auth/google-home/code                      |
+    +-----------------------+--------------------------------------------------+
+    | plant                 | GET  /plant/info                                 |
+    +-----------------------+--------------------------------------------------+
+    | energy                | GET  /energy/overview                            |
+    |                       | GET  /energy/today                               |
+    |                       | GET  /energy/history                             |
+    |                       | GET  /energy/aggregate                           |
+    |                       | GET  /energy/daily-breakdown                     |
+    +-----------------------+--------------------------------------------------+
+    | device                | GET  /device/list                                |
+    |                       | GET  /device/detail                              |
+    |                       | GET  /device/settings                            |
+    +-----------------------+--------------------------------------------------+
+    | weather               | GET  /weather/current                            |
+    |                       | GET  /weather/solar-forecast                     |
+    +-----------------------+--------------------------------------------------+
+    | google_home           | GET  /google-home/auth                           |
+    |                       | POST /google-home/token                          |
+    |                       | POST /google-home/fulfillment                    |
+    +-----------------------+--------------------------------------------------+
 
-Architecture Notes:
--------------------
-The Limiter instance defined here is shared with the routers via app.state.limiter.
-Individual route handlers in routers (e.g., auth.py) define their own Limiter
-instance with the same key_func — slowapi resolves the active limiter at request
-time from app.state, so the router-level instance is used only for the decorator
-syntax. Both must use the same key_func (get_remote_address) for consistent behavior.
+Health monitoring
+    The root ``GET /`` endpoint returns a static JSON payload so Docker,
+    Kubernetes, and reverse-proxy health checks can verify that the uvicorn
+    process has started and the application layer has initialised correctly.
 
-Cloudflare Tunnel Note:
------------------------
-When deployed behind a Cloudflare Tunnel, the client IP seen by FastAPI may
-be the tunnel's internal address rather than the real client IP. If rate limiting
-by real IP is required, configure get_remote_address to read the X-Forwarded-For
-header, or replace it with a custom key function in both this file and auth.py.
+Architecture notes — rate limiter
+-----------------------------------
+The ``Limiter`` instance created here is stored on ``app.state.limiter``.
+Individual router modules (e.g. ``routers/auth.py``) also instantiate their
+own ``Limiter`` objects with the same ``key_func`` — this is the pattern
+recommended by slowapi.  At request time slowapi resolves the active limiter
+from ``app.state``, so the router-level instance is only used for the
+decorator syntax and the two objects do not conflict.
 
-Usage:
-------
-Launch the development server with live-reloading:
+Architecture notes — Cloudflare Tunnel
+---------------------------------------
+When deployed behind a Cloudflare Tunnel the ``REMOTE_ADDR`` seen by FastAPI
+is the tunnel's internal relay address, not the actual client IP.  Rate
+limiting is therefore applied per-relay rather than per-client.  If you need
+true per-client rate limiting, configure ``get_remote_address`` to read the
+``CF-Connecting-IP`` or ``X-Forwarded-For`` header instead.
+
+Usage
+-----
+Start the development server with live-reloading::
+
     $ uvicorn main:app --reload
 
 Interactive API documentation (auto-generated by FastAPI):
-    Swagger UI: http://127.0.0.1:8000/docs
-    ReDoc:      http://127.0.0.1:8000/redoc
+
+    Swagger UI : http://127.0.0.1:8000/docs
+    ReDoc      : http://127.0.0.1:8000/redoc
 """
 
-from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
-from slowapi.errors import RateLimitExceeded
+import logging
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
 
-from routers import plant, energy, device, auth, weather
+from routers import auth, device, energy, google_home, plant, weather
 import models
 from database import engine
+from services.growatt import get_plant_info
 
 
 # ---------------------------------------------------------------------------
-# Rate Limiter
+# Rate limiter
 # ---------------------------------------------------------------------------
-# Global Limiter instance registered on app.state so that slowapi can resolve
-# it at request time across all routers. Uses the client's remote IP address
-# as the rate limit key. Individual endpoints opt in via the @limiter.limit()
-# decorator defined in their respective router modules.
+# The limiter is created here and attached to app.state so that slowapi can
+# locate it at request time across all router modules.  Individual routers
+# import a separate Limiter instance solely for the @limiter.limit() decorator
+# syntax — see routers/auth.py for the established pattern.
 limiter = Limiter(key_func=get_remote_address)
+logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
-# Database Initialization
+# Database initialisation
 # ---------------------------------------------------------------------------
-# Creates all tables defined in models.py (e.g., the users table) if they do
-# not already exist. Safe to call on every startup — SQLAlchemy's create_all
-# is idempotent and will not modify or drop existing tables.
+# create_all is idempotent: it only creates tables that do not already exist
+# and never drops or modifies existing schema.  Safe to run on every startup.
 models.Base.metadata.create_all(bind=engine)
 
 
 # ---------------------------------------------------------------------------
-# Application Instance
+# Application instance
 # ---------------------------------------------------------------------------
-# These metadata fields are surfaced in the auto-generated OpenAPI schema and
-# displayed prominently in the Swagger UI and ReDoc documentation pages.
 app = FastAPI(
     title="GroWDash API",
-    description="Comprehensive backend API driving your Growatt photovoltaic plant dashboard.",
+    description=(
+        "Comprehensive backend API driving the GroWDash photovoltaic "
+        "monitoring dashboard.  Integrates with the Growatt Cloud API, "
+        "the Open-Meteo weather service, and the Google Smart Home platform."
+    ),
     version="0.1.0",
 )
 
 
 # ---------------------------------------------------------------------------
-# Rate Limiting Registration
+# Rate limiting registration
 # ---------------------------------------------------------------------------
-# Attaches the limiter to the app state so slowapi can retrieve it during
-# request processing. The exception handler converts RateLimitExceeded errors
-# into properly formatted HTTP 429 Too Many Requests responses with a
-# Retry-After header indicating when the client may retry.
+# Attaching the limiter to app.state is the mechanism slowapi uses to resolve
+# it during request processing.  The exception handler translates the internal
+# RateLimitExceeded exception into an HTTP 429 response with a Retry-After
+# header so well-behaved clients know when they may retry.
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 
 # ---------------------------------------------------------------------------
-# CORS Middleware
+# CORS middleware
 # ---------------------------------------------------------------------------
-# CORS is enforced by browsers to prevent unauthorized cross-origin requests.
-# By default, a script at http://localhost:5173 is blocked from calling
-# http://localhost:8000 unless the server explicitly permits it.
+# Browsers block cross-origin requests by default.  A script served from
+# http://localhost:5173 would be blocked from calling http://localhost:8000
+# unless the server explicitly grants permission via CORS headers.
 #
-# allow_credentials=True is required for the HttpOnly cookie authentication
-# flow — without it, browsers will not send or receive cookies on cross-origin
-# requests regardless of the SameSite cookie attribute.
+# allow_credentials=True
+#     Required for the HttpOnly cookie authentication flow.  Without this flag
+#     browsers omit cookies on cross-origin requests regardless of SameSite.
 #
-# Production note: replace the wildcard-style local origins with the specific
-# Cloudflare domain once the tunnel is active, to avoid inadvertently allowing
-# requests from other localhost services on the same machine.
+# Production note
+#     The list below includes several localhost variants for development.
+#     Once the Cloudflare Tunnel domain is stable, add it here and consider
+#     removing the generic localhost entries to tighten the policy.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:5173",    # Vite dev server
+        "http://localhost:5173",   # Vite development server
         "http://127.0.0.1:5173",
-        "http://localhost:8000",    # FastAPI self-reference (Swagger UI)
+        "http://localhost:8000",   # FastAPI self-reference (Swagger UI)
         "http://127.0.0.1:8000",
-        "http://localhost",         # Docker / LAN access without port
+        "http://localhost",        # Docker / LAN access without an explicit port
         "http://127.0.0.1",
     ],
-    allow_credentials=True,         # Required for HttpOnly cookie auth
+    allow_credentials=True,        # required by the HttpOnly cookie auth flow
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 
 # ---------------------------------------------------------------------------
-# Router Registration
+# Router registration
 # ---------------------------------------------------------------------------
-# Each router encapsulates a distinct domain of the API surface. Splitting
-# routes across dedicated modules keeps each file focused and independently
-# testable. All routers share the same app instance and middleware stack.
-app.include_router(auth.router)     # POST /auth/token, POST /auth/logout, GET /auth/me
-app.include_router(plant.router)    # GET  /plant/info
-app.include_router(energy.router)   # GET  /energy/overview, /today, /history, /aggregate, /daily-breakdown
-app.include_router(device.router)   # GET  /device/list, /detail, /settings
-app.include_router(weather.router)  # GET  /weather/current, /solar-forecast
+# Mounting order does not affect routing — FastAPI matches paths regardless
+# of the order routers are registered.  The order here is simply alphabetical
+# within logical groups for readability.
+app.include_router(auth.router)         # session management + Google Home OAuth codes
+app.include_router(plant.router)        # plant metadata
+app.include_router(energy.router)       # energy data, history, breakdown
+app.include_router(device.router)       # inverter telemetry and settings
+app.include_router(weather.router)      # weather + solar irradiance forecast
+app.include_router(google_home.router)  # Google Smart Home Action fulfillment
 
 
+@app.on_event("startup")
+def warmup_external_caches() -> None:
+    """
+    Prime the most requested Growatt cache so first-page weather calls are stable.
+    """
+    try:
+        get_plant_info()
+        logger.info("Warmup complete: plant info cache primed.")
+    except Exception as exc:
+        logger.warning("Warmup skipped: unable to fetch plant info (%s)", exc)
+
 
 # ---------------------------------------------------------------------------
-# Health Check
+# Health check
 # ---------------------------------------------------------------------------
-@app.get("/", summary="System Health Check", tags=["General"])
+
+@app.get("/", summary="System health check", tags=["General"])
 def root():
     """
-    Root liveness endpoint for the GroWDash API.
+    Lightweight liveness probe for the GroWDash API.
 
-    A lightweight probe that confirms the uvicorn process is running and
-    the application has initialized successfully. Performs no database
-    queries, external API calls or heavy computation.
+    Returns a static JSON payload to confirm that the uvicorn process is
+    running and the application has initialised successfully.  Performs no
+    database queries, cache lookups, or external API calls.
 
-    Intended consumers:
-        - Docker / Kubernetes liveness and readiness probes.
-        - Reverse proxies (Nginx, Traefik, Cloudflare) verifying upstream health.
-        - Developers confirming the server bound to the expected port.
+    Intended consumers
+    ------------------
+    - Docker ``HEALTHCHECK`` directives.
+    - Kubernetes liveness and readiness probes.
+    - Nginx and Cloudflare upstream health checks.
+    - Developers verifying the server has bound to the expected port.
 
     Returns:
-        dict: A static JSON payload confirming the service is operational.
-              Example: {"message": "GroWDash API operates nominally and is ready to accept requests."}
+        dict: ``{"message": "GroWDash API operates nominally and is ready to accept requests."}``
     """
     return {"message": "GroWDash API operates nominally and is ready to accept requests."}
