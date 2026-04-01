@@ -62,7 +62,7 @@ function pctLast(otherValues, total) {
  * @returns {string} e.g. "3.7"
  */
 function fmt(value) {
-  return (Number(value) || 0).toFixed(1)
+  return (Number(value) || 0).toFixed(2)
 }
 
 // ── Stacked progress bar ──────────────────────────────────────────────────────
@@ -165,17 +165,17 @@ export default function EnergyBreakdownCard({ today }) {
 
   // ── Raw values from API ─────────────────────────────────────────────────────
 
-  const solar         = Number(today?.solar_kwh)              || 0
-  const home          = Number(today?.home_kwh)               || 0
-  const gridExported  = Number(today?.grid_exported_kwh)      || 0
-  const gridImported  = Number(today?.grid_imported_kwh)      || 0
+  const solar = Number(today?.solar_kwh) || 0
+  const home = Number(today?.home_kwh) || 0
+  const gridExported = Number(today?.grid_exported_kwh) || 0
+  const gridImported = Number(today?.grid_imported_kwh) || 0
   const batDischarged = Number(today?.battery_discharged_kwh) || 0
 
   // ── Derived values ──────────────────────────────────────────────────────────
 
   const systemOutput = solar + batDischarged
   const selfConsumed = Math.max(systemOutput - gridExported, 0)
-  const solarDirect  = Math.max(home - gridImported - batDischarged, 0)
+  const solarDirect = Math.max(home - gridImported - batDischarged, 0)
 
   // ── Render ──────────────────────────────────────────────────────────────────
 
@@ -199,7 +199,7 @@ export default function EnergyBreakdownCard({ today }) {
             { color: '#10b981', pct: pctLast([selfConsumed], systemOutput) },
           ]}
           rows={[
-            { color: '#22c55e', label: 'Self-consumed',    kwh: selfConsumed, percentage: pct(selfConsumed, systemOutput) },
+            { color: '#22c55e', label: 'Self-consumed', kwh: selfConsumed, percentage: pct(selfConsumed, systemOutput) },
             { color: '#10b981', label: 'Exported to grid', kwh: gridExported, percentage: pctLast([selfConsumed], systemOutput) },
           ]}
         />
@@ -211,14 +211,14 @@ export default function EnergyBreakdownCard({ today }) {
           title="Home consumption"
           total={home}
           segments={[
-            { color: '#f59e0b', pct: pct(solarDirect,   home) },
+            { color: '#f59e0b', pct: pct(solarDirect, home) },
             { color: '#8b5cf6', pct: pct(batDischarged, home) },
             { color: '#ef4444', pct: pctLast([solarDirect, batDischarged], home) },
           ]}
           rows={[
-            { color: '#f59e0b', label: 'From solar',   kwh: solarDirect,   percentage: pct(solarDirect,   home) },
+            { color: '#f59e0b', label: 'From solar', kwh: solarDirect, percentage: pct(solarDirect, home) },
             { color: '#8b5cf6', label: 'From battery', kwh: batDischarged, percentage: pct(batDischarged, home) },
-            { color: '#ef4444', label: 'From grid',    kwh: gridImported,  percentage: pctLast([solarDirect, batDischarged], home) },
+            { color: '#ef4444', label: 'From grid', kwh: gridImported, percentage: pctLast([solarDirect, batDischarged], home) },
           ]}
         />
 
