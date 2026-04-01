@@ -148,23 +148,23 @@ def get_plant_info() -> dict:
 
 def get_plant_local_date() -> date:
     """
-    Calculates the current local date at the PV plant based on its 
-    configured timezone offset (e.g., 'GMT+1'). 
-    
-    This ensures that 'Today' data is correctly identified regardless 
+    Calculates the current local date at the PV plant based on its
+    configured timezone offset (e.g., 'GMT+1').
+
+    This ensures that 'Today' data is correctly identified regardless
     of the server's system time (which is usually UTC).
     """
     try:
         overview = get_plant_energy_overview()
         tz_str = overview.get("timezone", "GMT+0")
-        
+
         # Parse 'GMT+N' or 'GMT-N'
         offset = 0
         if "GMT" in tz_str:
             offset_str = tz_str.replace("GMT", "").strip()
             if offset_str:
                 offset = int(offset_str)
-        
+
         # Calculate local time from UTC
         utc_now = datetime.now(dt_timezone.utc)
         local_now = utc_now + timedelta(hours=offset)
@@ -459,6 +459,22 @@ def get_daily_energy_breakdown(start_date: date, end_date: date) -> list:
     """
     Returns daily energy totals by reading the *Today cumulative counters
     from the last 5-minute snapshot of each day.
+
+    Pre-sunrise correction
+    ----------------------
+    The Growatt inverter enters standby before sunrise and does not increment
+    etoUserToday during that window. As a result, snapshots taken early in
+    the morning carry etoUserToday = 0 even though the house has been drawing
+    from the grid since midnight.
+
+    To compensate, the effective grid import for each day's snapshot is derived
+    from the energy balance:
+
+        grid_import = home + grid_export + bat_charge − solar − bat_discharge
+
+    The maximum of the raw meter value and the balance-derived value is used.
+    When the meter is dormant, the balance gives the correct answer. Once the
+    inverter is fully active, both values converge and the result is identical.
     """
     end_date = min(end_date, get_plant_local_date())
 
@@ -481,14 +497,14 @@ def get_daily_energy_breakdown(start_date: date, end_date: date) -> list:
                 break
             for r in raw_data:
                 snapshots.append({
-                    "time":                   r.get("time", ""),
-                    "eacToday":               float(r.get("eacToday") or 0),
-                    "elocalLoadToday":        float(r.get("elocalLoadToday") or 0),
-                    "etoUserToday":           float(r.get("etoUserToday") or 0),
-                    "etoGridToday":           float(r.get("etoGridToday") or 0),
-                    "echargeToday":           float(r.get("echargeToday") or 0),
-                    "edischargeToday":        float(r.get("edischargeToday") or 0),
-                    "eselfToday":             float(r.get("eselfToday") or 0),
+                    "time":             r.get("time", ""),
+                    "eacToday":         float(r.get("eacToday") or 0),
+                    "elocalLoadToday":  float(r.get("elocalLoadToday") or 0),
+                    "etoUserToday":     float(r.get("etoUserToday") or 0),
+                    "etoGridToday":     float(r.get("etoGridToday") or 0),
+                    "echargeToday":     float(r.get("echargeToday") or 0),
+                    "edischargeToday":  float(r.get("edischargeToday") or 0),
+                    "eselfToday":       float(r.get("eselfToday") or 0),
                 })
             total = result.get("count", 0)
             if page * 100 >= total:
@@ -512,25 +528,38 @@ def get_daily_energy_breakdown(start_date: date, end_date: date) -> list:
     # That snapshot's *Today counters = the final daily total.
     by_date: dict[str, dict] = {}
     for snap in all_snapshots:
-        day = snap["time"][:10]  # "2026-03-09"
+        day = snap["time"][:10]
         if day not in by_date or snap["time"] > by_date[day]["time"]:
             by_date[day] = snap
 
-    # Build a complete, gap-free series
+    # Build a complete, gap-free series with the pre-sunrise correction applied.
     result = []
     current = start_date
     while current <= end_date:
         key = current.strftime("%Y-%m-%d")
         if key in by_date:
             s = by_date[key]
+
+            solar   = round(s["eacToday"], 2)
+            home    = round(s["elocalLoadToday"], 2)
+            export  = round(s["etoGridToday"], 2)
+            imp_raw = round(s["etoUserToday"], 2)
+            bat_c   = round(s["echargeToday"], 2)
+            bat_d   = round(s["edischargeToday"], 2)
+
+            # Energy-balance correction — handles pre-sunrise dormant meter.
+            # grid_import = home + export + bat_charge − solar − bat_discharge
+            imp_bal = round(max(0.0, home + export + bat_c - solar - bat_d), 2)
+            imp_eff = round(max(imp_raw, imp_bal), 2)
+
             result.append({
                 "date":                   key,
-                "solar_kwh":              round(s["eacToday"], 2),
-                "home_kwh":               round(s["elocalLoadToday"], 2),
-                "grid_import_kwh":        round(s["etoUserToday"], 2),
-                "grid_export_kwh":        round(s["etoGridToday"], 2),
-                "battery_charged_kwh":    round(s["echargeToday"], 2),
-                "battery_discharged_kwh": round(s["edischargeToday"], 2),
+                "solar_kwh":              solar,
+                "home_kwh":               home,
+                "grid_import_kwh":        imp_eff,
+                "grid_export_kwh":        export,
+                "battery_charged_kwh":    bat_c,
+                "battery_discharged_kwh": bat_d,
                 "self_consumed_kwh":      round(s["eselfToday"], 2),
             })
         else:

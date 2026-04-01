@@ -79,10 +79,24 @@ def energy_today(current_user: str = Depends(get_current_user)):
         battery      — state of charge, charge/discharge totals
         grid         — grid voltage and frequency
 
+    Grid import correction
+    ----------------------
+    The Growatt inverter enters standby before sunrise and does not increment
+    etoUserToday during that window, even though the house is drawing power
+    from the grid. This causes grid_imported_kwh to read 0 in the morning
+    while the live chart already shows non-zero grid import (pacToUserTotal).
+
+    To fix this, the effective grid import is derived from the energy balance:
+
+        grid_import = home + grid_export + bat_charge − solar − bat_discharge
+
+    The maximum of the meter reading and the balance-derived value is used:
+    during the pre-sunrise standby window the balance gives the correct answer;
+    once the inverter wakes up and the meter starts ticking, both values
+    converge and the meter reading takes over naturally.
+
     Growatt API field reference:
         ppv                → DC power from PV panels (W) — true solar production.
-                             We use ppv instead of pac (AC inverter output) because
-                             pac excludes the portion that charges the battery in DC.
         pacToLocalLoad     → power delivered to home loads (W)
         pacToGridTotal     → power exported to the grid (W)
         pacToUserTotal     → power imported from the grid (W)
@@ -95,15 +109,30 @@ def energy_today(current_user: str = Depends(get_current_user)):
         edischargeToday    → energy discharged from battery today (kWh)
         etoGridToday       → energy exported to grid today (kWh)
         etoUserToday       → energy imported from grid today (kWh)
-        eselfToday         → self-consumed energy today (kWh)
-                             = solar direct to loads + battery discharge.
-                             This is NOT equal to solar production alone.
-        eacTotal           → total lifetime energy produced by the plant (kWh)
     """
     data = get_energy_today()
 
     if not data:
         raise HTTPException(status_code=404, detail="Data not available")
+
+    # ── Extract *Today meter counters ─────────────────────────────────────
+    solar_kwh         = float(data.get("eacToday") or 0)
+    home_kwh          = float(data.get("elocalLoadToday") or 0)
+    grid_export_kwh   = float(data.get("etoGridToday") or 0)
+    grid_import_kwh   = float(data.get("etoUserToday") or 0)
+    bat_charge_kwh    = float(data.get("echargeToday") or 0)
+    bat_discharge_kwh = float(data.get("edischargeToday") or 0)
+
+    # ── Pre-sunrise correction via energy balance ─────────────────────────
+    # etoUserToday stays at 0 while the inverter is in standby (no solar).
+    # The house is consuming from the grid but the meter is dormant.
+    # Derive the correct grid import from the energy balance and take the
+    # larger of the two so we never report less than the meter recorded.
+    _balance_import = max(
+        0.0,
+        home_kwh + grid_export_kwh + bat_charge_kwh - solar_kwh - bat_discharge_kwh,
+    )
+    effective_grid_import = round(max(grid_import_kwh, _balance_import), 2)
 
     return {
         "flow": {
@@ -121,14 +150,14 @@ def energy_today(current_user: str = Depends(get_current_user)):
 
             # Cumulative energy totals since midnight — reset to zero each day.
             "today": {
-                "solar_kwh":              data.get("eacToday", 0),
-                "home_kwh":               data.get("elocalLoadToday", 0),
-                "battery_charged_kwh":    data.get("echargeToday", 0),
-                "battery_discharged_kwh": data.get("edischargeToday", 0),
-                "grid_exported_kwh":      data.get("etoGridToday", 0),
-                "grid_imported_kwh":      data.get("etoUserToday", 0),
-                "self_consumed_kwh":      data.get("eselfToday", 0),
-                "lifetime_solar_kwh":     data.get("eacTotal", 0),
+                "solar_kwh":              solar_kwh,
+                "home_kwh":               home_kwh,
+                "battery_charged_kwh":    bat_charge_kwh,
+                "battery_discharged_kwh": bat_discharge_kwh,
+                "grid_exported_kwh":      grid_export_kwh,
+                "grid_imported_kwh":      effective_grid_import,
+                "self_consumed_kwh":      float(data.get("eselfToday") or 0),
+                "lifetime_solar_kwh":     float(data.get("eacTotal") or 0),
             },
         },
 
