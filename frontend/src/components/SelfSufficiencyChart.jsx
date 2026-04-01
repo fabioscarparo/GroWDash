@@ -7,10 +7,11 @@
  *   - From grid
  *
  * Derivation from daily-breakdown fields:
- *   from_solar   = home_kwh - grid_import_kwh - battery_discharged_kwh
+ *   effective_home = max(home_kwh, self_consumed_kwh + grid_import_kwh)
+ *   from_solar   = effective_home - grid_import_kwh - battery_discharged_kwh
  *   from_battery = battery_discharged_kwh
  *   from_grid    = grid_import_kwh
- *   total        = home_kwh (the three segments always sum to home_kwh)
+ *   total        = effective_home (the three segments always sum to total)
  *
  * Features:
  *  - Navigation: Integrated PeriodPicker with plant installation date boundaries.
@@ -117,9 +118,11 @@ export default function SelfSufficiencyChart() {
 
   const chartData = useMemo(() =>
     (breakdown?.data ?? []).map(d => {
-      const home        = Math.max(0, d.home_kwh)
+      const homeRaw        = Math.max(0, d.home_kwh)
       const fromGrid    = Math.max(0, d.grid_import_kwh)
       const fromBattery = Math.max(0, d.battery_discharged_kwh)
+      const selfConsumed = Math.max(0, d.self_consumed_kwh)
+      const home        = Math.max(homeRaw, selfConsumed + fromGrid)
       const fromSolar   = Math.max(0, home - fromGrid - fromBattery)
       return {
         label:        dayLabel(d.date),

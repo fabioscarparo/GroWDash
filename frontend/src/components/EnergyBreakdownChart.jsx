@@ -5,6 +5,11 @@
  * solar production, home consumption, grid import/export and
  * battery charge/discharge.
  *
+ * For "Home", the chart uses an effective daily total:
+ * max(home_kwh, self_consumed_kwh + grid_import_kwh)
+ * This avoids understated bars when the raw home counter is lower than
+ * the site balance derived from self-consumption + grid import.
+ *
  * Navigation: Integrated PeriodPicker for month selection with installation date bounds.
  * Series toggles: Interactive legend to show/hide individual flows.
  *
@@ -111,8 +116,6 @@ export default function EnergyBreakdownChart() {
   // future days that the API has no data for yet.
   const endDate = isCurrentMonth ? fmt(today) : monthEndDate
 
-  const periodLabel = refDate.toLocaleString('en', { month: 'long', year: 'numeric' })
-
   const { data: breakdown, isLoading, isFetching } = useDailyBreakdown(startDate, endDate)
 
   // ── Prefetch adjacent months ──────────────────────────────────────────────
@@ -160,15 +163,22 @@ export default function EnergyBreakdownChart() {
   // ── Chart data ────────────────────────────────────────────────────────────
 
   const chartData = useMemo(() =>
-    (breakdown?.data ?? []).map(d => ({
-      label:                  dayLabel(d.date),
-      solar_kwh:              d.solar_kwh,
-      home_kwh:               d.home_kwh,
-      grid_import_kwh:        d.grid_import_kwh,
-      grid_export_kwh:        d.grid_export_kwh,
-      battery_charged_kwh:    d.battery_charged_kwh,
-      battery_discharged_kwh: d.battery_discharged_kwh,
-    })),
+    (breakdown?.data ?? []).map(d => {
+      const homeRaw = Number(d.home_kwh) || 0
+      const fromGrid = Number(d.grid_import_kwh) || 0
+      const selfConsumed = Number(d.self_consumed_kwh) || 0
+      const homeEffective = Math.max(homeRaw, selfConsumed + fromGrid)
+
+      return {
+        label:                  dayLabel(d.date),
+        solar_kwh:              Number(d.solar_kwh) || 0,
+        home_kwh:               homeEffective,
+        grid_import_kwh:        fromGrid,
+        grid_export_kwh:        Number(d.grid_export_kwh) || 0,
+        battery_charged_kwh:    Number(d.battery_charged_kwh) || 0,
+        battery_discharged_kwh: Number(d.battery_discharged_kwh) || 0,
+      }
+    }),
     [breakdown]
   )
 
