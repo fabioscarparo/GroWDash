@@ -144,8 +144,8 @@ DEVICES: list[dict] = [
         "attributes": {
             "sensorStatesSupported": [
                 {
-                    "name": "SolarPower",
-                    "numericCapabilities": {"rawValueUnit": "WATTS"},
+                    "name": "Temperature",
+                    "numericCapabilities": {"rawValueUnit": "CELSIUS"},
                 }
             ]
         },
@@ -163,8 +163,8 @@ DEVICES: list[dict] = [
         "attributes": {
             "sensorStatesSupported": [
                 {
-                    "name": "HomePower",
-                    "numericCapabilities": {"rawValueUnit": "WATTS"},
+                    "name": "Temperature",
+                    "numericCapabilities": {"rawValueUnit": "CELSIUS"},
                 }
             ]
         },
@@ -182,8 +182,8 @@ DEVICES: list[dict] = [
         "attributes": {
             "sensorStatesSupported": [
                 {
-                    "name": "BatterySOC",
-                    "numericCapabilities": {"rawValueUnit": "PERCENTAGE"},
+                    "name": "Temperature",
+                    "numericCapabilities": {"rawValueUnit": "CELSIUS"},
                 }
             ]
         },
@@ -201,8 +201,8 @@ DEVICES: list[dict] = [
         "attributes": {
             "sensorStatesSupported": [
                 {
-                    "name": "GridImport",
-                    "numericCapabilities": {"rawValueUnit": "WATTS"},
+                    "name": "Temperature",
+                    "numericCapabilities": {"rawValueUnit": "CELSIUS"},
                 }
             ]
         },
@@ -220,8 +220,8 @@ DEVICES: list[dict] = [
         "attributes": {
             "sensorStatesSupported": [
                 {
-                    "name": "GridExport",
-                    "numericCapabilities": {"rawValueUnit": "WATTS"},
+                    "name": "Temperature",
+                    "numericCapabilities": {"rawValueUnit": "CELSIUS"},
                 }
             ]
         },
@@ -273,35 +273,35 @@ def _get_live_states() -> dict:
             "status": "SUCCESS",
             "online": True,
             "currentSensorStateData": [
-                {"name": "SolarPower", "rawValue": solar_w}
+                {"name": "Temperature", "rawValue": solar_w}
             ],
         },
         "home_sensor": {
             "status": "SUCCESS",
             "online": True,
             "currentSensorStateData": [
-                {"name": "HomePower", "rawValue": home_w}
+                {"name": "Temperature", "rawValue": home_w}
             ],
         },
         "battery_sensor": {
             "status": "SUCCESS",
             "online": True,
             "currentSensorStateData": [
-                {"name": "BatterySOC", "rawValue": battery_soc}
+                {"name": "Temperature", "rawValue": battery_soc}
             ],
         },
         "grid_import_sensor": {
             "status": "SUCCESS",
             "online": True,
             "currentSensorStateData": [
-                {"name": "GridImport", "rawValue": grid_import_w}
+                {"name": "Temperature", "rawValue": grid_import_w}
             ],
         },
         "grid_export_sensor": {
             "status": "SUCCESS",
             "online": True,
             "currentSensorStateData": [
-                {"name": "GridExport", "rawValue": grid_export_w}
+                {"name": "Temperature", "rawValue": grid_export_w}
             ],
         },
     }
