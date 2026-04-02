@@ -124,18 +124,22 @@ function Row({ color, label, kwh, percentage }) {
  *
  * @param {object} props
  * @param {string} props.title - Section title
+ * @param {string} [props.subtitle] - Optional subtitle for explanation
  * @param {number} props.total - Total energy value for this section (kWh)
  * @param {{ color: string, pct: number }[]} props.segments - Bar segments
  * @param {object[]} props.rows - Row data (passed directly to Row component)
  */
-function Section({ title, total, segments, rows }) {
+function Section({ title, subtitle, total, segments, rows }) {
   return (
     <div className="flex flex-col gap-2.5">
 
       {/* Title + total */}
-      <div className="flex items-baseline justify-between">
-        <p className="text-xs font-semibold text-foreground">{title}</p>
-        <div className="flex items-baseline gap-1">
+      <div className="flex justify-between items-start">
+        <div className="flex flex-col">
+          <p className="text-xs font-semibold text-foreground">{title}</p>
+          {subtitle && <p className="text-[10px] text-muted-foreground mt-0.5 leading-tight">{subtitle}</p>}
+        </div>
+        <div className="flex items-baseline gap-1 shrink-0 ml-2 pt-0.5">
           <span className="text-sm font-bold text-foreground">{fmt(total)}</span>
           <span className="text-xs text-muted-foreground">kWh</span>
         </div>
@@ -165,19 +169,25 @@ export default function EnergyBreakdownCard({ today }) {
 
   // ── Raw values from API ─────────────────────────────────────────────────────
 
-  const solar = Number(today?.solar_kwh) || 0
   const home = Number(today?.home_kwh) || 0
   const gridExported = Number(today?.grid_exported_kwh) || 0
   const gridImported = Number(today?.grid_imported_kwh) || 0
   const batDischarged = Number(today?.battery_discharged_kwh) || 0
-  const selfConsumedApi = Number(today?.self_consumed_kwh) || 0
+  const batCharged = Number(today?.battery_charged_kwh) || 0
 
-  // ── Derived values ──────────────────────────────────────────────────────────
+  // ── Derived values (Option A: Perfect Coherence) ────────────────────────────
 
-  const selfConsumed = Math.max(selfConsumedApi || (solar - gridExported), 0)
-  const systemOutput = Math.max(selfConsumed + gridExported, solar)
-  const homeTotal = Math.max(home, selfConsumed + gridImported)
+  // 1. Home consumption is fulfilled by 3 sources: directly from solar, from battery, or from grid.
+  // gridImported and batDischarged are precise. We derive solarDirect to perfectly balance the house.
+  const homeTotal = Math.max(home, gridImported + batDischarged)
   const solarDirect = Math.max(homeTotal - gridImported - batDischarged, 0)
+
+  // 2. Solar production splits into what was kept locally vs what was exported.
+  // We reconstruct the local usage ("Kept on-site") by precisely summing the solar that
+  // went to the house (solarDirect) and the solar that went to the battery (batCharged).
+  // Then we reconstruct the total solar production to hide any inverter losses and ensure 100% coherence.
+  const selfConsumed = solarDirect + batCharged
+  const systemOutput = selfConsumed + gridExported
 
   // ── Render ──────────────────────────────────────────────────────────────────
 
@@ -192,25 +202,27 @@ export default function EnergyBreakdownCard({ today }) {
 
       <CardContent className="flex flex-col gap-4">
 
-        {/* Section 1 — System output */}
+        {/* Section 1 — Solar production */}
         <Section
-          title="System output"
+          title="Solar production"
+          subtitle="Where the generated solar energy went"
           total={systemOutput}
           segments={[
             { color: '#22c55e', pct: pct(selfConsumed, systemOutput) },
             { color: '#10b981', pct: pctLast([selfConsumed], systemOutput) },
           ]}
           rows={[
-            { color: '#22c55e', label: 'Self-consumed', kwh: selfConsumed, percentage: pct(selfConsumed, systemOutput) },
-            { color: '#10b981', label: 'Exported to grid', kwh: gridExported, percentage: pctLast([selfConsumed], systemOutput) },
+            { color: '#22c55e', label: 'Used locally (Home + Battery)', kwh: selfConsumed, percentage: pct(selfConsumed, systemOutput) },
+            { color: '#10b981', label: 'Exported to grid', kwh: gridExported, percentage: pct(gridExported, systemOutput) },
           ]}
         />
 
-        <div className="h-px bg-border" />
+        <div className="h-px bg-border my-1" />
 
         {/* Section 2 — Home consumption */}
         <Section
           title="Home consumption"
+          subtitle="Where the energy to power your home came from"
           total={homeTotal}
           segments={[
             { color: '#f59e0b', pct: pct(solarDirect, homeTotal) },
@@ -218,9 +230,9 @@ export default function EnergyBreakdownCard({ today }) {
             { color: '#ef4444', pct: pctLast([solarDirect, batDischarged], homeTotal) },
           ]}
           rows={[
-            { color: '#f59e0b', label: 'From solar', kwh: solarDirect, percentage: pct(solarDirect, homeTotal) },
+            { color: '#f59e0b', label: 'Directly from solar', kwh: solarDirect, percentage: pct(solarDirect, homeTotal) },
             { color: '#8b5cf6', label: 'From battery', kwh: batDischarged, percentage: pct(batDischarged, homeTotal) },
-            { color: '#ef4444', label: 'From grid', kwh: gridImported, percentage: pctLast([solarDirect, batDischarged], homeTotal) },
+            { color: '#ef4444', label: 'Imported from grid', kwh: gridImported, percentage: pct(gridImported, homeTotal) },
           ]}
         />
 

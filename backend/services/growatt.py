@@ -60,6 +60,8 @@ _cache_lock = threading.Lock()
 
 CACHE_TTL         = 300       # 5 minutes — current data
 CACHE_TTL_LONG    = 86400     # 24 hours  — historical data that will not change
+SAMPLE_INTERVAL_MINUTES = 5
+SAMPLE_TO_KWH = SAMPLE_INTERVAL_MINUTES / 60 / 1000
 
 def ttl_cache(key_fn=None, ttl=CACHE_TTL):
     """
@@ -124,6 +126,86 @@ def retry_api(retries=3, backoff=2, exceptions=(Exception,)):
             raise last_err
         return wrapper
     return decorator
+
+
+def _to_non_negative_float(value) -> float:
+    """
+    Parses an input into a non-negative float.
+    Returns 0.0 for null/invalid/negative values.
+    """
+    try:
+        if value is None:
+            return 0.0
+        if isinstance(value, str):
+            value = value.strip().replace(",", ".")
+            if not value:
+                return 0.0
+        parsed = float(value)
+        return parsed if parsed > 0 else 0.0
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def _round_kwh(value: float) -> float:
+    """Rounds kWh values to 2 decimals with a tiny epsilon for stability."""
+    return round(value + 1e-9, 2)
+
+
+def _empty_integrated_totals() -> dict:
+    """Returns a zero-initialized dictionary for integrated daily kWh totals."""
+    return {
+        "solar_kwh": 0.0,
+        "home_kwh": 0.0,
+        "grid_import_kwh": 0.0,
+        "grid_export_kwh": 0.0,
+        "battery_charged_kwh": 0.0,
+        "battery_discharged_kwh": 0.0,
+    }
+
+
+def _accumulate_snapshot_energy(totals: dict, snapshot: dict) -> None:
+    """
+    Adds one 5-minute power snapshot to integrated daily energy totals.
+    """
+    totals["solar_kwh"] += _to_non_negative_float(snapshot.get("solar_w")) * SAMPLE_TO_KWH
+    totals["home_kwh"] += _to_non_negative_float(snapshot.get("home_w")) * SAMPLE_TO_KWH
+    totals["grid_import_kwh"] += _to_non_negative_float(snapshot.get("grid_import_w")) * SAMPLE_TO_KWH
+    totals["grid_export_kwh"] += _to_non_negative_float(snapshot.get("grid_export_w")) * SAMPLE_TO_KWH
+    totals["battery_charged_kwh"] += _to_non_negative_float(snapshot.get("battery_charge_w")) * SAMPLE_TO_KWH
+    totals["battery_discharged_kwh"] += _to_non_negative_float(snapshot.get("battery_discharge_w")) * SAMPLE_TO_KWH
+
+
+def _reconcile_daily_totals(counter_snapshot: dict | None, integrated: dict) -> dict:
+    """
+    Reconciles inverter cumulative counters with power-integrated estimates.
+
+    Growatt MIN counters can under-report small overnight imports/loads.
+    To avoid losing those values, `home_kwh` and `grid_import_kwh` are the
+    maximum between cumulative counters and integrated 5-minute power.
+    """
+    s = counter_snapshot or {}
+
+    solar_counter = _to_non_negative_float(s.get("eacToday"))
+    home_counter = _to_non_negative_float(s.get("elocalLoadToday"))
+    grid_import_counter = _to_non_negative_float(s.get("etoUserToday"))
+    grid_export_counter = _to_non_negative_float(s.get("etoGridToday"))
+    battery_charge_counter = _to_non_negative_float(s.get("echargeToday"))
+    battery_discharge_counter = _to_non_negative_float(s.get("edischargeToday"))
+    self_counter = _to_non_negative_float(s.get("eselfToday"))
+
+    home_eff = max(home_counter, _to_non_negative_float(integrated.get("home_kwh")))
+    grid_import_eff = max(grid_import_counter, _to_non_negative_float(integrated.get("grid_import_kwh")))
+    self_eff = max(self_counter, max(home_eff - grid_import_eff, 0.0))
+
+    return {
+        "solar_kwh": _round_kwh(solar_counter),
+        "home_kwh": _round_kwh(home_eff),
+        "grid_import_kwh": _round_kwh(grid_import_eff),
+        "grid_export_kwh": _round_kwh(grid_export_counter),
+        "battery_charged_kwh": _round_kwh(battery_charge_counter),
+        "battery_discharged_kwh": _round_kwh(battery_discharge_counter),
+        "self_consumed_kwh": _round_kwh(self_eff),
+    }
 
 
 # ── Service functions ─────────────────────────────────────────────────────────
@@ -457,24 +539,13 @@ def get_plant_energy_history(
 )
 def get_daily_energy_breakdown(start_date: date, end_date: date) -> list:
     """
-    Returns daily energy totals by reading the *Today cumulative counters
-    from the last 5-minute snapshot of each day.
+    Returns daily energy totals by reconciling:
+      1) the latest *Today cumulative counters for each day, and
+      2) integration of 5-minute power snapshots (W -> kWh).
 
-    Pre-sunrise correction
-    ----------------------
-    The Growatt inverter enters standby before sunrise and does not increment
-    etoUserToday during that window. As a result, snapshots taken early in
-    the morning carry etoUserToday = 0 even though the house has been drawing
-    from the grid since midnight.
-
-    To compensate, the effective grid import for each day's snapshot is derived
-    from the energy balance:
-
-        grid_import = home + grid_export + bat_charge − solar − bat_discharge
-
-    The maximum of the raw meter value and the balance-derived value is used.
-    When the meter is dormant, the balance gives the correct answer. Once the
-    inverter is fully active, both values converge and the result is identical.
+    On some MIN setups, tiny overnight imports are visible in power history but
+    not fully reflected in cumulative counters. Reconciliation preserves those
+    values while keeping counters as the primary source where reliable.
     """
     end_date = min(end_date, get_plant_local_date())
 
@@ -498,13 +569,19 @@ def get_daily_energy_breakdown(start_date: date, end_date: date) -> list:
             for r in raw_data:
                 snapshots.append({
                     "time":             r.get("time", ""),
-                    "eacToday":         float(r.get("eacToday") or 0),
-                    "elocalLoadToday":  float(r.get("elocalLoadToday") or 0),
-                    "etoUserToday":     float(r.get("etoUserToday") or 0),
-                    "etoGridToday":     float(r.get("etoGridToday") or 0),
-                    "echargeToday":     float(r.get("echargeToday") or 0),
-                    "edischargeToday":  float(r.get("edischargeToday") or 0),
-                    "eselfToday":       float(r.get("eselfToday") or 0),
+                    "solar_w":          _to_non_negative_float(r.get("ppv")),
+                    "home_w":           _to_non_negative_float(r.get("pacToLocalLoad")),
+                    "grid_import_w":    _to_non_negative_float(r.get("pacToUserTotal")),
+                    "grid_export_w":    _to_non_negative_float(r.get("pacToGridTotal")),
+                    "battery_charge_w": _to_non_negative_float(r.get("bdc1ChargePower")),
+                    "battery_discharge_w": _to_non_negative_float(r.get("bdc1DischargePower")),
+                    "eacToday":         _to_non_negative_float(r.get("eacToday")),
+                    "elocalLoadToday":  _to_non_negative_float(r.get("elocalLoadToday")),
+                    "etoUserToday":     _to_non_negative_float(r.get("etoUserToday")),
+                    "etoGridToday":     _to_non_negative_float(r.get("etoGridToday")),
+                    "echargeToday":     _to_non_negative_float(r.get("echargeToday")),
+                    "edischargeToday":  _to_non_negative_float(r.get("edischargeToday")),
+                    "eselfToday":       _to_non_negative_float(r.get("eselfToday")),
                 })
             total = result.get("count", 0)
             if page * 100 >= total:
@@ -524,51 +601,39 @@ def get_daily_energy_breakdown(start_date: date, end_date: date) -> list:
         for snapshots in executor.map(lambda c: fetch_chunk(*c), chunks):
             all_snapshots.extend(snapshots)
 
-    # For each day keep only the snapshot with the latest timestamp.
-    # That snapshot's *Today counters = the final daily total.
+    # For each day:
+    #   - keep the latest snapshot for *Today cumulative counters
+    #   - integrate all 5-minute power snapshots for reconciliation
     by_date: dict[str, dict] = {}
+    integrated_by_date: dict[str, dict] = {}
     for snap in all_snapshots:
         day = snap["time"][:10]
+        if not day:
+            continue
+        if day not in integrated_by_date:
+            integrated_by_date[day] = _empty_integrated_totals()
+        _accumulate_snapshot_energy(integrated_by_date[day], snap)
         if day not in by_date or snap["time"] > by_date[day]["time"]:
             by_date[day] = snap
 
-    # Build a complete, gap-free series with the pre-sunrise correction applied.
+    # Build a complete, gap-free series.
     result = []
     current = start_date
     while current <= end_date:
         key = current.strftime("%Y-%m-%d")
-        if key in by_date:
-            s = by_date[key]
-
-            solar   = round(s["eacToday"], 2)
-            home    = round(s["elocalLoadToday"], 2)
-            export  = round(s["etoGridToday"], 2)
-            imp_raw = round(s["etoUserToday"], 2)
-            bat_c   = round(s["echargeToday"], 2)
-            bat_d   = round(s["edischargeToday"], 2)
-
-            # Energy-balance correction — handles pre-sunrise dormant meter.
-            # grid_import = home + export + bat_charge − solar − bat_discharge
-            imp_bal = round(max(0.0, home + export + bat_c - solar - bat_d), 2)
-            imp_eff = round(max(imp_raw, imp_bal), 2)
-
-            result.append({
-                "date":                   key,
-                "solar_kwh":              solar,
-                "home_kwh":               home,
-                "grid_import_kwh":        imp_eff,
-                "grid_export_kwh":        export,
-                "battery_charged_kwh":    bat_c,
-                "battery_discharged_kwh": bat_d,
-                "self_consumed_kwh":      round(s["eselfToday"], 2),
-            })
+        if key in by_date or key in integrated_by_date:
+            reconciled = _reconcile_daily_totals(
+                by_date.get(key),
+                integrated_by_date.get(key, _empty_integrated_totals()),
+            )
+            result.append({"date": key, **reconciled})
         else:
             result.append({
                 "date": key,
-                "solar_kwh": 0, "home_kwh": 0,
-                "grid_import_kwh": 0, "grid_export_kwh": 0,
-                "battery_charged_kwh": 0, "battery_discharged_kwh": 0,
-                "self_consumed_kwh": 0,
+                "solar_kwh": 0.0, "home_kwh": 0.0,
+                "grid_import_kwh": 0.0, "grid_export_kwh": 0.0,
+                "battery_charged_kwh": 0.0, "battery_discharged_kwh": 0.0,
+                "self_consumed_kwh": 0.0,
             })
         current += timedelta(days=1)
 
@@ -588,5 +653,4 @@ def get_plant_energy_overview() -> dict:
     """
     api = get_api()
     return api.plant_energy_overview(GROWATT_PLANT_ID)
-
 
