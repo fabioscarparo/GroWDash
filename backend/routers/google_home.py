@@ -135,7 +135,10 @@ DEVICES: list[dict] = [
     {
         "id": "solar_sensor",
         "type": "action.devices.types.SENSOR",
-        "traits": ["action.devices.traits.SensorState"],
+        "traits": [
+            "action.devices.traits.SensorState",
+            "action.devices.traits.StatusReport",
+        ],
         "name": {
             "name": "Solar Production",
             "defaultNames": ["Solar Power", "PV Output"],
@@ -154,7 +157,10 @@ DEVICES: list[dict] = [
     {
         "id": "home_sensor",
         "type": "action.devices.types.SENSOR",
-        "traits": ["action.devices.traits.SensorState"],
+        "traits": [
+            "action.devices.traits.SensorState",
+            "action.devices.traits.StatusReport",
+        ],
         "name": {
             "name": "Home Consumption",
             "defaultNames": ["Home Power", "Load Power"],
@@ -172,27 +178,29 @@ DEVICES: list[dict] = [
     },
     {
         "id": "battery_sensor",
-        "type": "action.devices.types.SENSOR",
-        "traits": ["action.devices.traits.SensorState"],
+        "type": "action.devices.types.ENERGYSTORAGE",
+        "traits": [
+            "action.devices.traits.EnergyStorage",
+            "action.devices.traits.StatusReport",
+        ],
         "name": {
             "name": "Battery",
             "defaultNames": ["Battery SOC", "Battery Charge"],
         },
         "willReportState": False,
         "attributes": {
-            "sensorStatesSupported": [
-                {
-                    "name": "BatterySOC",
-                    "numericCapabilities": {"rawValueUnit": "PERCENTAGE"},
-                }
-            ]
+            "isRechargeable": True,
+            "queryOnlyEnergyStorage": True,
         },
         "deviceInfo": {"manufacturer": "GroWDash", "model": "Battery Sensor"},
     },
     {
         "id": "grid_import_sensor",
         "type": "action.devices.types.SENSOR",
-        "traits": ["action.devices.traits.SensorState"],
+        "traits": [
+            "action.devices.traits.SensorState",
+            "action.devices.traits.StatusReport",
+        ],
         "name": {
             "name": "Grid Import",
             "defaultNames": ["Grid Download", "Power from Grid"],
@@ -211,7 +219,10 @@ DEVICES: list[dict] = [
     {
         "id": "grid_export_sensor",
         "type": "action.devices.types.SENSOR",
-        "traits": ["action.devices.traits.SensorState"],
+        "traits": [
+            "action.devices.traits.SensorState",
+            "action.devices.traits.StatusReport",
+        ],
         "name": {
             "name": "Grid Export",
             "defaultNames": ["Grid Upload", "Power to Grid"],
@@ -233,13 +244,20 @@ DEVICES: list[dict] = [
 # Private helpers
 # ---------------------------------------------------------------------------
 
+def _format_watts(watts: float) -> str:
+    """Formats a wattage value into a human-readable string (Watts or kW)."""
+    if watts >= 1000:
+        return f"{watts / 1000:.1f} kW"
+    return f"{int(watts)} W"
+
+
 def _get_live_states() -> dict:
     """
     Fetch the latest inverter snapshot and map it to the Google Home
     device state format required by QUERY intent responses.
 
     Each entry is keyed by device ID and contains the fields Google expects:
-    ``status``, ``online``, and ``currentSensorStateData``.
+    ``status``, ``online``, and ``currentSensorStateData`` or ``energyStorageLevel``.
 
     Returns an empty dict if the Growatt API is unavailable, which causes
     the fulfillment handler to return ``status: OFFLINE`` for every device.
@@ -252,40 +270,59 @@ def _get_live_states() -> dict:
     if not data:
         return {}
 
+    solar_w       = data.get("ppv", 0)
+    home_w        = data.get("pacToLocalLoad", 0)
+    battery_soc   = data.get("bmsSoc", 0)
+    grid_import_w = data.get("pacToUserTotal", 0)
+    grid_export_w = data.get("pacToGridTotal", 0)
+
     return {
         "solar_sensor": {
             "status": "SUCCESS",
             "online": True,
             "currentSensorStateData": [
-                {"name": "SolarPower", "rawValue": data.get("ppv", 0)}
+                {"name": "SolarPower", "rawValue": solar_w}
+            ],
+            "currentStatusReport": [
+                {"name": "Production", "value": _format_watts(solar_w)}
             ],
         },
         "home_sensor": {
             "status": "SUCCESS",
             "online": True,
             "currentSensorStateData": [
-                {"name": "HomePower", "rawValue": data.get("pacToLocalLoad", 0)}
+                {"name": "HomePower", "rawValue": home_w}
+            ],
+            "currentStatusReport": [
+                {"name": "Consumption", "value": _format_watts(home_w)}
             ],
         },
         "battery_sensor": {
             "status": "SUCCESS",
             "online": True,
-            "currentSensorStateData": [
-                {"name": "BatterySOC", "rawValue": data.get("bmsSoc", 0)}
+            "energyStorageLevel": int(battery_soc),
+            "currentStatusReport": [
+                {"name": "Charge", "value": f"{int(battery_soc)}%"}
             ],
         },
         "grid_import_sensor": {
             "status": "SUCCESS",
             "online": True,
             "currentSensorStateData": [
-                {"name": "GridImport", "rawValue": data.get("pacToUserTotal", 0)}
+                {"name": "GridImport", "rawValue": grid_import_w}
+            ],
+            "currentStatusReport": [
+                {"name": "Import", "value": _format_watts(grid_import_w)}
             ],
         },
         "grid_export_sensor": {
             "status": "SUCCESS",
             "online": True,
             "currentSensorStateData": [
-                {"name": "GridExport", "rawValue": data.get("pacToGridTotal", 0)}
+                {"name": "GridExport", "rawValue": grid_export_w}
+            ],
+            "currentStatusReport": [
+                {"name": "Export", "value": _format_watts(grid_export_w)}
             ],
         },
     }
