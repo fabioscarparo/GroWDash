@@ -244,11 +244,24 @@ DEVICES: list[dict] = [
 # Private helpers
 # ---------------------------------------------------------------------------
 
-def _format_watts(watts: float) -> str:
+def _format_watts(watts) -> str:
     """Formats a wattage value into a human-readable string (Watts or kW)."""
-    if watts >= 1000:
-        return f"{watts / 1000:.1f} kW"
-    return f"{int(watts)} W"
+    try:
+        w = float(watts) if watts is not None else 0.0
+    except (ValueError, TypeError):
+        w = 0.0
+
+    if w >= 1000:
+        return f"{w / 1000:.1f} kW"
+    return f"{int(w)} W"
+
+
+def _safe_float(value) -> float:
+    """Safely converts a value to float, defaulting to 0.0 on error."""
+    try:
+        return float(value) if value is not None else 0.0
+    except (ValueError, TypeError):
+        return 0.0
 
 
 def _get_live_states() -> dict:
@@ -258,23 +271,16 @@ def _get_live_states() -> dict:
 
     Each entry is keyed by device ID and contains the fields Google expects:
     ``status``, ``online``, and ``currentSensorStateData`` or ``energyStorageLevel``.
-
-    Returns an empty dict if the Growatt API is unavailable, which causes
-    the fulfillment handler to return ``status: OFFLINE`` for every device.
-
-    Returns:
-        dict: Mapping of device ID → Google Home state object, or ``{}``
-              when no data is available.
     """
     data = get_energy_today()
     if not data:
         return {}
 
-    solar_w       = data.get("ppv", 0)
-    home_w        = data.get("pacToLocalLoad", 0)
-    battery_soc   = data.get("bmsSoc", 0)
-    grid_import_w = data.get("pacToUserTotal", 0)
-    grid_export_w = data.get("pacToGridTotal", 0)
+    solar_w       = _safe_float(data.get("ppv"))
+    home_w        = _safe_float(data.get("pacToLocalLoad"))
+    battery_soc   = _safe_float(data.get("bmsSoc"))
+    grid_import_w = _safe_float(data.get("pacToUserTotal"))
+    grid_export_w = _safe_float(data.get("pacToGridTotal"))
 
     return {
         "solar_sensor": {
