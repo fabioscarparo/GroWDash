@@ -295,7 +295,7 @@ export default function App() {
    *   2. The linking page must remain accessible to authenticated users
    *      only, so it lives after the isAuthenticated guard above.
    */
-  if (window.location.pathname === '/google-home-link') {
+  if (window.location.pathname.replace(/\/$/, '').endsWith('/google-home-link')) {
     return <GoogleHomeLinking />
   }
 
