@@ -278,22 +278,29 @@ export default function App() {
 
   /**
    * Login page — shown when no valid session cookie is present.
-   * Rendered without any layout chrome so it fills the full viewport.
+   *
+   * When the user arrives on /google-home-link without a session (e.g. the
+   * Google Home in-app browser has no GroWDash cookie), we pass the full
+   * current URL as returnUrl so LoginPage can redirect back to it after a
+   * successful login, preserving all OAuth query parameters.
    */
   if (!isAuthenticated) {
-    return <LoginPage />
+    const isGoogleHomeLink = window.location.pathname
+      .replace(/\/$/, '')
+      .endsWith('/google-home-link')
+    const returnUrl = isGoogleHomeLink
+      ? window.location.pathname + window.location.search
+      : null
+    return <LoginPage returnUrl={returnUrl} />
   }
 
   /**
    * Google Home linking page — rendered when Google redirects the user to
    * /google-home-link during the Smart Home account linking OAuth2 flow.
    *
-   * This route is intentionally handled here rather than inside the main
-   * layout for two reasons:
-   *   1. Google opens it inside an in-app browser where the sidebar and
-   *      bottom navigation would be confusing and waste screen space.
-   *   2. The linking page must remain accessible to authenticated users
-   *      only, so it lives after the isAuthenticated guard above.
+   * Placed AFTER the isAuthenticated guard: only a logged-in user can reach
+   * this point, ensuring no one else can use the Google Home linking flow
+   * to obtain an OAuth code for this account.
    */
   if (window.location.pathname.replace(/\/$/, '').endsWith('/google-home-link')) {
     return <GoogleHomeLinking />

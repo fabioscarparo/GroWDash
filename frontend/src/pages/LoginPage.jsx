@@ -14,7 +14,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Heart } from 'lucide-react'
 
 
-export default function LoginPage() {
+export default function LoginPage({ returnUrl = null }) {
   const { login, error, loading } = useAuth()
   const [username, setUsername] = useState(() => localStorage.getItem('last_username') || '')
   const [password, setPassword] = useState('')
@@ -28,9 +28,11 @@ export default function LoginPage() {
   async function handleSubmit(e) {
     e.preventDefault()
     const success = await login(username, password)
-    // If login failed, clear password but keep username
-    if (!success) {
-      console.log('Login failed, clearing password but keeping username:', username)
+    if (success && returnUrl) {
+      // Redirect back to the Google Home linking page (preserving OAuth params)
+      window.location.replace(returnUrl)
+    } else if (!success) {
+      // Login failed: clear password but keep username
       setPassword('')
     }
   }
