@@ -2,51 +2,41 @@
 Google Smart Home Action — OAuth2 + Fulfillment Router
 =======================================================
 
-SENSOR MAPPING RATIONALE
--------------------------
-Google Home's SensorState trait has a strict whitelist of (name, rawValueUnit)
-pairs. The following mappings are the only validated combinations for our data:
+SENSOR TYPE MAPPING (why Temperature/CELSIUS for power)
+---------------------------------------------------------
+Google's SensorState trait has a fixed whitelist of (name, rawValueUnit) pairs.
+There is no "WATT" or "KILOWATT" rawValueUnit. The standard workaround used by
+commercial solar integrations is to map power readings to Temperature/CELSIUS:
 
-  Power (W) → Temperature / CELSIUS
-    Convert watts to kilowatts before sending.
-    0–15 kW residential range maps to 0–15 °C, a valid temperature.
-    Google Home displays "X.X °" — users interpret this as kW.
-    This is the standard workaround used by commercial solar integrations
-    (SolarEdge, Fronius, Sungrow) because Google has no "WATT" rawValueUnit.
+  3.5 kW  →  rawValue: 3.5  →  displayed as "3.5 °" in the app
 
-  Battery SOC (%) → Humidity / PERCENTAGE
-    Humidity with PERCENTAGE is a fully supported numeric sensor (0–100).
-    Google Home displays "X %" correctly.
-    Do NOT use FilterLifeTime + PERCENTAGE — that combination is not in the
-    official schema and causes SYNC to silently drop or corrupt the device.
+Residential systems produce 0–15 kW, which maps to 0–15 °C — a physically
+plausible temperature range that Google accepts without validation errors.
 
-CRITICAL QUERY RESPONSE RULE
-------------------------------
-The "status" field belongs ONLY in EXECUTE command responses, NOT in QUERY
-device states. Including status: "SUCCESS" inside a QUERY device state causes
-Google to misparse the payload → sensors appear with no values.
-Device states for QUERY must contain only: online + currentSensorStateData.
+GOOGLE CLOUD CONSOLE CHECKLIST (do all of these or sensors will stay blank)
+-----------------------------------------------------------------------------
+1. Cloud Console → APIs & Services → Library → search "HomeGraph API" → ENABLE IT.
+   Without HomeGraph API, SYNC succeeds (devices appear) but QUERY requests are
+   silently dropped by Google. This is the #1 cause of "connected but no value."
 
-GOOGLE CLOUD CONSOLE CHECKLIST
---------------------------------
-1. Enable "HomeGraph API" in Cloud Console → APIs & Services → Library.
-   Without this, SYNC works but QUERY calls are silently dropped.
-
-2. Actions Console → Smart Home project:
+2. Actions Console (console.actions.google.com) → your project:
    - Fulfillment URL : https://<backend>/google-home/fulfillment
-   - Account linking → OAuth:
-       Authorization URL : https://<backend>/google-home/auth
-       Token URL         : https://<backend>/google-home/token
-       Client ID / Secret: must match GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET env vars
+   - Account linking → Authorization URL : https://<backend>/google-home/auth
+   - Account linking → Token URL         : https://<backend>/google-home/token
+   - Client ID / Secret: must match GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET env vars
 
-3. Backend .env must include:
+3. Backend .env must include all four vars:
      GOOGLE_CLIENT_ID=...
      GOOGLE_CLIENT_SECRET=...
      GOOGLE_PROJECT_ID=<actions-project-id>
-     FRONTEND_URL=https://<frontend>
+     FRONTEND_URL=https://<your-frontend>
 
-4. After deploying, unlink and relink the account in Google Home app to force
-   a fresh SYNC. Old entries with no values persist until re-synced.
+4. After any code change: unlink and relink the account in Google Home app to
+   force a fresh SYNC. Stale SYNC data can cause values to stay blank indefinitely.
+
+5. Use GET /google-home/debug (requires GroWDash session cookie) to verify that
+   the backend can reach the Growatt API and that values are non-zero before
+   testing in Google Home.
 """
 
 import hashlib
@@ -55,10 +45,10 @@ import os
 from datetime import timedelta
 
 import jwt
-from fastapi import APIRouter, Form, HTTPException, Request
+from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import RedirectResponse
 
-from auth import create_access_token
+from auth import create_access_token, get_current_user
 from services.growatt import get_energy_today
 
 logger = logging.getLogger(__name__)
@@ -149,8 +139,8 @@ DEVICES: list[dict] = [
         },
         "willReportState": False,
         "attributes": {
-            # Humidity/PERCENTAGE is the correct validated pair for 0-100 % numeric values.
-            # FilterLifeTime+PERCENTAGE is NOT a valid combination in the official schema.
+            # Humidity + PERCENTAGE is a valid Google schema combination for 0-100 % values.
+            # FilterLifeTime + PERCENTAGE is NOT officially supported and breaks QUERY.
             "sensorStatesSupported": [
                 {
                     "name": "Humidity",
@@ -229,70 +219,79 @@ def _safe_float(value) -> float:
 
 
 def _w_to_kw(watts: float) -> float:
-    """Convert watts to kilowatts (2 decimal places).
+    """Convert Watts to kW for Temperature/CELSIUS sensor mapping.
 
-    Residential systems: 0–15 kW → 0–15 °C, valid for Temperature/CELSIUS.
+    0–15 kW is a valid Celsius range that Google accepts without errors.
     """
     return round(watts / 1000.0, 2)
 
 
-def _get_live_states() -> dict:
-    """Return current inverter readings as Google Home QUERY device states.
+def _build_device_states() -> dict:
+    """Fetch live inverter data and build Google Home QUERY device state objects.
 
-    IMPORTANT: returned dicts must NOT contain "status". That field is only
-    valid inside EXECUTE command responses, not QUERY device states.
-    Including it in QUERY causes Google to parse the response incorrectly
-    and show no values in the Google Home app.
+    Each device state dict MUST include:
+      - "status": "SUCCESS"   ← required by Google; omitting it causes blank values
+      - "online": True
+      - the trait-specific state field (currentSensorStateData for SensorState)
+
+    Returns an empty dict only if the Growatt API is completely unreachable.
     """
     try:
         data = get_energy_today()
     except Exception as exc:
-        logger.warning("Growatt API unavailable for Google Home QUERY: %s", exc)
+        logger.error("Growatt API call failed inside Google Home QUERY: %s", exc)
         return {}
 
     if not data:
         logger.warning("Growatt API returned empty payload for Google Home QUERY")
         return {}
 
-    solar_kw = _w_to_kw(_safe_float(data.get("ppv")))
-    home_kw = _w_to_kw(_safe_float(data.get("pacToLocalLoad")))
-    battery_pct = round(_safe_float(data.get("bmsSoc")), 1)
+    solar_kw       = _w_to_kw(_safe_float(data.get("ppv")))
+    home_kw        = _w_to_kw(_safe_float(data.get("pacToLocalLoad")))
+    battery_pct    = round(_safe_float(data.get("bmsSoc")), 1)
     grid_import_kw = _w_to_kw(_safe_float(data.get("pacToUserTotal")))
     grid_export_kw = _w_to_kw(_safe_float(data.get("pacToGridTotal")))
 
-    logger.debug(
-        "Google Home QUERY — solar=%.2fkW home=%.2fkW bat=%.1f%% "
-        "grid_in=%.2fkW grid_out=%.2fkW",
+    logger.info(
+        "Google Home QUERY values — solar=%.2f kW, home=%.2f kW, "
+        "battery=%.1f%%, grid_import=%.2f kW, grid_export=%.2f kW",
         solar_kw, home_kw, battery_pct, grid_import_kw, grid_export_kw,
     )
 
+    # "status": "SUCCESS" is REQUIRED in every device state object for QUERY.
+    # Ref: developers.home.google.com/cloud-to-cloud/guides/sensor (official example)
     return {
         "solar_sensor": {
+            "status": "SUCCESS",
             "online": True,
             "currentSensorStateData": [
                 {"name": "Temperature", "rawValue": solar_kw}
             ],
         },
         "home_sensor": {
+            "status": "SUCCESS",
             "online": True,
             "currentSensorStateData": [
                 {"name": "Temperature", "rawValue": home_kw}
             ],
         },
         "battery_sensor": {
+            "status": "SUCCESS",
             "online": True,
-            # name must exactly match the declared sensorStatesSupported name.
+            # "name" must exactly match the declared sensorStatesSupported name.
             "currentSensorStateData": [
                 {"name": "Humidity", "rawValue": battery_pct}
             ],
         },
         "grid_import_sensor": {
+            "status": "SUCCESS",
             "online": True,
             "currentSensorStateData": [
                 {"name": "Temperature", "rawValue": grid_import_kw}
             ],
         },
         "grid_export_sensor": {
+            "status": "SUCCESS",
             "online": True,
             "currentSensorStateData": [
                 {"name": "Temperature", "rawValue": grid_export_kw}
@@ -302,7 +301,7 @@ def _get_live_states() -> dict:
 
 
 def _verify_google_token(token: str) -> str:
-    """Decode and verify a Bearer token, enforcing aud == 'google-home'."""
+    """Validate a Google Home Bearer token (aud == 'google-home')."""
     secret = os.getenv("JWT_SECRET_KEY")
     if not secret:
         raise HTTPException(status_code=500, detail="Server misconfigured: missing JWT_SECRET_KEY")
@@ -316,12 +315,43 @@ def _verify_google_token(token: str) -> str:
 
 
 # ---------------------------------------------------------------------------
+# Debug endpoint (protected by GroWDash session cookie)
+# ---------------------------------------------------------------------------
+
+@router.get("/debug", summary="Verify Google Home sensor values (requires session cookie)")
+def google_home_debug(current_user=Depends(get_current_user)):
+    """Returns the exact JSON that would be sent to Google Home on a QUERY request.
+
+    Use this endpoint from the browser (or curl with the session cookie) to
+    verify that:
+      1. The Growatt API is reachable from the backend
+      2. All sensor values are non-zero (non-zero values = inverter is active)
+      3. The response structure matches what Google expects
+
+    If this endpoint returns correct values but Google Home still shows blank,
+    the issue is almost certainly the HomeGraph API not being enabled in
+    Google Cloud Console.
+    """
+    states = _build_device_states()
+    if not states:
+        return {
+            "error": "Could not fetch data from Growatt API. Check backend logs.",
+            "devices": {},
+        }
+    return {
+        "note": "This is exactly what Google Home receives on a QUERY request.",
+        "device_count": len(DEVICES),
+        "devices": states,
+    }
+
+
+# ---------------------------------------------------------------------------
 # OAuth2 endpoints
 # ---------------------------------------------------------------------------
 
 @router.get("/auth")
 def oauth_authorize(client_id: str, redirect_uri: str, state: str):
-    """OAuth2 authorization entry point — validates params and redirects to the linking page."""
+    """OAuth2 authorization entry point — validates params and redirects to linking page."""
     if client_id != GOOGLE_CLIENT_ID:
         raise HTTPException(status_code=400, detail="Invalid client_id")
     if redirect_uri not in ALLOWED_REDIRECT_URIS:
@@ -415,7 +445,7 @@ async def oauth_token(
 
 @router.post("/fulfillment")
 async def fulfillment(request: Request):
-    """Google Smart Home fulfillment webhook — handles SYNC, QUERY, EXECUTE, DISCONNECT."""
+    """Google Smart Home fulfillment webhook — SYNC, QUERY, EXECUTE, DISCONNECT."""
     auth_header = request.headers.get("Authorization", "")
     if not auth_header.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Missing Bearer token")
@@ -430,10 +460,10 @@ async def fulfillment(request: Request):
         raise HTTPException(status_code=400, detail="Empty inputs array")
 
     intent = inputs[0].get("intent")
+    logger.info("Google Home intent=%s user=%s", intent, username)
 
     # SYNC — return device manifest
     if intent == "action.devices.SYNC":
-        logger.info("Google Home SYNC — user=%s devices=%d", username, len(DEVICES))
         return {
             "requestId": request_id,
             "payload": {
@@ -443,26 +473,27 @@ async def fulfillment(request: Request):
         }
 
     # QUERY — return current sensor values
-    # Device state dicts must NOT contain "status" (EXECUTE-only field).
+    # Each device object MUST include "status": "SUCCESS" or Google ignores the values.
     elif intent == "action.devices.QUERY":
         requested_ids = [
             d["id"] for d in inputs[0].get("payload", {}).get("devices", [])
         ]
-        states = _get_live_states()
+        states = _build_device_states()
 
         device_states = {}
         for dev_id in requested_ids:
             if dev_id in states:
                 device_states[dev_id] = states[dev_id]
             else:
-                device_states[dev_id] = {"online": False}
+                # Device not found or API unavailable.
+                device_states[dev_id] = {"status": "OFFLINE", "online": False}
 
         return {
             "requestId": request_id,
             "payload": {"devices": device_states},
         }
 
-    # EXECUTE — sensors are read-only
+    # EXECUTE — sensors are read-only, reject all commands
     elif intent == "action.devices.EXECUTE":
         return {
             "requestId": request_id,
@@ -473,9 +504,8 @@ async def fulfillment(request: Request):
             },
         }
 
-    # DISCONNECT — account unlinked
+    # DISCONNECT — account unlinked, tokens expire naturally
     elif intent == "action.devices.DISCONNECT":
-        logger.info("Google Home DISCONNECT — user=%s", username)
         return {"requestId": request_id}
 
     raise HTTPException(status_code=400, detail=f"Unknown intent: {intent}")
