@@ -155,7 +155,7 @@ const ANIM_DURATION = 400
  * @returns {JSX.Element}
  */
 export default function App() {
-  const { theme, setTheme } = useTheme()
+  const { theme, setTheme, setThemeAt } = useTheme()
   const { isAuthenticated, loading, user, logout } = useAuth()
 
   // ── Transition state ────────────────────────────────────────────────────
@@ -238,9 +238,14 @@ export default function App() {
    * Stable theme toggle callback passed to AppSidebar.
    * Cycles between light and dark; system mode is set from UserAccount only.
    */
-  const toggleTheme = useCallback(() => {
-    setTheme(prev => prev === 'dark' ? 'light' : 'dark')
-  }, [setTheme])
+  const toggleTheme = useCallback((e) => {
+    const next = theme === 'dark' ? 'light' : 'dark'
+    if (e?.clientX !== undefined) {
+      setThemeAt(next, e.clientX, e.clientY)
+    } else {
+      setTheme(next)
+    }
+  }, [theme, setTheme, setThemeAt])
 
   // ── Swipe navigation ─────────────────────────────────────────────────────
 

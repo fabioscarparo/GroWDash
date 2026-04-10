@@ -126,25 +126,6 @@
     @apply bg-background text-foreground;
   }
 
-  /*
-   * Smooth theme transition.
-   * When the .dark class is toggled on <html>, background, text and border
-   * colors transition gradually instead of snapping instantly.
-   * The transition on <html> covers the root background, while the wildcard
-   * rule covers all child elements.
-   */
-  html {
-    transition:
-      background-color 0.3s ease,
-      color 0.3s ease;
-  }
-
-  * {
-    transition:
-      background-color 0.3s ease,
-      border-color 0.3s ease,
-      color 0.3s ease;
-  }
 
   /*
    * Pull-to-refresh animations.
@@ -228,4 +209,78 @@
   .animate-slide-out-left  { animation-name: slide-out-left;  }
   .animate-slide-out-right { animation-name: slide-out-right; }
 
+}
+
+/* ─── View Transitions — SVG blur-mask theme ripple ─────────────────────────
+ *
+ * These rules MUST live outside @layer so the browser's UA ::view-transition
+ * pseudo-element specificity rules are respected.
+ *
+ * The new-theme snapshot grows in via an SVG mask with a Gaussian-blurred
+ * circle, producing a soft feathered halo at the edge of the ripple.
+ * The old-theme snapshot sits underneath with no animation (z-index: -1).
+ * ──────────────────────────────────────────────────────────────────────────── */
+
+/*
+ * Suppress ALL CSS transitions while a View Transition is running.
+ * We add this class via JS before calling startViewTransition so the browser
+ * captures a clean, fully-settled snapshot free from mid-transition colors.
+ * The class is removed once transition.finished resolves.
+ */
+.no-vt-transitions,
+.no-vt-transitions * {
+  transition: none !important;
+  animation: none !important;
+}
+
+::view-transition {
+  pointer-events: none;
+}
+
+/* Expo-out easing on the group — matches the demo site feel */
+::view-transition-group(root) {
+  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/*
+ * New snapshot: grows via an SVG mask with a Gaussian-blurred circle.
+ * mask-size starts at 0 (invisible) and animates to 200vmax (full coverage).
+ * The blur on the SVG circle produces the feathered soft edge.
+ */
+::view-transition-new(root) {
+  /* SVG circle centered at bottom-left (0, 40) of its coordinate system */
+  mask: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><defs><filter id="blur"><feGaussianBlur stdDeviation="2"/></filter></defs><circle cx="0" cy="40" r="38" fill="white" filter="url(%23blur)"/></svg>') left bottom / 0 no-repeat;
+  mask-origin: border-box;
+  animation: vt-mask-scale 1s;
+  animation-fill-mode: both;
+}
+
+/* Old snapshot: pinned behind with no animation */
+::view-transition-old(root),
+.dark::view-transition-old(root) {
+  animation: none;
+  animation-fill-mode: both;
+  z-index: -1;
+}
+
+/* Dark mode also uses the scale animation for the incoming snapshot */
+.dark::view-transition-new(root) {
+  animation: vt-mask-scale 1s;
+  animation-fill-mode: both;
+}
+
+@keyframes vt-mask-scale {
+  to {
+    mask-size: 200vmax;
+  }
+}
+
+/* Respect user's reduced-motion preference — skip the ripple entirely */
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(root),
+  ::view-transition-new(root),
+  .dark::view-transition-old(root),
+  .dark::view-transition-new(root) {
+    animation: none;
+  }
 }

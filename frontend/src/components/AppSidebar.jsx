@@ -73,7 +73,7 @@ export default function AppSidebar({ current, onChange, theme, onToggleTheme, us
         )}
         
         <SidebarMenuButton
-          onClick={onToggleTheme}
+          onClick={(e) => onToggleTheme(e)}
           tooltip={theme === 'dark' ? 'Light mode' : 'Dark mode'}
         >
           {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
