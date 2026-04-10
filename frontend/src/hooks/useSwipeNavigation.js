@@ -12,86 +12,99 @@
  * @module hooks/useSwipeNavigation
  */
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
-/** 
- * Absolute minimum horizontal pixels the user must travel to register a swipe.
- * Extrapolated from common user interaction bounds.
- * @constant {number}
- */
-const MIN_DISTANCE = 60
-
-/** 
- * Maximum allowable vertical drift in pixels before the swipe is dismissed as a scroll attempt.
- * @constant {number}
- */
-const MAX_VERTICAL = 80
+const MIN_DISTANCE = 50
+const MAX_VERTICAL = 60
 
 /**
- * A custom hook to listen for and execute callbacks upon verified horizontal touch gestures.
- *
- * @param {Object} props - Hook configuration block.
- * @param {Function} [props.onNext] - Callback executed upon a valid leftward swipe (indicates navigating forward/next).
- * @param {Function} [props.onPrev] - Callback executed upon a valid rightward swipe (indicates navigating backward/previous).
- * @param {boolean} [props.enabled=true] - A short-circuit flag to forcibly unbind listeners and pause detection.
+ * useSwipeNavigation hook.
+ * Adds real-time drag-to-follow tracking for horizontal page swipes.
+ * 
+ * @returns {{ isDragging: boolean, dragOffset: number }}
  */
 export function useSwipeNavigation({ onNext, onPrev, enabled = true }) {
+  const [dragOffset, setDragOffset] = useState(0)
+  const [isDragging, setIsDragging] = useState(false)
+  
   const startX = useRef(null)
   const startY = useRef(null)
+  const isHorizontalSwipe = useRef(false)
 
   useEffect(() => {
-    // Instantly abort binding processes if explicitly disabled
     if (!enabled) return
 
-    /**
-     * Touchstart boundary listener tracking origin X and Y coordinates.
-     * @param {TouchEvent} e - Native mobile touchstart event data payload.
-     */
     function onTouchStart(e) {
-      // Ignore swipe events originating inside charts, sliders, or explicit no-swipe elements
-      // so users can freely scroll tooltips or adjust values without triggering a page transition
       if (e.target.closest('.recharts-wrapper, [role="slider"], input[type="range"], .no-swipe')) {
         startX.current = null
-        startY.current = null
         return
       }
       startX.current = e.touches[0].clientX
       startY.current = e.touches[0].clientY
+      isHorizontalSwipe.current = false
+      setDragOffset(0)
     }
 
-    /**
-     * Touchend boundary listener parsing final coordinate delta relative to the origin point.
-     * Analyzes distance and direction to invoke the requested paging callback.
-     * @param {TouchEvent} e - Native mobile touchend event payload containing changedTouches array.
-     */
-    function onTouchEnd(e) {
-      // Guard clause to prevent processing orphan end events disjointed from known origin points
+    function onTouchMove(e) {
       if (startX.current === null) return
+
+      const dx = e.touches[0].clientX - startX.current
+      const dy = e.touches[0].clientY - startY.current
+
+      // First move decides direction: if horizontal delta > vertical, it's a swipe
+      if (!isHorizontalSwipe.current && Math.abs(dx) > 10) {
+        if (Math.abs(dx) > Math.abs(dy)) {
+          isHorizontalSwipe.current = true
+        } else {
+          startX.current = null // It's a vertical scroll, abort
+          return
+        }
+      }
+
+      if (isHorizontalSwipe.current) {
+        // Block native browser back/forward and overscroll gestures ONLY if the event is cancelable.
+        // If it's not (e.g. scroll already started), we shouldn't attempt to block it to avoid warnings.
+        if (e.cancelable) e.preventDefault()
+        
+        setDragOffset(dx)
+        setIsDragging(true)
+        // Set CSS variable for the animation engine to use as starting point
+        document.documentElement.style.setProperty('--swipe-dx', `${dx}px`)
+      }
+    }
+
+    function onTouchEnd(e) {
+      if (startX.current === null || !isHorizontalSwipe.current) {
+        startX.current = null
+        return
+      }
 
       const dx = e.changedTouches[0].clientX - startX.current
       const dy = Math.abs(e.changedTouches[0].clientY - startY.current)
 
-      // Wipe originating coordinates regardless of the event's outcome status
       startX.current = null
-      startY.current = null
+      setIsDragging(false)
 
-      // Reject the operation outright if structural user movement indicates a vertical scroll rather than a swipe
-      if (dy > MAX_VERTICAL) return
-      // Reject the operation if sweeping energy did not exceed designated horizontal force requirements
-      if (Math.abs(dx) < MIN_DISTANCE) return
-
-      // Determine vector direction and execute relevant functional callback securely 
-      if (dx < 0) onNext?.()  // swipe dragging left → next page
-      else        onPrev?.()  // swipe dragging right → prev page
+      if (dy < MAX_VERTICAL && Math.abs(dx) > MIN_DISTANCE) {
+        if (dx < 0) onNext?.()
+        else onPrev?.()
+      } else {
+        // Did not cross threshold: reset CSS var so it snaps back normally
+        document.documentElement.style.removeProperty('--swipe-dx')
+        setDragOffset(0)
+      }
     }
 
-    // Passive true optimizations allow frictionless native scroll rendering
     window.addEventListener('touchstart', onTouchStart, { passive: true })
-    window.addEventListener('touchend', onTouchEnd, { passive: true })
+    window.addEventListener('touchmove',  onTouchMove,  { passive: false })
+    window.addEventListener('touchend',   onTouchEnd)
 
     return () => {
       window.removeEventListener('touchstart', onTouchStart)
-      window.removeEventListener('touchend', onTouchEnd)
+      window.removeEventListener('touchmove',  onTouchMove)
+      window.removeEventListener('touchend',   onTouchEnd)
     }
   }, [onNext, onPrev, enabled])
+
+  return { isDragging, dragOffset }
 }

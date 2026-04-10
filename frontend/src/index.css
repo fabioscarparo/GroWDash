@@ -166,33 +166,31 @@
    * Desktop (md+): Disabled — navigation is immediate.
    */
   @keyframes slide-in-left {
-    from { transform: translateX(100%);  }
-    to   { transform: translateX(0);     }
+    from { transform: translateX(calc(100% + var(--swipe-dx, 0px))); }
+    to   { transform: translateX(0); }
   }
-
   @keyframes slide-in-right {
-    from { transform: translateX(-100%); }
-    to   { transform: translateX(0);     }
+    from { transform: translateX(calc(-100% + var(--swipe-dx, 0px))); }
+    to   { transform: translateX(0); }
   }
-
   @keyframes slide-out-left {
-    from { transform: translateX(0);     }
+    from { transform: translateX(var(--swipe-dx, 0px)); }
     to   { transform: translateX(-100%); }
   }
-
   @keyframes slide-out-right {
-    from { transform: translateX(0);    }
+    from { transform: translateX(var(--swipe-dx, 0px)); }
     to   { transform: translateX(100%); }
   }
 
-  /* Transition timings — standard fluid curves for mobile, none for desktop */
+  /* Simple side-by-side transition timing */
   .animate-slide-in-left,
   .animate-slide-in-right,
   .animate-slide-out-left,
   .animate-slide-out-right {
-    animation-duration: 400ms;
-    animation-timing-function: cubic-bezier(0.33, 1, 0.68, 1); /* Quintic ease-out */
-    animation-fill-mode: forwards;
+    animation-duration: 300ms;
+    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    animation-fill-mode: both;
+    will-change: transform;
   }
 
   @media (min-width: 768px) {

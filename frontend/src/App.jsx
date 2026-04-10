@@ -134,7 +134,7 @@ const PAGES = {
  * transition effect uses this value to unmount the outgoing page only after
  * the CSS animation has fully completed.
  */
-const ANIM_DURATION = 400
+const ANIM_DURATION = 300
 
 
 // ---------------------------------------------------------------------------
@@ -226,6 +226,8 @@ export default function App() {
       setPrevious(null)
       setDir(null)
       setAnimating(false)
+      // Clean up the gesture variable once the animation is finished
+      document.documentElement.style.removeProperty('--swipe-dx')
     }, ANIM_DURATION)
     return () => clearTimeout(t)
   }, [animating])
@@ -249,13 +251,8 @@ export default function App() {
   }, [theme, setTheme, setThemeAt])
 
   // ── Swipe navigation ─────────────────────────────────────────────────────
-
-  /**
-   * Register horizontal swipe gesture listeners.
-   * Swiping left advances to the next page; swiping right goes back.
-   * Both directions are clamped to the PAGE_ORDER boundaries.
-   */
-  useSwipeNavigation({
+  
+  const { isDragging, dragOffset } = useSwipeNavigation({
     onNext: () => {
       if (currentIdx < PAGE_ORDER.length - 1)
         navigate(PAGE_ORDER[currentIdx + 1])
@@ -343,25 +340,21 @@ export default function App() {
            * positioned outgoing page is contained within this element and
            * does not affect the document flow of the incoming page.
            */}
-          <main className="flex-1 pb-16 md:pb-0 relative overflow-hidden">
-
+          <main className="flex-1 pb-16 md:pb-0 relative overflow-hidden touch-action-pan-y" style={{ touchAction: 'pan-y' }}>
             {/*
-             * Outgoing page — present in the DOM only during a transition.
-             *
-             * Absolutely positioned so it overlaps the incoming page without
-             * displacing it.  Exits left or right on mobile; the md: prefix
-             * on the animation class overrides to an instant disappearance
-             * on desktop where slide animations are disabled.
-             *
-             * The "prev-" key prefix prevents React from reusing the same
-             * DOM node when navigating back to a page that was recently the
-             * outgoing element.
+             * Visual Layering during Gestures/Transitions:
+             * 
+             * 1. Outgoing page (previous): Shown during ANIMATION (absolute).
+             * 2. Neighbor page: Shown during ACTIVE DRAG (absolute, reveals from the side).
+             * 3. Current page: The main visible page (relative/absolute depending on state).
              */}
+
+            {/* 1. OUTGOING (Animation Phase) */}
             {previous && (
               <div
                 key={`prev-${previous}`}
                 className={[
-                  'absolute inset-0',
+                  'absolute inset-0 z-10',
                   dir === 'left' ? 'animate-slide-out-left' : 'animate-slide-out-right',
                   'md:animate-fade-out',
                 ].join(' ')}
@@ -370,19 +363,34 @@ export default function App() {
               </div>
             )}
 
-            {/*
-             * Incoming page — slides in on mobile, appears instantly on desktop.
-             *
-             * No animation class is applied outside of a transition (animating
-             * === false) to avoid replaying the entrance animation on unrelated
-             * re-renders such as theme changes or data refetches.
-             */}
+            {/* 2. NEIGHBOR (Active Drag Phase) */}
+            {isDragging && dragOffset !== 0 && (
+              <div
+                className="absolute inset-0 z-10"
+                style={{ 
+                  transform: `translateX(calc(${dragOffset}px + ${dragOffset < 0 ? '100%' : '-100%'}))`,
+                  // No transition here: follow the finger exactly
+                }}
+              >
+                {/* 
+                  Calculate which page is being revealed based on drag direction.
+                  PAGE_ORDER indexing is zero-clamped.
+                */}
+                {PAGES[PAGE_ORDER[Math.max(0, Math.min(PAGE_ORDER.length - 1, currentIdx + (dragOffset < 0 ? 1 : -1)))]]}
+              </div>
+            )}
+
+            {/* 3. CURRENT (Main State) */}
             <div
               key={current}
-              className={animating ? [
-                dir === 'left' ? 'animate-slide-in-left' : 'animate-slide-in-right',
-                'md:animate-fade-in',
-              ].join(' ') : ''}
+              className={[
+                'relative flex-1 min-h-full',
+                (animating || isDragging) ? 'absolute inset-0' : '',
+                animating ? (dir === 'left' ? 'animate-slide-in-left' : 'animate-slide-in-right') : '',
+                animating ? 'md:animate-fade-in' : '',
+                (animating || isDragging) ? 'z-20' : 'z-0',
+              ].join(' ')}
+              style={isDragging ? { transform: `translateX(${dragOffset}px)` } : {}}
             >
               {PAGES[current]}
             </div>
