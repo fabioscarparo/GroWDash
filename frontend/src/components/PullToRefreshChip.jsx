@@ -1,5 +1,4 @@
-import { useState, useCallback } from 'react'
-import { useQueryClient } from '@tanstack/react-query'
+import { useRefresh } from '../context/RefreshContext'
 import { RefreshCw } from 'lucide-react'
 import { usePullToRefresh } from '../hooks/usePullToRefresh'
 
@@ -8,17 +7,9 @@ import { usePullToRefresh } from '../hooks/usePullToRefresh'
  * It manages both the gesture logic and the visual spinner.
  */
 export default function PullToRefreshChip() {
-  const queryClient = useQueryClient()
-  const [isRefreshing, setIsRefreshing] = useState(false)
+  const { refresh, isRefreshing } = useRefresh()
 
-  const handleRefresh = useCallback(async () => {
-    setIsRefreshing(true)
-    // Invalidates all queries in the cache to force a global data reload
-    await queryClient.invalidateQueries()
-    setIsRefreshing(false)
-  }, [queryClient])
-
-  const { pulling, pullDistance, progress } = usePullToRefresh(handleRefresh)
+  const { pulling, pullDistance, progress } = usePullToRefresh(refresh)
 
   // Determine visibility states to fix the "shadow always visible" issue
   const isVisible = pulling || isRefreshing || progress > 0

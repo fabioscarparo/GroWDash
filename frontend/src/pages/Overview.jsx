@@ -17,6 +17,7 @@
 import { useCallback, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useOverview, useToday, usePlantInfo, useDeviceList } from '../hooks/useGrowatt'
+import { useRefresh } from '../context/RefreshContext'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import BatteryCard from '../components/BatteryCard'
@@ -111,24 +112,8 @@ export default function Overview() {
   const isOnline = inverter?.is_online ?? false
   const serialNumber = inverter?.serial_number
 
-  // ── Pull-to-refresh ───────────────────────────────────────────────────────
-
-  const queryClient = useQueryClient()
-  const [lastUpdate, setLastUpdate] = useState(() => {
-    const d = new Date()
-    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
-  })
-
-  /**
-   * Callback fired sequentially when the user completes a valid pull-to-refresh action.
-   * It triggers a hard invalidation array targeting the "energy" cache key for TanStack query,
-   * forcing all widgets to synchronize and fetch new data bounds.
-   */
-  const handleRefresh = useCallback(async () => {
-    await queryClient.invalidateQueries({ queryKey: ['energy'] })
-    const d = new Date()
-    setLastUpdate(`${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`)
-  }, [queryClient])
+  // ── Pull-to-refresh (managed globally) ───────────────────────────────────
+  const { lastUpdate } = useRefresh()
 
   return (
     <div className="bg-background min-h-dvh">

@@ -84,7 +84,8 @@ import { TooltipProvider } from '@/components/ui/tooltip'
 import AppSidebar from './components/AppSidebar'
 import BottomNav from './components/BottomNav'
 import PullToRefreshChip from './components/PullToRefreshChip'
-import { useAuth } from './context/AuthContext'
+import { AuthProvider, useAuth } from './context/AuthContext'
+import { RefreshProvider } from './context/RefreshContext'
 import { useSwipeNavigation } from './hooks/useSwipeNavigation'
 import { useTheme } from './hooks/useTheme'
 import Device from './pages/Device'
@@ -315,7 +316,8 @@ export default function App() {
 
   return (
     <TooltipProvider>
-      <SidebarProvider>
+      <RefreshProvider>
+        <SidebarProvider>
         <div className="min-h-dvh bg-background flex w-full">
 
           {/* Pull-to-refresh chip — floats above all content on mobile */}
@@ -394,6 +396,7 @@ export default function App() {
 
         </div>
       </SidebarProvider>
-    </TooltipProvider>
-  )
+    </RefreshProvider>
+  </TooltipProvider>
+)
 }
