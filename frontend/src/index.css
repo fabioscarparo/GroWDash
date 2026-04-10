@@ -227,10 +227,17 @@
  * captures a clean, fully-settled snapshot free from mid-transition colors.
  * The class is removed once transition.finished resolves.
  */
+/*
+ * Suppress color transitions while a View Transition is running.
+ * We only want to stop the "fading" of background and text colors so the
+ * browser captures a clean, final state for the snapshot.
+ * We do NOT stop keyframe animations (like power flow particles) to avoid
+ * breaking their state or causing jumps.
+ */
 .no-vt-transitions,
 .no-vt-transitions * {
-  transition: none !important;
-  animation: none !important;
+  transition-property: color, background-color, border-color, text-decoration-color, fill, stroke !important;
+  transition-duration: 0s !important;
 }
 
 ::view-transition {
