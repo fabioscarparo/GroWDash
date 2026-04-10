@@ -20,6 +20,16 @@ const NAV_ITEMS = [
   { id: 'account',  label: 'Account',  icon: User       },
 ]
 
+/**
+ * BottomNav component provides a mobile-optimized fixed navigation bar at the bottom of the screen.
+ * It strictly honors iOS and Android safe-area-inset boundaries to prevent clipping.
+ *
+ * @component
+ * @param {object} props - Component properties.
+ * @param {string} props.current - The ID string representing the currently active page.
+ * @param {function(string): void} props.onChange - Handler invoked when a navigation tab is tapped. Receives the page ID.
+ * @returns {JSX.Element} A fixed bottom navigation `<nav>` element.
+ */
 export default function BottomNav({ current, onChange }) {
   return (
     <nav

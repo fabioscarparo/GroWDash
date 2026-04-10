@@ -51,10 +51,12 @@ const chartConfig = Object.fromEntries(
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 /**
- * Returns the first and last day of the given month as YYYY-MM-DD strings.
- * @param {number} year
- * @param {number} month - 0-indexed (0 = January)
- * @returns {{ start: string, end: string }}
+ * Calculates the exact start and end dates for a specific calendar month.
+ *
+ * @function monthRange
+ * @param {number} year - The absolute 4-digit calendar year.
+ * @param {number} month - The 0-indexed calendar month (0 = January, 11 = December).
+ * @returns {{ start: string, end: string }} An object containing boundary dates formatted as standard "YYYY-MM-DD" local time strings.
  */
 function monthRange(year, month) {
   const start = new Date(year, month, 1)
@@ -64,19 +66,25 @@ function monthRange(year, month) {
 }
 
 /**
- * Formats a Date object as a YYYY-MM-DD string using local time.
- * @param {Date} d
- * @returns {string}
+ * Utility function to universally format a JavaScript Date object into a 
+ * "YYYY-MM-DD" formatted string aligned strictly to local timezone constraints.
+ *
+ * @function fmt
+ * @param {Date} d - Valid instantiated JavaScript Date object.
+ * @returns {string} The localized short-date formatted string.
  */
 function fmt(d) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
 /**
- * Returns the day-of-month number from a YYYY-MM-DD string.
- * Uses T12:00:00 to avoid DST-related off-by-one issues.
- * @param {string} dateStr
- * @returns {string}
+ * Extracts and formats the numeric 'day of the month' to serve as a compact X-axis label.
+ * Utilizing T12:00:00 as an anchor prevents cross-timezone phase shifts or Daylight Saving Time offsets 
+ * from erroneously slipping the date calculation to the previous absolute day across environments.
+ *
+ * @function dayLabel
+ * @param {string} dateStr - Exact valid "YYYY-MM-DD" target date string.
+ * @returns {string} The derived 1-to-2 character representation of the day of the month (e.g., "1" to "31").
  */
 function dayLabel(dateStr) {
   return String(new Date(dateStr + 'T12:00:00').getDate())
@@ -84,17 +92,45 @@ function dayLabel(dateStr) {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
+/**
+ * EnergyBreakdownChart component provides an interactive daily-resolution bar chart 
+ * covering a full calendar month. It visually clusters disparate daily energy flows 
+ * side-by-side using Recharts grouped Bar functionality.
+ *
+ * It seamlessly integrates background React Query prefetching logic tailored for temporal boundaries 
+ * (prior month/next month) ensuring instantaneous UI resolution during month-to-month swiping or clicking.
+ * Additionally, it computes an 'Home Effective' sum correcting raw metric drift.
+ *
+ * @component
+ * @returns {JSX.Element} A fully-featured charting container encapsulating period pickers and graph logic.
+ */
 export default function EnergyBreakdownChart() {
+  /** 
+   * Tracks the anchor reference date dictating which month's data the component currently resolves.
+   * @type {[Date, function(Date): void]}
+   */
   const [refDate, setRefDate] = useState(new Date())
   
+  /** 
+   * Fetches persistent immutable plant metadata (e.g. initial installation date) from context.
+   * Leveraged explicitly to clamp history period picking so users cannot traverse to non-existent temporal bounds.
+   */
   const { data: plantInfo } = usePlantInfo()
   const minDate = plantInfo?.plant_installation_date ? new Date(plantInfo.plant_installation_date) : null
 
-  // All series visible by default
+  /** 
+   * Actively maps visual configuration to toggle visibility states for chart flow groupings.
+   * @type {[Object.<string, boolean>, function]}
+   */
   const [activeSeries, setActiveSeries] = useState(
     () => Object.fromEntries(SERIES.map(s => [s.key, true]))
   )
 
+  /**
+   * Safe toggler mutating visibility tracking objects cleanly.
+   * @function toggleSeries
+   * @param {string} key - Enumerated static configuration key denoting the energy graph series.
+   */
   function toggleSeries(key) {
     setActiveSeries(prev => ({ ...prev, [key]: !prev[key] }))
   }

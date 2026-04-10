@@ -28,6 +28,13 @@ const DIRECTIONS = [
   { label: 'NW', deg: 315 },
 ]
 
+/**
+ * Arbitrates numerical degree measurements mapping them natively into localized directional abbreviations (N/S/E/W).
+ *
+ * @function azimuthLabel
+ * @param {number} deg - Absolute compass degree scalar bounding index.
+ * @returns {string} Truncated directional string parameter.
+ */
 function azimuthLabel(deg) {
   return DIRECTIONS.find(d => d.deg === deg)?.label ?? `${deg}°`
 }
@@ -39,7 +46,11 @@ function azimuthLabel(deg) {
  * 8 clickable direction points (N, NE, E, SE, S, SW, W, NW).
  * The selected direction is highlighted in amber.
  *
- * @param {{ value: number, onChange: (deg: number) => void }} props
+ * @component CompassPicker
+ * @param {object} props
+ * @param {number} props.value - Reflected azimuth degree index state mapped tightly.
+ * @param {function(number): void} props.onChange - Mutation invocation altering upper state blocks actively.
+ * @returns {JSX.Element} Interactive DOM interface capturing panel alignments graphically.
  */
 function CompassPicker({ value, onChange }) {
   const SIZE = 240
@@ -157,6 +168,15 @@ function CompassPicker({ value, onChange }) {
 
 /**
  * Styled range input consistent with shadcn theming.
+ * 
+ * @component SettingSlider
+ * @param {object} props
+ * @param {number} props.min - Baseline numerical slider boundary offset limit.
+ * @param {number} props.max - Uppermost maximum numerical scope threshold.
+ * @param {number} props.step - Distinct incremental segmentation mapping distance value.
+ * @param {number} props.value - Unidirectional state block reflecting track position scaling.
+ * @param {function(number): void} props.onChange - Extraneous handler updating native system contexts dynamically.
+ * @returns {JSX.Element} Functional themed slider implementation interface logic visually harmonized.
  */
 function SettingSlider({ min, max, step, value, onChange }) {
   return (
@@ -182,6 +202,13 @@ function SettingSlider({ min, max, step, value, onChange }) {
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
+/**
+ * Root account configuration UI dashboard framing preferences scaling User models cleanly.
+ * Dispatches mutations adjusting generic App behavior parameters locally (Theme modes, Solar modeling alignments).
+ *
+ * @component
+ * @returns {JSX.Element} Extrusion of interactive control panel groups dynamically.
+ */
 export default function UserAccount() {
   const { user, logout }             = useAuth()
   const { theme, setTheme }          = useTheme()

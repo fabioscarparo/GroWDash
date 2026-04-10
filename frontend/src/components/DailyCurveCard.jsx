@@ -33,25 +33,63 @@ const chartConfig = Object.fromEntries(
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
+/**
+ * Local helper to get today's date formatted as YYYY-MM-DD.
+ * 
+ * @function localToday
+ * @returns {string} The formatted date string based on local system time.
+ */
 function localToday() {
   const d = new Date()
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
+/**
+ * Extracts and formats the HH:MM time portion from a full ISO 8601 date-time string.
+ *
+ * @function timeLabel
+ * @param {string} timeStr - Full timestamp string (e.g., "2026-03-24T14:30:00").
+ * @returns {string} The substring representing the time "HH:MM", or an empty string if undefined.
+ */
 function timeLabel(timeStr) {
   return timeStr?.slice(11, 16) ?? ''
 }
 
 // ── Component ──────────────────────────────────────────────────────────────────
 
+/**
+ * DailyCurveCard component constructs an interactive area chart visualizing real-time power flows
+ * across the solar, battery, grid, and home loads for the current day.
+ * Includes interactive series toggles integrated dynamically beneath the chart container.
+ *
+ * @component
+ * @returns {JSX.Element} An advanced chart card rendering multiple energy series via the Recharts library.
+ */
 export default function DailyCurveCard() {
   const today = localToday()
+  
+  /** 
+   * Fetches 5-minute interval historical data for today.
+   * @see useHistory
+   */
   const { data: history, isLoading } = useHistory(today, today)
 
+  /** 
+   * Active state dictating the visibility of each specific energy series line in the chart.
+   * State is initialized where all series are set to `true` (visible).
+   * 
+   * @type {[Object.<string, boolean>, function(Object.<string, boolean>): void]}
+   */
   const [active, setActive] = useState(
     () => Object.fromEntries(SERIES.map(s => [s.key, true]))
   )
 
+  /**
+   * Toggles the active/visible state of a specific data series in the graph.
+   * 
+   * @function toggle
+   * @param {string} key - The unique identifier key of the series to toggle (e.g., 'solar_w').
+   */
   function toggle(key) {
     setActive(prev => ({ ...prev, [key]: !prev[key] }))
   }

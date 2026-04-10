@@ -1,16 +1,19 @@
 /**
  * SeriesToggle.jsx — Toggle button for chart series visibility.
  *
- * Wraps the shadcn Toggle component with a colored dot indicator.
- * Used in DailyCurveCard to show/hide individual chart lines.
+ * SeriesToggle provides an aesthetically styled, interactive boolean toggle button designed inherently 
+ * for chart visibility mapping. It embeds Shadcn configurations bound securely with inline style mutation 
+ * overriding generic tokens for user-specified hex code colors, dynamically presenting an active dot marker 
+ * indicating chart metric persistence.
  *
- * @param {object} props
- * @param {string} props.label - Series label (e.g. "Solar")
- * @param {string} props.color - Series color as hex (e.g. "#f59e0b")
- * @param {boolean} props.active - Whether the series is currently visible
- * @param {function} props.onClick - Called when the toggle is clicked
+ * @component
+ * @param {object} props - The component parameters.
+ * @param {string} props.label - Human-readable label designating the correlated dataset.
+ * @param {string} props.color - Valid hex code directly injecting visual highlighting bounds.
+ * @param {boolean} props.active - The binary React state tracking node visibility inside the parent mapping context.
+ * @param {function} props.onClick - Execution callback triggering parent series mutation handler logic.
+ * @returns {JSX.Element} Configured Shadcn Toggle representation matching active styles dynamically.
  */
-
 import { Toggle } from '@/components/ui/toggle'
 
 export default function SeriesToggle({ label, color, active, onClick }) {

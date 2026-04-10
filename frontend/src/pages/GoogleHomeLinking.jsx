@@ -62,6 +62,9 @@ const SHARED_CAPABILITIES = [
  * Displayed when the user navigates to this page without an active GroWDash
  * session. The backend would reject the code request anyway, but we surface
  * a clear message rather than letting the fetch silently fail.
+ *
+ * @component NotAuthenticated
+ * @returns {JSX.Element} Warning view requiring login action.
  */
 function NotAuthenticated() {
     return (
@@ -95,6 +98,7 @@ function NotAuthenticated() {
  * upon user confirmation, fetches a short-lived authorization code from the
  * GroWDash backend and redirects back to Google to complete the handshake.
  *
+ * @component
  * @returns {JSX.Element}
  */
 export default function GoogleHomeLinking() {
@@ -126,6 +130,9 @@ export default function GoogleHomeLinking() {
      * The backend endpoint requires an active GroWDash session cookie and
      * returns a signed JWT with a 5-minute TTL and a purpose claim that
      * prevents the code from being used as a regular session token.
+     *
+     * @function handleAuthorize
+     * @async
      */
     async function handleAuthorize() {
         if (!paramsValid) return

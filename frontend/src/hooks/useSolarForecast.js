@@ -16,6 +16,7 @@ import { api } from '../api/growatt'
 /**
  * React Query hook that returns today's hourly GTI forecast.
  *
+ * @function useSolarForecast
  * @param {{ tilt: number, azimuth: number }} params
  * @returns {import('@tanstack/react-query').UseQueryResult}
  */

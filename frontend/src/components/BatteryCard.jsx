@@ -14,9 +14,15 @@ import { Badge } from '@/components/ui/badge'
 import { BatteryCharging } from 'lucide-react'
 
 /**
- * Returns the color of the SOC bar based on the charge level.
- * @param {number} soc - State of charge (0-100)
- * @returns {string} Tailwind background color class
+ * Resolves the CSS background color class for the State of Charge (SOC) progress bar.
+ * The color visually indicates the health or capacity level of the battery.
+ *
+ * @function getSocColor
+ * @param {number} soc - The current state of charge percentage of the battery (range: 0-100).
+ * @returns {string} The corresponding Tailwind CSS background color class:
+ *   - 'bg-green-500' if SOC >= 60
+ *   - 'bg-amber-500' if SOC >= 30 and < 60
+ *   - 'bg-red-500' if SOC < 30
  */
 function getSocColor(soc) {
   if (soc >= 60) return 'bg-green-500'
@@ -25,14 +31,15 @@ function getSocColor(soc) {
 }
 
 /**
- * Returns the battery status label and badge color.
- * Charging → red badge (energy flowing into battery)
- * Discharging → green badge (energy flowing out to home)
- * Idle → default badge
+ * Determines the readable status label and corresponding CSS class for the battery state badge.
+ * Evaluates whether the battery is actively charging, discharging, or idle.
  *
- * @param {number} chargeW - Current charge power (W)
- * @param {number} dischargeW - Current discharge power (W)
- * @returns {{ label: string, className: string }}
+ * @function getBatteryStatus
+ * @param {number} chargeW - The current charging power flowing into the battery, in Watts.
+ * @param {number} dischargeW - The current discharging power flowing out of the battery, in Watts.
+ * @returns {{ label: string, className: string }} An object containing:
+ *   - `label`: The text to display in the badge ('Charging', 'Discharging', or 'Idle').
+ *   - `className`: The Tailwind CSS class string configuring the badge's background and text color.
  */
 function getBatteryStatus(chargeW, dischargeW) {
   if (chargeW > 0) return {
@@ -50,14 +57,18 @@ function getBatteryStatus(chargeW, dischargeW) {
 }
 
 /**
- * BatteryCard component.
+ * BatteryCard component displays the live status of the battery storage system.
+ * It presents the State of Charge (SOC) as a numeric percentage and progress bar,
+ * current power flow (charging vs discharging), and total energy accumulated today.
  *
- * @param {object} props
- * @param {number} props.socPct - Battery state of charge (0-100)
- * @param {number} props.chargeW - Current charge power in Watts
- * @param {number} props.dischargeW - Current discharge power in Watts
- * @param {number} props.chargedTodayKwh - Energy charged today in kWh
- * @param {number} props.dischargedTodayKwh - Energy discharged today in kWh
+ * @component
+ * @param {object} props - The component properties.
+ * @param {number} [props.socPct=0] - Current battery state of charge (range: 0-100).
+ * @param {number} [props.chargeW=0] - Current real-time battery charging power in Watts.
+ * @param {number} [props.dischargeW=0] - Current real-time battery discharging power in Watts.
+ * @param {number} [props.chargedTodayKwh=0] - Total energy charged into the battery today in kWh.
+ * @param {number} [props.dischargedTodayKwh=0] - Total energy discharged from the battery today in kWh.
+ * @returns {JSX.Element} A rendered dashboard card detailing battery metrics.
  */
 export default function BatteryCard({
   socPct = 0,

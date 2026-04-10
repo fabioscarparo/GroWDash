@@ -23,6 +23,7 @@ const REFRESH_INTERVAL = 5 * 60 * 1000
 /**
  * Hook to retrieve general static information about the PV plant.
  *
+ * @function usePlantInfo
  * @returns {import('@tanstack/react-query').UseQueryResult} TanStack Query result object containing plant metadata (name, geolocation, capacity).
  */
 export function usePlantInfo() {
@@ -37,6 +38,7 @@ export function usePlantInfo() {
  * Hook to retrieve high-level cumulative KPIs (Key Performance Indicators) for the entire plant.
  * Useful for displaying today's energy totals, monthly/yearly generated values, and CO2 offset.
  *
+ * @function useOverview
  * @returns {import('@tanstack/react-query').UseQueryResult} TanStack Query result containing the energy overview metrics.
  */
 export function useOverview() {
@@ -51,6 +53,7 @@ export function useOverview() {
  * Hook to retrieve real-time telemetry and today's accumulated energy status.
  * This includes live power flow (solar, home, battery, grid) and battery state of charge (SOC).
  *
+ * @function useToday
  * @returns {import('@tanstack/react-query').UseQueryResult} TanStack Query result detailing today's live energy vectors.
  */
 export function useToday() {
@@ -65,6 +68,7 @@ export function useToday() {
  * Hook to retrieve the 5-minute snapshot history of generated power curves over a date span.
  * If the requested span includes "today", the query will automatically enable 5-minute background polling.
  *
+ * @function useHistory
  * @param {string} startDate - The start date string in 'YYYY-MM-DD' format.
  * @param {string} endDate - The end date string in 'YYYY-MM-DD' format.
  * @returns {import('@tanstack/react-query').UseQueryResult} TanStack Query result containing the timeline plot points.
@@ -86,6 +90,7 @@ export function useHistory(startDate, endDate) {
  * Hook to retrieve historical energy generation grouped into aggregated time buckets (per day, per month, or per year).
  * Note: This endpoint tracks strictly solar generation volumes, not net export or consumption.
  *
+ * @function useAggregate
  * @param {string} startDate - The start boundary date in 'YYYY-MM-DD' format.
  * @param {string} endDate - The end boundary date in 'YYYY-MM-DD' format.
  * @param {number} timeUnit - The grouping granularity (1=day, 2=month, 3=year).
@@ -106,6 +111,7 @@ export function useAggregate(startDate, endDate, timeUnit) {
  * It is reconstructed manually from snapshots by the backend, thus `placeholderData` is kept
  * to prevent jarring UI state changes during large multi-day chart navigations.
  *
+ * @function useDailyBreakdown
  * @param {string} startDate - The start date in 'YYYY-MM-DD' format.
  * @param {string} endDate   - The end date in 'YYYY-MM-DD' format.
  * @returns {import('@tanstack/react-query').UseQueryResult} TanStack Query result containing the complete multi-vector daily breakdowns.
@@ -123,6 +129,7 @@ export function useDailyBreakdown(startDate, endDate) {
  * Hook to retrieve deep technical metadata regarding the primary inverter system.
  * Includes firmware versions, nominal capacities, and datalogger references.
  *
+ * @function useDeviceDetail
  * @returns {import('@tanstack/react-query').UseQueryResult} TanStack Query result containing the inverter specifications.
  */
 export function useDeviceDetail() {
@@ -139,6 +146,7 @@ export function useDeviceDetail() {
  * 
  * Note: Settings are relatively static, so automatic polling is omitted here to save bandwidth.
  *
+ * @function useDeviceSettings
  * @returns {import('@tanstack/react-query').UseQueryResult} TanStack Query result containing the raw inverter settings dictionary.
  */
 export function useDeviceSettings() {
@@ -152,6 +160,7 @@ export function useDeviceSettings() {
  * Hook to retrieve a manifest list of all hardware devices physically or logically connected to the plant.
  * Usually indicates the main inverter and attached dongles or meters, including their online/offline heartbeat status.
  *
+ * @function useDeviceList
  * @returns {import('@tanstack/react-query').UseQueryResult} TanStack Query result detailing connected devices and their types.
  */
 export function useDeviceList() {

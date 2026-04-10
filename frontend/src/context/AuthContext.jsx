@@ -1,3 +1,10 @@
+/**
+ * AuthContext.jsx — Authentication lifecycle and session management.
+ *
+ * Exposes a global Context Provider securely managing the user session 
+ * through HttpOnly secure cookies. Interfaces directly with backend `/auth` endpoints 
+ * validating, establishing, and terminating authenticated sessions.
+ */
 import { createContext, useContext, useState, useCallback, useEffect } from 'react'
 import { api } from '../api/growatt'
 
@@ -5,6 +12,16 @@ const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
 const AuthContext = createContext(null)
 
+/**
+ * AuthProvider component wraps the application lifecycle to securely isolate and map 
+ * reactive user state downwards via Context API. Tracks internal fetch lifecycles seamlessly 
+ * resolving 'Loading', 'Error', and verified 'User' entities.
+ *
+ * @component
+ * @param {object} props - The component parameters.
+ * @param {JSX.Element} props.children - Bound nested application tree to be provided with context wrappers.
+ * @returns {JSX.Element} Instantiated Context Provider containing user models and credential mutation closures.
+ */
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [error, setError] = useState(null)
@@ -31,7 +48,15 @@ export function AuthProvider({ children }) {
   }, [])
 
   /**
-   * Sends credentials to the backend. The backend sets the HttpOnly cookie.
+   * Executes a secure asynchronous credentials check against the main `/auth/token` backend.
+   * Expects a secure JWT mapped automatically into the host `HttpOnly` cookie upon successful handshake.
+   * Modifies component closure state dynamically logging internal server blockades or verification denials.
+   *
+   * @function login
+   * @async
+   * @param {string} username - User inputted identity string.
+   * @param {string} password - Raw text user credential input.
+   * @returns {Promise<boolean>} Yields strictly true if the handshake succeeds, else false tracking errors internally.
    */
   const login = useCallback(async (username, password) => {
     setLoading(true)
@@ -68,7 +93,12 @@ export function AuthProvider({ children }) {
   }, [])
 
   /**
-   * Clears the authentication state and removes the cookie on the server.
+   * Clears the authentication state locally while explicitly instructing the backend API 
+   * to revoke and invalidate the active secure access cookie context. 
+   * Protects aggressively against token leaks post-session termination.
+   *
+   * @function logout
+   * @async
    */
   const logout = useCallback(async () => {
     try {
@@ -89,9 +119,13 @@ export function AuthProvider({ children }) {
 }
 
 /**
- * Hook to access the authentication context.
- * @throws if used outside of AuthProvider
- */
+   * Hook exposing robust internal consumption of the AuthContext parameters.
+   * Hard-panics if leveraged outside of an explicit AuthProvider lineage enforcing logical strictness.
+   *
+   * @function useAuth
+   * @throws {Error} If implicitly consumed disconnected from the main application root provider layer.
+   * @returns {{ user: object|null, login: function, logout: function, error: string|null, loading: boolean, isAuthenticated: boolean }} Context payload object.
+   */
 export function useAuth() {
   const ctx = useContext(AuthContext)
   if (!ctx) throw new Error('useAuth must be used within an AuthProvider')

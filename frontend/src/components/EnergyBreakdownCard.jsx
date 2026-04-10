@@ -26,12 +26,13 @@ import { ChartPie } from 'lucide-react'
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 /**
- * Calculates the percentage of a value relative to a total.
- * Returns 0 if total is falsy or zero to avoid division by zero.
+ * Calculates the integer percentage of a value relative to a total domain.
+ * Guards against division by zero errors when the total is falsy or zero.
  *
- * @param {number} value
- * @param {number} total
- * @returns {number} Integer percentage 0–100
+ * @function pct
+ * @param {number} value - The numeric value of the subject segment.
+ * @param {number} total - The aggregated total value spanning all segments.
+ * @returns {number} The integer percentage rounded to the nearest whole number (0–100).
  */
 function pct(value, total) {
   if (!total || total === 0) return 0
@@ -39,14 +40,14 @@ function pct(value, total) {
 }
 
 /**
- * Calculates the percentage for the last segment in a stacked bar.
- * Instead of computing it from its own value, it takes 100 minus the sum
- * of all other segments' percentages. This ensures the bar always fills
- * completely, compensating for rounding errors in the other segments.
+ * Calculates the exact remaining percentage for the final segment in a stacked progress bar.
+ * Rather than computing it individually (which risks rounding gaps like 33% + 33% + 33% = 99%), 
+ * this derives the remainder dynamically: 100 minus the sum of prior segment percentages.
  *
- * @param {number[]} otherValues - All values except the last segment
- * @param {number} total - Total reference value
- * @returns {number} Integer percentage 0–100
+ * @function pctLast
+ * @param {number[]} otherValues - Array of all other numeric segment values preceding the final segment.
+ * @param {number} total - The overarching total reference value.
+ * @returns {number} The integer percentage required to perfectly close the 100% stack bar (ensuring complete fill).
  */
 function pctLast(otherValues, total) {
   if (!total || total === 0) return 0
@@ -55,11 +56,12 @@ function pctLast(otherValues, total) {
 }
 
 /**
- * Formats a kWh value to one decimal place.
- * Falls back to 0.0 for null/undefined/NaN values.
+ * Safely formats a numeric energy value to a fixed single or double decimal string.
+ * Falls back to '0.00' for null, undefined, or NaN inputs.
  *
- * @param {number} value
- * @returns {string} e.g. "3.7"
+ * @function fmt
+ * @param {number|string|null} value - The raw kWh measurement to format.
+ * @returns {string} Formatted string strictly restricted to 2 decimal places (e.g., "3.75").
  */
 function fmt(value) {
   return (Number(value) || 0).toFixed(2)
@@ -68,11 +70,13 @@ function fmt(value) {
 // ── Stacked progress bar ──────────────────────────────────────────────────────
 
 /**
- * A horizontal stacked bar made of colored segments.
- * Each segment's width is its percentage of the total bar width.
+ * A horizontal stacked bar visualizing energy distribution percentages.
+ * Renders multiple contiguous colored segments whose widths correlate directly to data proportions.
  *
+ * @component StackedBar
  * @param {object} props
- * @param {{ color: string, pct: number }[]} props.segments
+ * @param {Array<{color: string, pct: number}>} props.segments - Configuration arrays mapping flex-basis widths (`pct`) to CSS backgrounds (`color`).
+ * @returns {JSX.Element} A flex container with proportionate colored `div` segments.
  */
 function StackedBar({ segments }) {
   return (
@@ -91,13 +95,16 @@ function StackedBar({ segments }) {
 // ── Single data row ───────────────────────────────────────────────────────────
 
 /**
- * A single labeled row showing a colored dot, label, kWh value and percentage.
+ * A tabular row representing a singular energy flow item within a section list.
+ * Visually pairs an indicator dot to a label, alongside absolute and relative numeric metrics.
  *
+ * @component Row
  * @param {object} props
- * @param {string} props.color - Dot color (hex)
- * @param {string} props.label - Row label
- * @param {number} props.kwh - Energy value in kWh
- * @param {number} props.percentage - Integer percentage 0–100
+ * @param {string} props.color - The hex color code styling the indicator dot matching the chart visualization.
+ * @param {string} props.label - Human-readable label for the energy channel (e.g., 'Exported to grid').
+ * @param {number} props.kwh - Total computed energy volume traversing this channel in kWh.
+ * @param {number} props.percentage - The computed integer relative percentage representation inside the section domain.
+ * @returns {JSX.Element} A styled data row for metric summarization.
  */
 function Row({ color, label, kwh, percentage }) {
   return (
@@ -120,14 +127,17 @@ function Row({ color, label, kwh, percentage }) {
 // ── Section ───────────────────────────────────────────────────────────────────
 
 /**
- * A titled section with a total value, a stacked bar and a list of rows.
+ * Consolidates a domain grouping, encompassing a descriptive title header, 
+ * an overarching domain total metric, a unified StackedBar visualization, and a list of internal flow rows.
  *
+ * @component Section
  * @param {object} props
- * @param {string} props.title - Section title
- * @param {string} [props.subtitle] - Optional subtitle for explanation
- * @param {number} props.total - Total energy value for this section (kWh)
- * @param {{ color: string, pct: number }[]} props.segments - Bar segments
- * @param {object[]} props.rows - Row data (passed directly to Row component)
+ * @param {string} props.title - Main categorical title denoting the grouping (e.g., "Solar production").
+ * @param {string} [props.subtitle] - An optional contextual descriptor elaborating on the routing of the domain group.
+ * @param {number} props.total - The aggregated total energy derived by summing all components within this scope (kWh).
+ * @param {Array<{color: string, pct: number}>} props.segments - Input configurations defining StackedBar segment visuals.
+ * @param {Array<object>} props.rows - Prop payloads forwarded to build the enumerated internal `Row` descendants.
+ * @returns {JSX.Element} A self-contained categorical UI section wrapper.
  */
 function Section({ title, subtitle, total, segments, rows }) {
   return (
@@ -160,10 +170,17 @@ function Section({ title, subtitle, total, segments, rows }) {
 // ── Component ──────────────────────────────────────────────────────────────────
 
 /**
- * EnergyBreakdownCard component.
+ * EnergyBreakdownCard provides a structural schematic mapping today's overarching energy pathways,
+ * divided fundamentally into System Output (solar generation dispersion) and Home Consumption (usage derivation).
  *
- * @param {object} props
- * @param {object} props.today - Daily energy totals from /energy/today → flow.today
+ * It employs a rigorous localization algorithm resolving inherent synchronization disparities across API readings 
+ * (like edge meters vs inverters), guaranteeing that all domain charts mathematically equate to exactly 100% 
+ * regardless of transient lag.
+ *
+ * @component
+ * @param {object} props - The component parameters.
+ * @param {object} props.today - Complete snapshot metrics retrieved via the `/energy/today` endpoint format.
+ * @returns {JSX.Element} Structured breakdown component rendered sequentially within a unified Card container.
  */
 export default function EnergyBreakdownCard({ today }) {
 

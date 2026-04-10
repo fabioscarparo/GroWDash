@@ -29,6 +29,7 @@ const THRESHOLD = 72
 /**
  * A custom hook providing pull-to-refresh logic and animated physics values.
  *
+ * @function usePullToRefresh
  * @param {() => Promise<void>} onRefresh - Async callback fired when the user
  *   releases after successfully pulling past the threshold. The hook inherently waits 
  *   for the promise to resolve before resetting its loading UI state, allowing you 

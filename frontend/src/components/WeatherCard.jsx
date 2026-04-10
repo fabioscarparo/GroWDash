@@ -16,6 +16,15 @@ import {
 
 // ── WMO weather code → label + icon ─────────────────────────────────────────
 
+/**
+ * Unifies standardized WMO (World Meteorological Organization) weather codes into user-consumable 
+ * syntactic nomenclature and correlates appropriate visual semantic React Lucide icons dynamically.
+ *
+ * @function weatherLabel
+ * @param {number} code - Standard numeric WMO classification ID.
+ * @param {number|boolean} isDay - Active solar illumination boolean tracker (1/true = day, 0/false = night) derived via telemetry.
+ * @returns {{ label: string, icon: JSX.Element }} Computed descriptive object bundle.
+ */
 function weatherLabel(code, isDay) {
   if (code === 0) return isDay
     ? { label: 'Clear sky', icon: Sun }
@@ -38,6 +47,15 @@ function weatherLabel(code, isDay) {
 
 // ── Cloud cover → solar impact label ─────────────────────────────────────────
 
+/**
+ * Synthesizes abstract meteorological cloud cover percentages into a practical translation describing 
+ * the inferred impact scalar for PV/inverter baseline efficiency.
+ *
+ * @function solarImpact
+ * @param {number} cloudcover - Expressed percentage (0–100) indicating localized sky obscurity bounds.
+ * @param {number|boolean} isDay - Tracks whether the system currently operates beneath absolute solar geometry limits.
+ * @returns {{ label: string, color: string }} Semantic configuration block appending localized visual color-coding parameters.
+ */
 function solarImpact(cloudcover, isDay) {
   if (!isDay) return { label: 'No solar production', color: 'text-muted-foreground' }
   if (cloudcover <= 20) return { label: 'Excellent solar', color: 'text-amber-500' }
@@ -48,6 +66,16 @@ function solarImpact(cloudcover, isDay) {
 
 // ── Stat pill ─────────────────────────────────────────────────────────────────
 
+/**
+ * Encapsulates a micro-styled unified metric visualization block spanning horizontal flex domains.
+ *
+ * @component Stat
+ * @param {object} props
+ * @param {JSX.Element} props.icon - Destructured Lucide indicator glyph.
+ * @param {string|number} props.value - Numerical primary data string.
+ * @param {string} props.unit - Secondary metric suffix string (e.g., '% clouds' or 'km/h').
+ * @returns {JSX.Element} Composed span elements.
+ */
 function Stat({ icon, value, unit }) {
   return (
     <div className="flex items-center gap-1.5 flex-1 justify-center sm:justify-start">
@@ -60,6 +88,13 @@ function Stat({ icon, value, unit }) {
 
 // ── Skeleton ─────────────────────────────────────────────────────────────────
 
+/**
+ * Defines a static deterministic placeholder skeletal layout matching the topological layout 
+ * of the fully propagated component, ensuring seamless initialization states mitigating cumulative layout shifts (CLS).
+ *
+ * @component WeatherSkeleton
+ * @returns {JSX.Element} Animated pulse variant Card representation.
+ */
 function WeatherSkeleton() {
   return (
     <Card className="h-full flex flex-col animate-pulse">
@@ -119,6 +154,17 @@ function WeatherSkeleton() {
 
 // ── Component ──────────────────────────────────────────────────────────────────
 
+/**
+ * WeatherCard interfaces external Open-Meteo integrations blending localized atmospheric condition tracking 
+ * directly focusing strictly upon solar-affecting constraints (luminosity occlusion/Cloud Cover percent).
+ *
+ * Iterates across current hourly blocks fetching downstream sequential weather permutations.
+ *
+ * @component
+ * @param {object} props - Component property bundle.
+ * @param {object} props.data - Raw hierarchical object structure consumed directly downstream from `useWeather` integrations.
+ * @returns {JSX.Element} Responsive metrics Card widget transitioning states gracefully.
+ */
 export default function WeatherCard({ data }) {
   if (!data || !data.hourly) return <WeatherSkeleton />
 

@@ -21,6 +21,7 @@ const MAX_VERTICAL = 60
  * useSwipeNavigation hook.
  * Adds real-time drag-to-follow tracking for horizontal page swipes.
  * 
+ * @function useSwipeNavigation
  * @returns {{ isDragging: boolean, dragOffset: number }}
  */
 export function useSwipeNavigation({ onNext, onPrev, enabled = true }) {

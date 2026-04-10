@@ -17,16 +17,24 @@ import { useQueryClient } from '@tanstack/react-query'
 const RefreshContext = createContext(null)
 
 /**
- * Formats a Date object into a HH:MM string.
- * @param {Date} date 
- * @returns {string} locale time string
+ * Translates explicit JavaScript temporal Date primitives into localized short time-strings truncating seconds.
+ * 
+ * @function formatTime
+ * @param {Date} date - An explicitly mapped absolute datetime instance.
+ * @returns {string} Truncated string formatted optimally strictly as "HH:MM".
  */
 const formatTime = (date) => {
   return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
 }
 
 /**
- * RefreshProvider wraps the app to provide data sync state.
+ * RefreshProvider wraps downstream contexts intercepting universally cascaded explicit refetch signals 
+ * mapping them into the instantiated TanStack Query caching nodes. Maintains last-pull tracking to indicate staleness visually.
+ *
+ * @component
+ * @param {object} props - The component settings.
+ * @param {JSX.Element} props.children - Bound scoped tree inheriting context context payloads.
+ * @returns {JSX.Element} Exposes refresh endpoints broadly across descendants.
  */
 export function RefreshProvider({ children }) {
   const queryClient = useQueryClient()
@@ -35,8 +43,12 @@ export function RefreshProvider({ children }) {
   const [isRefreshing, setIsRefreshing] = useState(false)
 
   /**
-   * Refreshes all application data by invalidating TanStack Query caches.
-   * Updates the global timestamp upon completion.
+   * An exposed callback strictly blasting invalidation endpoints cascading forced query purges 
+   * against the root TanStack server state tree, actively mitigating polling lags upon user explicit swipe mandates.
+   * Mutates global temporal trackers matching successful invalidation completions.
+   *
+   * @function refresh
+   * @async
    */
   const refresh = useCallback(async () => {
     setIsRefreshing(true)
@@ -66,8 +78,12 @@ export function RefreshProvider({ children }) {
 }
 
 /**
- * Hook to consume the RefreshContext.
- * @returns {{ lastUpdate: string, isRefreshing: boolean, refresh: Function }}
+ * Provides instantaneous consumption logic referencing the RefreshContext properties.
+ * Exposes methods inherently required to drive PullToRefresh integrations synchronously triggering QueryClient invalidation routines.
+ *
+ * @function useRefresh
+ * @throws {Error} Context invocation absent a wrapping Provider node.
+ * @returns {{ lastUpdate: string, isRefreshing: boolean, refresh: function(): Promise<void> }} Destructured tracking mapping bindings hook.
  */
 export function useRefresh() {
   const context = useContext(RefreshContext)

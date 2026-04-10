@@ -25,6 +25,7 @@ import { Zap, BatteryCharging, Settings } from 'lucide-react'
  * It strictly hides itself if the provided value is null, undefined, or an empty string,
  * avoiding the display of broken or missing data.
  *
+ * @component DetailRow
  * @param {Object} props - The component props.
  * @param {string} props.label - The descriptive label for the setting.
  * @param {string|number|null|JSX.Element} props.value - The setting's current value or badge.
@@ -45,6 +46,7 @@ function DetailRow({ label, value }) {
 /**
  * A layout component that wraps a group of related settings inside a styled Card.
  *
+ * @component Section
  * @param {Object} props - The component props.
  * @param {JSX.Element} props.icon - The Lucide React icon to display in the header.
  * @param {string} props.title - The title of the settings category.
@@ -72,6 +74,7 @@ function Section({ icon, title, children }) {
 /**
  * Converts a numeric or boolean enable/disable flag into a colored UI Badge.
  *
+ * @function enabled
  * @param {number|boolean} val - The flag value (1/true for enabled, 0/false for disabled).
  * @returns {JSX.Element|string} A green "Enabled" badge, a gray "Disabled" badge, or a fallback string.
  */
@@ -84,6 +87,7 @@ function enabled(val) {
 /**
  * Converts an On/Off state flag into a colored UI Badge.
  *
+ * @function onOff
  * @param {number} val - The state flag (1 for On, 0 for Off).
  * @returns {JSX.Element} A green "On" badge or a gray "Off" badge.
  */
@@ -95,6 +99,7 @@ function onOff(val) {
 /**
  * Translates the internal system work mode integer into a human-readable string.
  *
+ * @function workMode
  * @param {number} val - The work mode integer.
  * @returns {string} The descriptive name of the work mode (e.g., "Self-use").
  */
@@ -106,6 +111,7 @@ function workMode(val) {
 /**
  * Translates the internal Battery DC (BDC) operating mode into a human-readable string.
  *
+ * @function bdcMode
  * @param {number} val - The BDC mode integer.
  * @returns {string} The descriptive name of the BDC mode (e.g., "Auto", "Charge").
  */
@@ -122,6 +128,7 @@ function bdcMode(val) {
  * It fetches the raw configuration dictionary from the backend and maps the most
  * important fields into categorized, readable UI blocks using formatting helpers.
  *
+ * @component
  * @returns {JSX.Element} The rendered settings page.
  */
 export default function DeviceSettings() {

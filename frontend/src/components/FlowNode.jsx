@@ -1,27 +1,28 @@
 /**
  * FlowNode.jsx — Single node for the Power Flow diagram.
  *
- * Renders a circle with an icon, label and power value inside an SVG.
- * Used by PowerFlowCard to represent each energy node:
- * Solar, Home, Battery, Grid and Inverter.
+ * FlowNode component serves as an individualized visual entity within the overarching SVG PowerFlowCard schematic.
+ * It renders a circular bordered node enveloping a React Lucide icon, paired with lower-oriented textual labels 
+ * and power transmission metrics.
  *
- * Since this component renders inside SVG, it uses foreignObject to
- * embed the Lucide icon. Colors are passed as resolved hex strings
- * because SVG fill/stroke attributes do not support CSS variables.
- *
- * @param {object} props
- * @param {number} props.cx - Center x position in the SVG
- * @param {number} props.cy - Center y position in the SVG
- * @param {number} props.r - Circle radius in pixels
- * @param {JSX.Element} props.icon - Lucide icon component
- * @param {string} props.label - Node label shown below the circle
- * @param {number} [props.powerW] - Current power in Watts
- * @param {boolean} [props.alwaysShow] - Always show power value even when 0 (e.g. Grid)
- * @param {object} props.colors - Resolved design system colors
- * @param {string} props.colors.foreground - Active text/stroke color
- * @param {string} props.colors.mutedForeground - Inactive text color
- * @param {string} props.colors.muted - Circle background color
- * @param {string} props.colors.border - Inactive stroke color
+ * Utilizes `<foreignObject>` context tunneling to embed HTML/React components directly into the SVG namespace.
+ * 
+ * @component
+ * @param {object} props - The component parameters.
+ * @param {number} props.cx - Absolute X-axis coordinate relative to the parent SVG container.
+ * @param {number} props.cy - Absolute Y-axis coordinate relative to the parent SVG container.
+ * @param {number} props.r - Core circle radius strictly defined in user-space pixels.
+ * @param {JSX.Element} props.icon - Instantiated Lucide icon component reference.
+ * @param {string} props.label - Human-readable node semantic label string (e.g., 'Solar' or 'Grid').
+ * @param {number} [props.powerW=0] - The instantaneous active power traversing the node, quantified in Watts.
+ * @param {boolean} [props.alwaysShow=false] - When true, forces rendering of power metrics (e.g., '0.00 kW') even in a zero-flow state, preventing collapse to an '—' dash.
+ * @param {object} props.colors - A pre-resolved dictionary of hex string colors mapping UI semantic states (computed via `getColors` utility) necessitated by SVG limitations against using var() variables in structural layers.
+ * @param {string} props.colors.foreground - Absolute hex for active state textual/icon foreground.
+ * @param {string} props.colors.mutedForeground - Absolute hex for inactive state textual overlay.
+ * @param {string} props.colors.muted - Absolute hex delineating the base node inner circle background.
+ * @param {string} props.colors.nodeBorder - Absolute hex mapping to inactive outer stroke boundaries.
+ * @param {string} props.colors.nodeActive - Absolute hex mapping to highlight bounds when instantaneous power metrics transcend 0.
+ * @returns {JSX.Element} A grouped structural `<g>` block appended into a parent SVG scope.
  */
 export default function FlowNode({
   cx,

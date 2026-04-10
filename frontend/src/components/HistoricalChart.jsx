@@ -32,8 +32,13 @@ const chartConfig = {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 /**
- * Returns YYYY-MM-DD boundaries for a specific month.
- * Useful for the 'day' view which displays a full month of daily bars.
+ * Calculates the bounding dates (first and last day) for a given calendar month.
+ * Extensively used within the 'day' view mode logic to frame API aggregate requests.
+ *
+ * @function monthRange
+ * @param {number} year - The 4-digit calendar year targeted.
+ * @param {number} month - The 0-indexed calendar month targeted (0 = Jan, 11 = Dec).
+ * @returns {{ start: string, end: string }} Object encompassing the localized "YYYY-MM-DD" boundary strings.
  */
 function monthRange(year, month) {
   const start = new Date(year, month, 1)
@@ -42,23 +47,64 @@ function monthRange(year, month) {
   return { start: fmt(start), end: fmt(end) }
 }
 
-/** Extracts the day number for X-Axis labels in Daily view */
+/**
+ * Parses a precise datetime string to extract the raw numeric day of the month for labeling.
+ * By anchoring to T12:00:00 (noon), this neutralizes edge-case timezone shifts where an automated Date parse 
+ * might slide backwards across midnight into the preceding day.
+ *
+ * @function dayLabel
+ * @param {string} dateStr - Exact "YYYY-MM-DD" target date string.
+ * @returns {string} The localized representation of the day of the month.
+ */
 function dayLabel(dateStr) {
   return String(new Date(dateStr + 'T12:00:00').getDate())
 }
 
-/** Formats month names for X-Axis labels in Yearly view */
+/**
+ * Resolves a human-readable abbreviated month label from an ISO year-month string (e.g., '2026-04').
+ * Uses T12:00:00 anchoring to guarantee month stability.
+ *
+ * @function monthLabel
+ * @param {string} dateStr - Evaluated string referencing a specific month, commonly formatted as "YYYY-MM".
+ * @returns {string} The resulting localized short text label (e.g., "Jan" or "Apr").
+ */
 function monthLabel(dateStr) {
   return new Date(dateStr + '-01T12:00:00').toLocaleString('en', { month: 'short' })
 }
 
 // ── Component ──────────────────────────────────────────────────────────────────
 
+/**
+ * HistoricalChart component functions as a multi-scale analytical dashboard for temporal solar production.
+ * Enables shifting between 'day' (daily breakdown over a month), 'month' (monthly breakdown over a year), 
+ * and 'year' (annual breakdown from system inception to present day).
+ *
+ * Intercepts impossible navigational states via `plant_installation_date` enforcement and intelligently filters 
+ * out future unfilled data indices when viewing the current aggregate period.
+ *
+ * @component
+ * @returns {JSX.Element} The completely interactive Recharts composition wrapped in a structured Shadcn card.
+ */
 export default function HistoricalChart() {
+  /** 
+   * Current time unit for aggregation.
+   * @type {('day'|'month'|'year')}
+   */
   const [timeUnit, setTimeUnit] = useState('day')
+  
+  /** 
+   * Current reference date for period navigation.
+   */
   const [refDate, setRefDate]   = useState(new Date())
+  
+  /** 
+   * Tracks the currently interacted bar for highlight effects.
+   */
   const [activeBar, setActiveBar] = useState(null)
 
+  /** 
+   * Fetches plant metadata for boundary clamping.
+   */
   const { data: plantInfo } = usePlantInfo()
   const minDate = plantInfo?.plant_installation_date ? new Date(plantInfo.plant_installation_date) : null
 

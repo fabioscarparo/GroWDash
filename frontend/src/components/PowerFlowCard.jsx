@@ -41,10 +41,20 @@ const INV = { x: CX, y: CY }
 // ── Theme colors ──────────────────────────────────────────────────────────────
 
 /**
- * Returns resolved colors based on the current system theme.
- * SVG fill/stroke attributes do not support CSS variables,
- * so we resolve colors from prefers-color-scheme at runtime.
- * @returns {object} Color map for light or dark mode
+ * Resolves static baseline colors from the current unified system theme mapping.
+ * Necessary because SVG structure attributes (fill, stroke) frequently fail to resolve 
+ * dynamic CSS variables dynamically in complex masking and animations contexts.
+ *
+ * @function getColors
+ * @returns {{
+ *   foreground: string,
+ *   mutedForeground: string,
+ *   muted: string,
+ *   border: string,
+ *   nodeBorder: string,
+ *   nodeActive: string,
+ *   primary: string
+ * }} Exact computed hex or OKLCH mappings for structural graphic fills.
  */
 function getColors() {
   const dark = document.documentElement.classList.contains('dark')
@@ -70,15 +80,19 @@ function getColors() {
 // ── Main component ────────────────────────────────────────────────────────────
 
 /**
- * PowerFlowCard component.
+ * PowerFlowCard acts as the principal SVG architecture mapping instantaneous energy metrics across 
+ * home solar distribution pathways. Uses intricate React state synchronization matched with vanilla DOM 
+ * observers for precise palette injection.
  *
+ * @component
  * @param {object} props
- * @param {number} props.solarW - Current solar production (W)
- * @param {number} props.homeW - Current home consumption (W)
- * @param {number} props.batteryChargeW - Current battery charge power (W)
- * @param {number} props.batteryDischargeW - Current battery discharge power (W)
- * @param {number} props.gridExportW - Current grid export power (W)
- * @param {number} props.gridImportW - Current grid import power (W)
+ * @param {number} props.solarW - Current solar production logic aggregate (W).
+ * @param {number} props.homeW - Current physical home consumption threshold (W).
+ * @param {number} props.batteryChargeW - Battery positive storage power flow (W).
+ * @param {number} props.batteryDischargeW - Battery negative dissipation power flow (W).
+ * @param {number} props.gridExportW - Public metric for exported energy (W).
+ * @param {number} props.gridImportW - Public metric for drawn grid energy (W).
+ * @returns {JSX.Element} A real-time, aesthetically scaled, live overview SVG interface.
  */
 export default function PowerFlowCard({
   solarW = 0,
@@ -126,10 +140,13 @@ export default function PowerFlowCard({
   const CYCLE_LENGTH = 24 
 
   /**
-   * Calculates the duration of the flow animation based on wattage.
-   * Velocity is proportional to the energy flow (W) using a logarithmic scale.
-   * Snap wattage to the nearest 50W to prevent micro-fluctuations from 
-   * restarting the CSS animation, which causes "stuttering".
+   * Translates absolute energy scale (Watts) into a temporal animation speed (seconds).
+   * It enforces an upper logic bound via a logarithmic curve ensuring UI doesn't become chaotic 
+   * while snapping minor fluctuations to constant 50W intervals, resolving animation jitter.
+   * 
+   * @function getFlowDuration
+   * @param {number} w - The unmanipulated current energy traversing the specified pathway in Watts.
+   * @returns {string} The CSS-ready transition duration token (e.g. "1.25s").
    */
   const getFlowDuration = (w) => {
     if (w <= THRESHOLD) return '0s'
@@ -141,8 +158,14 @@ export default function PowerFlowCard({
   }
 
   /**
-   * Calculates deterministic properties for a particle.
-   * Ensures dash + gap = CYCLE_LENGTH for a stutter-free loop.
+   * Implements deterministic pseudo-random staggering logic for the Unifi-style particle paths.
+   * Configures absolute geometric spacing (offsets) and synchronization delays, ensuring continuous 
+   * seamless loop masking at connection edges.
+   *
+   * @function getSwarmProps
+   * @param {number} i - The absolute indexed sequence number within the total particle swarm.
+   * @param {string} baseDuration - The computed base flow duration token.
+   * @returns {{ duration: string, delay: string, dash: string, gap: string, color: string, offset: number }} The unified layout payload per-particle.
    */
   const getSwarmProps = (i, baseDuration) => {
     const seed = i * 2.5
@@ -161,8 +184,20 @@ export default function PowerFlowCard({
   }
 
   /**
-   * Renders a "Swarm" of particles moving through a translucent tube.
-   * Matches the high-end Ubiquiti / Unifi Flow Control aesthetic.
+   * Assembles an interconnected, animated SVG conduit between two distinct graph Nodes.
+   * Formulates a masking boundary enabling the particle swarm dots to "fade-in" and "fade-out" natively 
+   * without sharp geometric clipping at the edges of the destination node boundaries.
+   *
+   * @function renderConnection
+   * @param {number} x1 - Source coordinate absolute X.
+   * @param {number} y1 - Source coordinate absolute Y.
+   * @param {number} x2 - Destination coordinate absolute X.
+   * @param {number} y2 - Destination coordinate absolute Y.
+   * @param {boolean} active - Tracks whether power exceeds the threshold bounds in either direction.
+   * @param {number} powerW - Real absolute power payload defining the magnitude of the particle swarm speeds.
+   * @param {boolean} reverse - Modifies direction scalar. Enables battery discharge path sharing.
+   * @param {string} id - The distinctive semantic namespace used to identify DOM node mask/defs hashes.
+   * @returns {JSX.Element} The fully instantiated, unmasked path group.
    */
   const renderConnection = (x1, y1, x2, y2, active, powerW, reverse = false, id) => {
     const baseDuration = getFlowDuration(powerW)

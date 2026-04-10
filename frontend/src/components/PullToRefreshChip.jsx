@@ -1,10 +1,20 @@
+/**
+ * PullToRefreshChip.jsx — Global pull-to-refresh component.
+ */
 import { useRefresh } from '../context/RefreshContext'
 import { RefreshCw } from 'lucide-react'
 import { usePullToRefresh } from '../hooks/usePullToRefresh'
 
 /**
- * PullToRefreshChip provides a pull-to-refresh mechanism available on all pages.
- * It manages both the gesture logic and the visual spinner.
+ * PullToRefreshChip acts as a universal, gesture-driven global data refetch interface.
+ * Operates autonomously at the application root level, intersecting Y-axis pan gestures bridging 
+ * into a global React Context API (via `useRefresh`) to synchronize data updates synchronously across all mounted views.
+ *
+ * Implements an elastic, non-linear CSS displacement transform reflecting touch impedance 
+ * and handles progressive visual feedback cues (spindle rotation, message snapping, color transitions).
+ *
+ * @component
+ * @returns {JSX.Element} A fixed-position, z-elevated pill container driven by transform displacement.
  */
 export default function PullToRefreshChip() {
   const { refresh, isRefreshing } = useRefresh()

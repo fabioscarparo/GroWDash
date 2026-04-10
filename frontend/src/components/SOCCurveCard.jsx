@@ -15,17 +15,44 @@ const chartConfig = {
   soc_pct: { label: 'SOC', color: '#22c55e' },
 }
 
+/**
+ * Resolves the localized "YYYY-MM-DD" short date string strictly anchored to the host device's active timezone.
+ *
+ * @function localToday
+ * @returns {string} The localized short-date string constraint.
+ */
 function localToday() {
   const d = new Date()
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
+/**
+ * Extracts and formats the 24-hour localized short time from an API ISO string.
+ *
+ * @function timeLabel
+ * @param {string} timeStr - Unprocessed API datetime string.
+ * @returns {string} Truncated string representation strictly containing "HH:MM".
+ */
 function timeLabel(timeStr) {
   return timeStr?.slice(11, 16) ?? ''
 }
 
+/**
+ * SocCurveCard visually maps the continuous progression of the battery's energy density 
+ * (State of Charge %) across the active calendar day using an Area charting topology.
+ *
+ * It dynamically tracks and connects non-zero recorded indices filtering out extraneous low-load states 
+ * mapping them into a localized spline format.
+ *
+ * @component
+ * @returns {JSX.Element} The enclosed tracking visualization Card element.
+ */
 export default function SocCurveCard() {
   const today = localToday()
+  
+  /** 
+   * Fetches historical 5-minute interval data for today.
+   */
   const { data: history, isLoading } = useHistory(today, today)
 
   const chartData = (history?.data ?? [])

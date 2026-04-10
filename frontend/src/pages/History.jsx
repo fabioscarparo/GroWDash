@@ -29,6 +29,7 @@ import SelfSufficiencyChart from '../components/SelfSufficiencyChart'
 /**
  * A reusable presentation component displaying a single Key Performance Indicator.
  *
+ * @component KpiCard
  * @param {Object} props - The component props.
  * @param {JSX.Element} props.icon - The Lucide React icon to display next to the label.
  * @param {string} props.label - The title describing the KPI.
@@ -64,6 +65,7 @@ function KpiCard({ icon, label, value, unit }) {
  * deeply interactive and customized React-based charting components.
  * Data-fetching for the charts is independently handled by their respective components.
  *
+ * @component
  * @returns {JSX.Element} The rendered historical analytics page.
  */
 export default function History() {

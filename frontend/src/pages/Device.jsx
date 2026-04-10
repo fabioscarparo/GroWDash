@@ -32,6 +32,7 @@ import { Cpu, Wifi, WifiOff, CircuitBoard, Battery, Radio } from 'lucide-react'
  * preventing a cluttered UI with "N/A" or blank strings. It explicitly preserves strict falsy 
  * boolean values and the number `0` as legitimate telemetry.
  *
+ * @component
  * @param {Object} props - The component properties.
  * @param {string} props.label - The human-readable descriptor for the metric (e.g., "Serial Number").
  * @param {string|number|boolean|null} props.value - The dynamic value to be displayed on the trailing edge.
@@ -54,9 +55,10 @@ function DetailRow({ label, value }) {
 /**
  * deviceTypeLabel
  *
- * Translates the numeric hardware identifier returned by the Growatt Cloud API
+ * translates the numeric hardware identifier returned by the Growatt Cloud API
  * into a user-friendly string classification.
  *
+ * @function deviceTypeLabel
  * @param {number} type - The integer identifying the device category (e.g., 7 for Inverters).
  * @returns {string} The localized, human-readable category name.
  */
@@ -69,9 +71,10 @@ function deviceTypeLabel(type) {
 /**
  * getDeviceIcon
  *
- * Dynamically resolves the appropriate Lucide-React icon representing the device's role
+ * dynamically resolves the appropriate Lucide-React icon representing the device's role
  * and its current network connectivity status. Defaults to a disconnected icon if offline.
  *
+ * @function getDeviceIcon
  * @param {number} type - The integer identifying the device category.
  * @param {boolean} isOnline - The network presence flag corresponding to the device.
  * @returns {JSX.Element} A monochrome React SVG icon tailored for the device type.
@@ -96,6 +99,7 @@ function getDeviceIcon(type, isOnline) {
  *   2. Primary Inverter (Displays native technical identifiers and Cloud synchronization status).
  *   3. Storage Battery (Conditionally rendered only if a valid `bdc1Sn` serial is detected, unpacking SOC limits).
  *
+ * @component
  * @returns {JSX.Element} The fully rendered Hardware Overview page.
  */
 export default function Device() {

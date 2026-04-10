@@ -17,6 +17,7 @@ import { api } from '../api/growatt'
  * A custom React hook wrapping TanStack Query's caching engine to manage the
  * asynchronous fetching and persistent background polling of weather data.
  *
+ * @function useWeather
  * @returns {import('@tanstack/react-query').UseQueryResult} The TanStack Query result object providing loading states and weather data.
  */
 export function useWeather() {

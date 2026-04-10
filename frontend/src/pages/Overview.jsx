@@ -34,6 +34,7 @@ import SolarProductionCard from '../components/SolarProductionCard'
 /**
  * Top contextual header displaying key plant attributes.
  *
+ * @component Header
  * @param {Object} props - Component props.
  * @param {string} props.plantName - The name assigned to the photovoltaic plant.
  * @param {string|number} props.plantCapacityKw - The total maximum output in kWp (Kilowatt Peak).
@@ -97,6 +98,7 @@ function Header({ plantName, plantCapacityKw, serialNumber, isOnline, lastUpdate
  * child widget components. It implements `usePullToRefresh` hook logic to animate
  * a custom mobile-native feeling spinner that forces query invalidation.
  *
+ * @component
  * @returns {JSX.Element} The completely assembled Overview view.
  */
 export default function Overview() {

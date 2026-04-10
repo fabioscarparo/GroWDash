@@ -1,3 +1,6 @@
+/**
+ * PeriodPicker.jsx — Time granularity and date navigation picker.
+ */
 import * as React from "react"
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -19,15 +22,22 @@ import {
 import { useIsMobile } from "@/hooks/use-mobile"
 
 /**
- * PeriodPicker component provides a responsive date and granularity selector.
- * Uses a Popover on desktop and a Drawer on mobile.
+ * PeriodPicker provides a highly responsive, context-aware calendrical selector unifying the navigation interface 
+ * across complex charting dashboards. It seamlessly arbitrates layout paradigms, dispensing a Shadcn Popover on 
+ * desktop displays and a bottom-anchored Drawer on mobile constraints.
  * 
- * @param {Object} props
- * @param {Date} props.currentDate - The currently selected date.
- * @param {Function} props.onDateChange - Callback when a new date is selected.
- * @param {string} [props.timeUnit] - Current time unit (day, month, year).
- * @param {Function} [props.onTimeUnitChange] - Callback to change time unit.
- * @param {string} [props.className] - Optional CSS classes.
+ * Capable of arbitrating multi-scale granularities ('day', 'month', 'year') whilst strictly enforcing 
+ * chronological bounds (preventing future traversals and pre-installation queries).
+ *
+ * @component
+ * @param {object} props - The component parameters.
+ * @param {Date} props.currentDate - The presently instantiated reference Date powering the parent visualization.
+ * @param {function(Date): void} props.onDateChange - Propagation callback firing upon conclusive spatial navigation.
+ * @param {string} [props.timeUnit='day'] - Current structural granularity mapped to ('day' | 'month' | 'year').
+ * @param {function(string): void} [props.onTimeUnitChange] - Callback to elevate shifting time unit paradigms back to the parent.
+ * @param {Date} [props.minDate] - Optional absolute earliest bounding Date guarding navigation scope (e.g., system installation date).
+ * @param {string} [props.className] - Optional external CSS injection strings leveraging standard Tailwind configuration.
+ * @returns {JSX.Element} A scalable navigation primitive rendering conditional UI logic.
  */
 export default function PeriodPicker({ 
   currentDate, 
@@ -55,17 +65,39 @@ export default function PeriodPicker({
 
   const today = new Date()
   
+  /**
+   * Safely calculates whether a specified month in the currently navigated year 
+   * transcends the absolute current system date, preventing future data requests.
+   *
+   * @function isFutureMonth
+   * @param {number} monthIndex - 0-indexed calendar month to evaluate.
+   * @returns {boolean} True if the prospective month logically occurs in the future.
+   */
   const isFutureMonth = (monthIndex) => {
     return viewYear > today.getFullYear() || 
            (viewYear === today.getFullYear() && monthIndex > today.getMonth())
   }
 
+  /**
+   * Prohibits navigation to temporal periods chronologically preceding the recorded completion of the solar plant's installation.
+   *
+   * @function isPastMonth
+   * @param {number} monthIndex - 0-indexed calendar month to evaluate.
+   * @returns {boolean} True if the prospective month pre-dates the minimum allowable bounding date.
+   */
   const isPastMonth = (monthIndex) => {
     if (!minDate) return false
     return viewYear < minDate.getFullYear() ||
            (viewYear === minDate.getFullYear() && monthIndex < minDate.getMonth())
   }
 
+  /**
+   * Triggers the propagation callback upon explicit user selection of a month node.
+   * Inherits the navigated `viewYear` alongside the selected month index.
+   *
+   * @function handleMonthSelect
+   * @param {number} monthIndex - 0-indexed calendar month user selection.
+   */
   const handleMonthSelect = (monthIndex) => {
     const newDate = new Date(currentDate)
     newDate.setFullYear(viewYear)
@@ -74,6 +106,14 @@ export default function PeriodPicker({
     setOpen(false)
   }
 
+  /**
+   * Navigates the internal reference year forwards or backwards.
+   * If granular 'timeUnit' dictates month or year-scale reporting, this immediately commits the temporal shift 
+   * to the parent callback whilst simultaneously clamping to `minDate` boundaries.
+   *
+   * @function handleYearChange
+   * @param {number} offset - Integer step magnitude (e.g., +1 or -1) to modify the currently viewed year.
+   */
   const handleYearChange = (offset) => {
     const newYear = viewYear + offset
     setViewYear(newYear)

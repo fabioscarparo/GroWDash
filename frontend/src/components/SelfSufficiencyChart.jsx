@@ -41,6 +41,14 @@ const chartConfig = {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
+/**
+ * Accurately constructs date boundary tuples framing chronological months for API data retrieval.
+ *
+ * @function monthRange
+ * @param {number} year - Formatted absolute calendar year.
+ * @param {number} month - Index mapping of the calendar month (0-11).
+ * @returns {{ start: string, end: string }} Object encompassing the localized "YYYY-MM-DD" boundary strings.
+ */
 function monthRange(year, month) {
   const start = new Date(year, month, 1)
   const end   = new Date(year, month + 1, 0)
@@ -48,17 +56,44 @@ function monthRange(year, month) {
   return { start: fmt(start), end: fmt(end) }
 }
 
+/**
+ * Normalizes dynamically allocated native JavaScript date classes into localized string equivalents.
+ *
+ * @function fmt
+ * @param {Date} d - The configured Date object parameter.
+ * @returns {string} Truncated short date localized to the viewing matrix.
+ */
 function fmt(d) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
+/**
+ * Safely derives discrete numerical day indexing anchoring around noon to prevent time offset parsing errors.
+ *
+ * @function dayLabel
+ * @param {string} dateStr - Exact localized target date block.
+ * @returns {string} Numerical representation mapped to string format.
+ */
 function dayLabel(dateStr) {
   return String(new Date(dateStr + 'T12:00:00').getDate())
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
+/**
+ * SelfSufficiencyChart renders an intricate stacked bar visualization anatomizing the energy composition 
+ * routing structure defining the daily home load requirements.
+ *
+ * Systemically offsets synchronization mismatches bridging Growatt server logs by prioritizing localized bounds, 
+ * explicitly subtracting dynamically aggregated subsets ensuring accurate representations of energy origin sources.
+ *
+ * @component
+ * @returns {JSX.Element} The completely integrated UI routing block charting element.
+ */
 export default function SelfSufficiencyChart() {
+  /** 
+   * Current reference date for period navigation.
+   */
   const [refDate, setRefDate] = useState(new Date())
   
   const { data: plantInfo } = usePlantInfo()

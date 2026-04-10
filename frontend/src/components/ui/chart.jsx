@@ -1,3 +1,11 @@
+/**
+ * chart.jsx — Recharts-Tailwind Bridge.
+ * 
+ * This component provides a specialized ChartContainer that synchronized 
+ * Recharts visualizations with the Tailwind design system via CSS variables.
+ * It handles automatic color scaling, tooltips, and responsive layout management.
+ */
+
 import * as React from "react"
 import * as RechartsPrimitive from "recharts"
 

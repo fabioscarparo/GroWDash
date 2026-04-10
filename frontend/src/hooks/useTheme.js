@@ -21,6 +21,7 @@ import { useState, useEffect, useCallback } from 'react'
 /**
  * A custom hook to manage and toggle global application themes (Dark, Light, or System).
  *
+ * @function useTheme
  * @returns {{ theme: string, setTheme: Function, setThemeAt: Function }} An object containing:
  *   - `theme`      : The currently active theme string (`'dark'`, `'light'`, or `'system'`).
  *   - `setTheme`   : A function to set the active theme state (no positional animation).

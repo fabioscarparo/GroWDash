@@ -37,6 +37,12 @@ import { useHistory } from '../hooks/useGrowatt'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
+/**
+ * Resolves the localized "YYYY-MM-DD" short date string strictly anchored to the host device's active timezone.
+ *
+ * @function localToday
+ * @returns {string} The localized short-date string boundary.
+ */
 function localToday() {
   const d = new Date()
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
@@ -50,10 +56,18 @@ const chartConfig = {
 // ── Component ─────────────────────────────────────────────────────────────────
 
 /**
- * @param {object}  props
- * @param {number}  props.actualKwh          - Today's actual production from Growatt
- * @param {number}  props.plantCapacityKw    - Plant peak power in kWp
- * @param {boolean} props.isLoading          - True while overview data is loading
+ * SolarProductionCard encapsulates a localized performance widget contrasting real-time PV generation 
+ * against theoretical maximums synthesized from instantaneous Open-Meteo Global Tilted Irradiance (GTI) models.
+ *
+ * It employs continuous algebraic overlays blending array peak capacity with performance degradation indices 
+ * mapped out hour-by-hour on an intertwined dual AreaChart topological frame.
+ *
+ * @component
+ * @param {object} props - The component parameters.
+ * @param {number} props.actualKwh - Hard reported total cumulative solar yield for today.
+ * @param {number} props.plantCapacityKw - The static system peak generation sizing multiplier (kWp).
+ * @param {boolean} props.isLoading - React Query loading reflection mitigating visual popping states.
+ * @returns {JSX.Element} Fully resolved Shadcn Card embedding localized solar efficacy charts.
  */
 export default function SolarProductionCard({
   actualKwh,

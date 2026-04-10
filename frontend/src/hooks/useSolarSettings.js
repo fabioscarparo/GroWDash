@@ -27,6 +27,7 @@ export const SOLAR_SETTINGS_DEFAULTS = {
 /**
  * Custom hook to persist solar panel settings in localStorage.
  *
+ * @function useSolarSettings
  * @returns {{ settings: object, updateSettings: function }} Settings object and updater.
  */
 export function useSolarSettings() {

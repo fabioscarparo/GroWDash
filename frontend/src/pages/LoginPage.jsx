@@ -1,9 +1,11 @@
 /**
- * LoginPage — Authentication screen for GroWDash.
+ * LoginPage.jsx — Authentication screen for GroWDash.
  *
  * A clean, minimal login form that submits credentials to the backend
  * via the AuthContext login function. Shows an error if credentials are
  * invalid and a loading state while the request is in flight.
+ *
+ * @module pages/LoginPage
  */
 
 import { useState } from 'react'
@@ -13,18 +15,39 @@ import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Heart } from 'lucide-react'
 
-
+/**
+ * The standard authentication page layout preventing access to protected routes.
+ * 
+ * @component
+ * @param {object} props
+ * @param {string|null} [props.returnUrl] - Optional URL mapping the previous location prior to forced redirect.
+ * @returns {JSX.Element} Structured Shadcn UI login wrapper.
+ */
 export default function LoginPage({ returnUrl = null }) {
   const { login, error, loading } = useAuth()
   const [username, setUsername] = useState(() => localStorage.getItem('last_username') || '')
   const [password, setPassword] = useState('')
 
+  /**
+   * Tracks and stores the last username locally to prevent repetitive typing natively.
+   *
+   * @function handleUsernameChange
+   * @param {React.ChangeEvent<HTMLInputElement>} e - Derived synthetic input event payload reflecting typed keystrokes.
+   */
   const handleUsernameChange = (e) => {
     const value = e.target.value
     setUsername(value)
     localStorage.setItem('last_username', value)
   }
 
+  /**
+   * Initiates the secure REST call mapping resolving login assertions downstream inside the AuthContext scope.
+   * Modifies current window URL on success or gracefully surfaces error tokens natively.
+   *
+   * @function handleSubmit
+   * @async
+   * @param {React.FormEvent<HTMLFormElement>} e - Caught synthetic event payload mapped against standard submit flow blocks.
+   */
   async function handleSubmit(e) {
     e.preventDefault()
     const success = await login(username, password)
