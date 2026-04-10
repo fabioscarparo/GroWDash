@@ -7,7 +7,9 @@
  * @module hooks/use-mobile
  */
 
-import * as React from "react"/** 
+import * as React from "react";
+
+/** 
  * Breakpoint threshold in pixels used to determine if the viewport is considered "mobile".
  * Matches common Tailwind CSS `md` breakpoints.
  * @constant {number}
