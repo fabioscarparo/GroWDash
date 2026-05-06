@@ -1,13 +1,22 @@
 """
-Growatt V1 API integration service.
+Growatt V1 API Integration Service.
 =====================================
-This module acts as the bridge between FastAPI and the growattServer library.
-All calls to the Growatt API go through this file, providing a single point
-of control and making future changes easier.
+This module serves as the primary data orchestration layer between the Growatt 
+OpenAPI V1 and the GroWDash frontend. It abstracts the complexity of the 
+external growattServer library and implements a robust caching/retry strategy.
 
-A singleton API instance is maintained for the lifetime of the application,
-and all responses are cached in memory for 5 minutes to match the Growatt
-data update interval.
+Design Philosophy:
+------------------
+1. **Reliability through Redundancy**: Given the variable response times and 
+   occasional downtime of Growatt's servers, every endpoint is wrapped in a 
+   retry decorator with exponential backoff.
+2. **Data Reconciliation**: MIN inverters often report inconsistent cumulative 
+   counters (specifically during standby/active transitions at dawn). This 
+   service implements a custom reconciliation engine that blends 5-minute 
+   power snapshots with official counters to ensure mathematical integrity.
+3. **Cache Coherency**: We maintain two levels of caching:
+   - SHORT (5m): For live telemetry, matching Growatt's update frequency.
+   - LONG (24h): For historical daily/monthly/yearly data that is immutable.
 
 Required environment variables (.env):
     GROWATT_TOKEN     → V1 API token from your ShinePhone account
@@ -85,8 +94,12 @@ def ttl_cache(key_fn=None, ttl=CACHE_TTL):
         def get_dynamic(path): ...
     """
     def decorator(func):
+        """Wrap a target function with shared in-memory TTL cache behavior."""
+
         @wraps(func)
         def wrapper(*args, **kwargs):
+            """Resolve cache hit/miss and store fresh values with per-key TTL."""
+
             cache_key = key_fn(args, kwargs) if key_fn else f"{func.__name__}:{args}:{kwargs}"
             actual_ttl = ttl(args, kwargs) if callable(ttl) else ttl
 
@@ -112,8 +125,12 @@ def retry_api(retries=3, backoff=2, exceptions=(Exception,)):
     Implements exponential backoff between attempts.
     """
     def decorator(func):
+        """Build a retrying wrapper around the provided callable."""
+
         @wraps(func)
         def wrapper(*args, **kwargs):
+            """Execute a function with bounded retries and exponential backoff."""
+
             last_err = None
             for i in range(retries):
                 try:
@@ -175,15 +192,28 @@ def _accumulate_snapshot_energy(totals: dict, snapshot: dict) -> None:
     totals["battery_discharged_kwh"] += _to_non_negative_float(snapshot.get("battery_discharge_w")) * SAMPLE_TO_KWH
 
 
-def _reconcile_daily_totals(counter_snapshot: dict | None, integrated: dict) -> dict:
+def _reconcile_daily_totals(counter_maxes: dict | None, integrated: dict) -> dict:
     """
     Reconciles inverter cumulative counters with power-integrated estimates.
 
-    Growatt MIN counters can under-report small overnight imports/loads.
-    To avoid losing those values, `home_kwh` and `grid_import_kwh` are the
-    maximum between cumulative counters and integrated 5-minute power.
+    CRITICAL ARCHITECTURAL NOTE:
+    ----------------------------
+    Growatt MIN inverters use a 'Today' counter (e.g., eacToday) that often 
+    resets to 0 at sunrise when the inverter 'wakes up' from standby. If we 
+    only tracked the latest value, the dashboard would show 0kWh in the morning 
+    even if the home had imported 2kWh from the grid during the night.
+
+    ALGORITHM:
+    1. We iterate over all 5-minute snapshots for the day.
+    2. We track the `max()` of each cumulative counter. This ensures that 
+       pre-reset values (like night imports) are preserved even after a reset.
+    3. We concurrently calculate the integral of the 5-minute power samples 
+       (Riemann sum).
+    4. We take the `max(counter, integrated_sum)` as the final value to 
+       capture microscopic energy flows that the official counters might miss
+       due to their internal precision/resolution limits.
     """
-    s = counter_snapshot or {}
+    s = counter_maxes or {}
 
     solar_counter = _to_non_negative_float(s.get("eacToday"))
     home_counter = _to_non_negative_float(s.get("elocalLoadToday"))
@@ -381,6 +411,8 @@ def get_energy_history(start_date: date = None, end_date: date = None) -> list:
 
     if remaining_pages:
         def fetch_page(page):
+            """Fetch one historical API page and return only record payloads."""
+
             result = api.min_energy_history(
                 GROWATT_DEVICE_SN,
                 start_date=start_date,
@@ -462,6 +494,8 @@ def get_plant_energy_history(
 
         # Fetch all chunks in parallel
         def fetch_chunk(cs, ce):
+            """Fetch one day-range chunk for plant aggregated history."""
+
             result = api.plant_energy_history(
                 GROWATT_PLANT_ID,
                 start_date=cs,
@@ -602,9 +636,18 @@ def get_daily_energy_breakdown(start_date: date, end_date: date) -> list:
             all_snapshots.extend(snapshots)
 
     # For each day:
-    #   - keep the latest snapshot for *Today cumulative counters
-    #   - integrate all 5-minute power snapshots for reconciliation
-    by_date: dict[str, dict] = {}
+    #   - track the MAXIMUM of each cumulative *Today counter across all
+    #     snapshots.  Growatt MIN inverters can reset their counters when
+    #     transitioning from standby to active (e.g. at sunrise), so the
+    #     latest snapshot may have a LOWER counter than an earlier one.
+    #     Using the per-day maximum guarantees we never lose overnight
+    #     imports or other values captured before the reset.
+    #   - integrate all 5-minute power snapshots for reconciliation.
+    _COUNTER_FIELDS = (
+        "eacToday", "elocalLoadToday", "etoUserToday", "etoGridToday",
+        "echargeToday", "edischargeToday", "eselfToday",
+    )
+    max_counters: dict[str, dict] = {}
     integrated_by_date: dict[str, dict] = {}
     for snap in all_snapshots:
         day = snap["time"][:10]
@@ -613,17 +656,21 @@ def get_daily_energy_breakdown(start_date: date, end_date: date) -> list:
         if day not in integrated_by_date:
             integrated_by_date[day] = _empty_integrated_totals()
         _accumulate_snapshot_energy(integrated_by_date[day], snap)
-        if day not in by_date or snap["time"] > by_date[day]["time"]:
-            by_date[day] = snap
+        if day not in max_counters:
+            max_counters[day] = {f: 0.0 for f in _COUNTER_FIELDS}
+        for field in _COUNTER_FIELDS:
+            max_counters[day][field] = max(
+                max_counters[day][field], snap.get(field, 0.0)
+            )
 
     # Build a complete, gap-free series.
     result = []
     current = start_date
     while current <= end_date:
         key = current.strftime("%Y-%m-%d")
-        if key in by_date or key in integrated_by_date:
+        if key in max_counters or key in integrated_by_date:
             reconciled = _reconcile_daily_totals(
-                by_date.get(key),
+                max_counters.get(key),
                 integrated_by_date.get(key, _empty_integrated_totals()),
             )
             result.append({"date": key, **reconciled})
@@ -653,4 +700,3 @@ def get_plant_energy_overview() -> dict:
     """
     api = get_api()
     return api.plant_energy_overview(GROWATT_PLANT_ID)
-

@@ -14,16 +14,17 @@ import { Activity } from 'lucide-react'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid } from 'recharts'
 import { useHistory } from '../hooks/useGrowatt'
 import SeriesToggle from './SeriesToggle'
+import { ENERGY_COLORS } from '@/lib/energy-colors'
 
 // ── Series config ─────────────────────────────────────────────────────────────
 
 const SERIES = [
-  { key: 'solar_w',             label: 'Solar',             color: '#f59e0b' },
-  { key: 'home_w',              label: 'Home',              color: '#9f1239' },
-  { key: 'battery_charge_w',    label: 'Battery charge',    color: '#3b82f6' },
-  { key: 'battery_discharge_w', label: 'Battery discharge', color: '#8b5cf6' },
-  { key: 'grid_import_w',       label: 'Grid import',       color: '#ef4444' },
-  { key: 'grid_export_w',       label: 'Grid export',       color: '#10b981' },
+  { key: 'solar_w',             label: 'Solar',             color: ENERGY_COLORS.solar },
+  { key: 'home_w',              label: 'Home',              color: ENERGY_COLORS.home },
+  { key: 'battery_charge_w',    label: 'Battery charge',    color: ENERGY_COLORS.batteryCharge },
+  { key: 'battery_discharge_w', label: 'Battery discharge', color: ENERGY_COLORS.batteryDischarge },
+  { key: 'grid_import_w',       label: 'Grid import',       color: ENERGY_COLORS.gridImport },
+  { key: 'grid_export_w',       label: 'Grid export',       color: ENERGY_COLORS.gridExport },
 ]
 
 // chartConfig required by ChartContainer for tooltips and theming
@@ -108,10 +109,10 @@ export default function DailyCurveCard() {
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="pb-4">
         <div className="flex items-center gap-2">
-          <Activity size={16} className="text-muted-foreground" />
-          <CardTitle className="text-sm font-semibold">Today's energy flow</CardTitle>
+          <Activity size={18} className="text-primary" />
+          <CardTitle className="text-[17px] font-semibold tracking-tight">Today's Energy Flow</CardTitle>
         </div>
       </CardHeader>
 
@@ -142,14 +143,14 @@ export default function DailyCurveCard() {
                 tickLine={false}
                 axisLine={false}
                 tickMargin={8}
-                tick={{ fontSize: 10 }}
+                tick={{ fontSize: 10, fill: 'var(--foreground)' }}
                 interval="preserveStartEnd"
               />
 
               <YAxis
                 tickLine={false}
                 axisLine={false}
-                tick={{ fontSize: 10 }}
+                tick={{ fontSize: 10, fill: 'var(--foreground)' }}
                 tickFormatter={v => `${(v / 1000).toFixed(1)}`}
                 unit=" kW"
                 width={48}

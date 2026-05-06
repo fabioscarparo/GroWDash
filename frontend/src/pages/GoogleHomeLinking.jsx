@@ -4,7 +4,7 @@
  * This page is the OAuth2 landing point during the Google Home account
  * linking flow. Google redirects the user here after they tap "Link" inside
  * the Google Home app. The page is intentionally rendered outside the main
- * application layout (no sidebar, no bottom nav) so it works cleanly inside
+ * application layout (no header, no bottom nav) so it works cleanly inside
  * the in-app browser that Google Home spawns.
  *
  * Flow:
@@ -41,6 +41,7 @@ import {
     CardDescription,
 } from '@/components/ui/card'
 import { Home, CheckCircle, XCircle, Loader2, ShieldCheck } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
@@ -59,27 +60,26 @@ const SHARED_CAPABILITIES = [
 // ── Sub-components ────────────────────────────────────────────────────────────
 
 /**
- * Displayed when the user navigates to this page without an active GroWDash
- * session. The backend would reject the code request anyway, but we surface
- * a clear message rather than letting the fetch silently fail.
+ * Displayed when the user opens this page without an active GroWDash session.
+ * The backend would reject the code request anyway, so we surface a clear
+ * authentication prompt in advance.
  *
- * @component NotAuthenticated
- * @returns {JSX.Element} Warning view requiring login action.
+ * @component
+ * @returns {JSX.Element}
  */
 function NotAuthenticated() {
     return (
-        <div className="min-h-dvh bg-background flex items-center justify-center p-4">
+        <div className="min-h-dvh bg-background flex flex-col items-center">
             <Card className="w-full max-w-sm">
-                <CardHeader>
-                    <div className="flex items-center gap-3 mb-1">
-                        <div className="p-2 bg-destructive/10 rounded-lg">
-                            <Home size={22} className="text-destructive" />
+                <CardHeader className="pb-8">
+                    <div className="flex flex-col items-center text-center gap-4">
+                        <div className="p-3 bg-red-500/10 rounded-full">
+                            <XCircle size={32} className="text-red-500" />
                         </div>
-                        <div>
-                            <CardTitle className="text-base">Login required</CardTitle>
-                            <CardDescription className="text-xs">
-                                Sign in to GroWDash first, then retry linking from the Google
-                                Home app.
+                        <div className="space-y-2">
+                            <CardTitle className="text-[24px] font-semibold tracking-tight">Login Required</CardTitle>
+                            <CardDescription className="text-[17px] leading-relaxed">
+                                Please sign in to GroWDash first, then retry linking from the Google Home app.
                             </CardDescription>
                         </div>
                     </div>
@@ -92,11 +92,11 @@ function NotAuthenticated() {
 // ── Main component ────────────────────────────────────────────────────────────
 
 /**
- * GoogleHomeLinking — OAuth2 account linking page for Google Home.
+ * GoogleHomeLinking — OAuth2 account-linking page for Google Home.
  *
- * Reads the OAuth2 parameters injected by Google via the query string and,
- * upon user confirmation, fetches a short-lived authorization code from the
- * GroWDash backend and redirects back to Google to complete the handshake.
+ * Reads OAuth query parameters injected by Google and, on confirmation,
+ * requests a short-lived authorization code from the backend before
+ * redirecting back to Google's callback URL.
  *
  * @component
  * @returns {JSX.Element}
@@ -106,33 +106,30 @@ export default function GoogleHomeLinking() {
 
     /**
      * Linking state machine:
-     *   idle     → initial state, button is enabled
-     *   linking  → fetch in progress, button shows spinner
-     *   success  → code obtained, redirecting to Google
-     *   error    → fetch failed, user can retry
+     *   idle     -> initial state
+     *   linking  -> code request in flight
+     *   success  -> code received, redirecting to Google
+     *   error    -> backend call failed, retry allowed
      */
     const [status, setStatus] = useState('idle')
 
-    // OAuth2 parameters injected by Google into the query string.
-    // redirect_uri is the Google-owned URL we must send the code back to.
-    // state is an opaque value Google uses to prevent CSRF; we must echo it.
+    // OAuth parameters injected by Google into the query string.
+    // redirect_uri must be echoed with the generated code.
+    // state is an anti-CSRF value that must be returned unchanged.
     const params = new URLSearchParams(window.location.search)
     const redirectUri = params.get('redirect_uri')
     const state = params.get('state')
 
-    // Guard: both parameters must be present for the flow to work.
+    // Guard: both parameters are required for the flow to work.
     const paramsValid = Boolean(redirectUri && state)
 
     /**
-     * Requests a short-lived OAuth code from the backend and redirects the
-     * browser back to Google's redirect_uri with the code and state attached.
+     * Requests a short-lived OAuth code from the backend and redirects to the
+     * Google callback URL with { code, state } attached.
      *
-     * The backend endpoint requires an active GroWDash session cookie and
-     * returns a signed JWT with a 5-minute TTL and a purpose claim that
-     * prevents the code from being used as a regular session token.
-     *
-     * @function handleAuthorize
      * @async
+     * @function handleAuthorize
+     * @returns {Promise<void>}
      */
     async function handleAuthorize() {
         if (!paramsValid) return
@@ -141,17 +138,14 @@ export default function GoogleHomeLinking() {
         try {
             const res = await fetch(`${BASE_URL}/auth/google-home/code`, {
                 method: 'POST',
-                credentials: 'include',   // sends the GroWDash HttpOnly session cookie
+                credentials: 'include',
             })
 
             if (!res.ok) throw new Error(`Backend returned ${res.status}`)
-
             const { code } = await res.json()
-
             setStatus('success')
 
-            // Build the Google callback URL and redirect after a short delay so
-            // the success message is visible to the user for a moment.
+            // Delay just enough for the success message to be visible.
             setTimeout(() => {
                 const callbackUrl = new URL(redirectUri)
                 callbackUrl.searchParams.set('code', code)
@@ -165,104 +159,117 @@ export default function GoogleHomeLinking() {
     }
 
     // ── Early return: unauthenticated ─────────────────────────────────────────
-
-    if (!isAuthenticated) {
-        return <NotAuthenticated />
-    }
-
-    // ── Render ────────────────────────────────────────────────────────────────
+    if (!isAuthenticated) return <NotAuthenticated />
 
     return (
-        <div className="min-h-dvh bg-background flex items-center justify-center p-4">
-            <Card className="w-full max-w-sm">
-
-                {/* Header */}
-                <CardHeader>
-                    <div className="flex items-center gap-3 mb-1">
-                        <div className="p-2 bg-primary/10 rounded-lg">
-                            <Home size={22} className="text-primary" />
-                        </div>
-                        <div>
-                            <CardTitle className="text-base">Link Google Home</CardTitle>
-                            <CardDescription className="text-xs">
-                                Signed in as <span className="font-medium text-foreground">{user?.username}</span>
-                            </CardDescription>
-                        </div>
+        <div className="min-h-dvh bg-background flex flex-col items-center">
+            
+            {/* Cinematic Header */}
+            <header className="w-full bg-white dark:bg-[#1d1d1f] pt-8 pb-5 md:pt-10 md:pb-6 px-4 md:px-6 flex justify-center border-b border-border/10">
+                <div className="max-w-[480px] w-full">
+                    <div className="w-10 h-10 bg-primary/10 rounded-[12px] flex items-center justify-center mb-4">
+                        <Home size={22} className="text-primary" />
                     </div>
-                </CardHeader>
+                    <h1 className="text-[24px] md:text-[30px] font-semibold tracking-tight text-near-black dark:text-white leading-tight mb-1.5">
+                        Link with Google
+                    </h1>
+                    <p className="text-[14px] md:text-[16px] text-muted-foreground/80 font-medium tracking-tight">
+                        Authorize GroWDash to share your energy metrics.
+                    </p>
+                </div>
+            </header>
 
-                <CardContent className="flex flex-col gap-5">
-
-                    {/* Read-only disclaimer */}
-                    <div className="flex items-start gap-2.5 rounded-lg bg-muted/50 border border-border px-3 py-2.5">
-                        <ShieldCheck size={15} className="text-muted-foreground mt-0.5 shrink-0" />
-                        <p className="text-xs text-muted-foreground leading-relaxed">
-                            Google Home will have <span className="font-semibold text-foreground">read-only</span> access
-                            to your inverter data. No settings can be changed remotely.
-                        </p>
-                    </div>
-
-                    {/* Capability list */}
-                    <div className="flex flex-col gap-1.5">
-                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-0.5">
-                            Shared data
-                        </p>
-                        {SHARED_CAPABILITIES.map(({ icon, label }) => (
-                            <div key={label} className="flex items-center gap-2 text-sm text-foreground">
-                                <span className="text-base leading-none">{icon}</span>
-                                <span>{label}</span>
+            <main className="max-w-[480px] w-full px-4 md:px-6 py-6 md:py-8 flex flex-col gap-8">
+                
+                <section className="space-y-4">
+                    <h2 className="text-[13px] font-bold text-muted-foreground uppercase tracking-[0.1em] px-1">
+                        Active Account
+                    </h2>
+                    <Card className="py-0">
+                        <CardContent className="py-6 flex items-center gap-4">
+                            <div className="p-3 bg-muted/40 rounded-full">
+                                <ShieldCheck size={20} className="text-primary/70" />
                             </div>
-                        ))}
-                    </div>
+                            <div className="space-y-0.5">
+                                <p className="text-[16px] font-semibold text-near-black dark:text-white">
+                                    {user?.username || 'Solar Owner'}
+                                </p>
+                                <p className="text-[13px] text-muted-foreground">Linked with GroWDash Cloud</p>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </section>
 
-                    {/* Missing parameters warning */}
+                <section className="space-y-4">
+                    <h2 className="text-[13px] font-bold text-muted-foreground uppercase tracking-[0.1em] px-1">
+                        What Google will see
+                    </h2>
+                    <Card className="py-0">
+                        <CardContent className="py-2">
+                            {SHARED_CAPABILITIES.map(({ icon, label }, i) => (
+                                <div key={label} className={cn(
+                                    "flex items-center gap-3 py-4",
+                                    i !== SHARED_CAPABILITIES.length - 1 && "border-b border-border/10"
+                                )}>
+                                    <span className="text-xl leading-none w-6 text-center">{icon}</span>
+                                    <span className="text-[15px] font-medium text-near-black dark:text-white">{label}</span>
+                                </div>
+                            ))}
+                        </CardContent>
+                    </Card>
+                    <p className="text-[12px] text-muted-foreground leading-relaxed px-1">
+                        Linking is <span className="font-semibold text-foreground">read-only</span>. Google Home cannot change your system settings or control hardware.
+                    </p>
+                </section>
+
+                <div className="flex flex-col gap-4 pt-4">
                     {!paramsValid && (
-                        <div className="flex items-center gap-2 text-destructive text-xs">
-                            <XCircle size={14} />
-                            Missing OAuth parameters. Open this page from the Google Home app.
+                        <div className="rounded-[12px] bg-red-500/10 p-4 border border-red-500/20 mb-2">
+                            <p className="text-[13px] font-medium text-red-500 text-center">
+                                Missing OAuth parameters. Please initiate linking from the Google Home app.
+                            </p>
                         </div>
                     )}
 
-                    {/* Status messages */}
                     {status === 'success' && (
-                        <div className="flex items-center gap-2 text-green-500 text-sm">
-                            <CheckCircle size={15} />
-                            Linked successfully. Redirecting back to Google…
+                        <div className="flex items-center justify-center gap-2 text-green-500 text-[14px] font-semibold mb-4 animate-in fade-in zoom-in duration-300">
+                            <CheckCircle size={18} />
+                            Success! Redirecting back to Google…
                         </div>
                     )}
+                    
                     {status === 'error' && (
-                        <div className="flex items-center gap-2 text-destructive text-sm">
-                            <XCircle size={15} />
-                            Something went wrong. Please try again.
+                        <div className="flex flex-col items-center gap-3 mb-4">
+                            <div className="flex items-center gap-2 text-red-500 text-[14px] font-semibold">
+                                <XCircle size={18} />
+                                Authorization failed. Please try again.
+                            </div>
+                            <button 
+                                onClick={() => setStatus('idle')}
+                                className="text-[13px] font-bold text-primary hover:underline"
+                            >
+                                Tap to retry
+                            </button>
                         </div>
                     )}
 
-                    {/* Authorize button */}
                     <Button
                         onClick={handleAuthorize}
                         disabled={!paramsValid || status === 'linking' || status === 'success'}
-                        className="w-full"
+                        variant="pill"
+                        className="h-14 text-[17px] font-semibold shadow-2xl"
                     >
-                        {status === 'linking' && (
-                            <Loader2 size={15} className="animate-spin mr-2" />
-                        )}
+                        {status === 'linking' && <Loader2 size={20} className="animate-spin mr-3" />}
                         {status === 'linking' ? 'Authorizing…' :
-                            status === 'success' ? 'Redirecting…' :
-                                'Authorize Google Home'}
+                         status === 'success' ? 'Wait a moment…' :
+                         'Authorize & Link'}
                     </Button>
 
-                    {/* Retry hint on error */}
-                    {status === 'error' && (
-                        <button
-                            onClick={() => setStatus('idle')}
-                            className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground transition-colors mx-auto"
-                        >
-                            Try again
-                        </button>
-                    )}
-
-                </CardContent>
-            </Card>
+                    <p className="text-[12px] text-center text-muted-foreground px-6">
+                        By linking, you agree to share the data listed above with Google services.
+                    </p>
+                </div>
+            </main>
         </div>
     )
 }

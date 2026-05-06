@@ -1,9 +1,14 @@
+/**
+ * toggle-group.jsx — Shared UI primitive module.
+ * Exposes reusable low-level components to keep layout and interactions consistent.
+ */
+
 "use client";
 import * as React from "react"
 import { ToggleGroup as ToggleGroupPrimitive } from "radix-ui"
 
 import { cn } from "@/lib/utils"
-import { toggleVariants } from "@/components/ui/toggle"
+import { toggleVariants } from "@/components/ui/toggle-variants"
 
 const ToggleGroupContext = React.createContext({
   size: "default",
@@ -11,6 +16,9 @@ const ToggleGroupContext = React.createContext({
   spacing: 0,
 })
 
+/**
+ * Renders the toggle group component.
+ */
 function ToggleGroup({
   className,
   variant,
@@ -40,6 +48,9 @@ function ToggleGroup({
   );
 }
 
+/**
+ * Renders the toggle group item component.
+ */
 function ToggleGroupItem({
   className,
   children,

@@ -11,6 +11,11 @@
  * Production estimate formula (standard PV industry):
  *   hourly_kWh = GTI (W/m²) / 1000 × peak_power_kWp × performance_ratio
  *
+ * This formula implements the standard STC (Standard Test Conditions) mapping, 
+ * where 1000 W/m² irradiance corresponds to the peak nameplate capacity.
+ * The performance_ratio (PR) accounts for inverter efficiency, cabling 
+ * losses, and soiling.
+ *
  * Chart: dual AreaChart — forecast as a filled grey area, actual production
  * as an amber filled area overlaid on top. Both share the same time axis.
  *
@@ -139,11 +144,11 @@ export default function SolarProductionCard({
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <Card>
-      <CardHeader className="pb-2">
+    <Card className="h-full flex flex-col">
+      <CardHeader className="pb-4">
         <div className="flex items-center gap-2">
-          <Sun size={16} className="text-muted-foreground" />
-          <CardTitle className="text-sm font-semibold">Solar Production</CardTitle>
+          <Sun size={18} className="text-amber-500" />
+          <CardTitle className="text-[17px] font-semibold tracking-tight">Solar Performance</CardTitle>
         </div>
       </CardHeader>
       <CardContent className="pb-4">
@@ -172,11 +177,11 @@ export default function SolarProductionCard({
         ) : (
           <>
             {/* Actual production value */}
-            <div className="flex items-baseline gap-1 mb-3">
-              <span className="text-2xl font-bold text-foreground">
+            <div className="flex items-baseline gap-2 mb-6">
+              <span className="text-[40px] font-semibold tracking-tight text-near-black dark:text-white leading-none">
                 {actualKwh ?? '—'}
               </span>
-              <span className="text-sm text-muted-foreground">kWh</span>
+              <span className="text-[19px] font-medium text-muted-foreground">kWh</span>
             </div>
 
             {/* Forecast section */}

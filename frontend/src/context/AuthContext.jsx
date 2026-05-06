@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 /**
  * AuthContext.jsx — Authentication lifecycle and session management.
  *
@@ -25,7 +26,8 @@ const AuthContext = createContext(null)
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [error, setError] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
+  const [sessionLoading, setSessionLoading] = useState(true)
 
   // On mount, check if we have a valid session cookie
   useEffect(() => {
@@ -41,7 +43,7 @@ export function AuthProvider({ children }) {
         }
         setUser(null)
       } finally {
-        setLoading(false)
+        setSessionLoading(false)
       }
     }
     checkSession()
@@ -84,7 +86,7 @@ export function AuthProvider({ children }) {
       const u = await api.getMe()
       setUser(u)
       return true
-    } catch (e) {
+    } catch {
       setError('Could not connect to the server. Please try again.')
       return false
     } finally {
@@ -96,6 +98,12 @@ export function AuthProvider({ children }) {
    * Clears the authentication state locally while explicitly instructing the backend API 
    * to revoke and invalidate the active secure access cookie context. 
    * Protects aggressively against token leaks post-session termination.
+   *
+   * CRITICAL SECURITY NOTE:
+   * -----------------------
+   * All authentication logic relies on `credentials: 'include'`. The backend
+   * issues a secure HttpOnly, SameSite=Lax cookie. This mitigates XSS-based
+   * token theft and ensures that only our domain can initiate requests.
    *
    * @function logout
    * @async
@@ -112,7 +120,7 @@ export function AuthProvider({ children }) {
   }, [])
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, error, loading, isAuthenticated: !!user }}>
+    <AuthContext.Provider value={{ user, login, logout, error, loading, sessionLoading, isAuthenticated: !!user }}>
       {children}
     </AuthContext.Provider>
   )
@@ -124,7 +132,7 @@ export function AuthProvider({ children }) {
    *
    * @function useAuth
    * @throws {Error} If implicitly consumed disconnected from the main application root provider layer.
-   * @returns {{ user: object|null, login: function, logout: function, error: string|null, loading: boolean, isAuthenticated: boolean }} Context payload object.
+   * @returns {{ user: object|null, login: function, logout: function, error: string|null, loading: boolean, sessionLoading: boolean, isAuthenticated: boolean }} Context payload object.
    */
 export function useAuth() {
   const ctx = useContext(AuthContext)

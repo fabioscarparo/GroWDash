@@ -16,10 +16,22 @@
  * @module hooks/useTheme
  */
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 
 /**
  * A custom hook to manage and toggle global application themes (Dark, Light, or System).
+ *
+ * ARCHITECTURAL DESIGN - RIPPLE TRANSITION:
+ * -----------------------------------------
+ * This project implements a modern 'View Transition' ripple effect. When switching
+ * themes, we capture a snapshot of the old state, inject a circular SVG mask centered 
+ * on the click coordinates, and expand that mask to reveal the new theme color 
+ * surface.
+ *
+ * CSS Requirements:
+ * - `:root` must define `--vt-x` and `--vt-y` for positional masking.
+ * - `html.no-vt-transitions` must disable standard CSS transitions during snapshot 
+ *   capture to avoid color bleeding/flicking.
  *
  * @function useTheme
  * @returns {{ theme: string, setTheme: Function, setThemeAt: Function }} An object containing:
@@ -32,6 +44,7 @@ export function useTheme() {
   const [theme, setThemeState] = useState(() => {
     return localStorage.getItem('theme') || 'system'
   })
+  const isTransitioningRef = useRef(false)
 
   // Core class-toggle logic — called synchronously inside startViewTransition
   const applyTheme = useCallback((currentTheme) => {
@@ -65,6 +78,7 @@ export function useTheme() {
     // Listener for system theme changes
     if (theme === 'system') {
       const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
+      // Re-apply system theme whenever the OS preference changes.
       const handleChange = () => applyTheme('system')
       mediaQuery.addEventListener('change', handleChange)
       return () => mediaQuery.removeEventListener('change', handleChange)
@@ -89,33 +103,47 @@ export function useTheme() {
    * ::view-transition-new(root) pseudo-element can reference it.
    *
    * @param {string}  newTheme - Target theme: 'dark' | 'light' | 'system'
-   * @param {number}  x        - Horizontal origin of the ripple in px (clientX)
-   * @param {number}  y        - Vertical origin of the ripple in px (clientY)
+   * @param {number}  [x]      - Horizontal origin of the ripple in px (clientX)
+   * @param {number}  [y]      - Vertical origin of the ripple in px (clientY)
    */
-  const setThemeAt = useCallback((newTheme) => {
+  const setThemeAt = useCallback((newTheme, x, y) => {
+    if (isTransitioningRef.current) return
     if (!document.startViewTransition) {
       setThemeState(newTheme)
       return
     }
 
     const root = document.documentElement
+    isTransitioningRef.current = true
 
-    // ── 1. Freeze CSS transitions before snapshot capture ────────────────────
+    // ── 1. Set origin coordinates ────────────────────────────────────────────
+    if (x !== undefined && y !== undefined) {
+      root.style.setProperty('--vt-x', `${x}px`)
+      root.style.setProperty('--vt-y', `${y}px`)
+    } else {
+      // Fallback to viewport center (pixels required for mask-position calc)
+      root.style.setProperty('--vt-x', `${window.innerWidth / 2}px`)
+      root.style.setProperty('--vt-y', `${window.innerHeight / 2}px`)
+    }
+
+    // ── 2. Freeze CSS transitions before snapshot capture ────────────────────
     // Must be synchronous and BEFORE startViewTransition so the browser
-    // captures a fully-settled colour state with no mid-transition values
-    // bleeding into the snapshot and causing a glitchy first frame.
+    // captures a fully-settled color state with no mid-transition values.
     root.classList.add('no-vt-transitions')
 
-    // ── 2. Run View Transition ───────────────────────────────────────────────
-    // The SVG blur-mask is always centred; no click coordinates needed.
+    // ── 3. Run View Transition ───────────────────────────────────────────────
+    // The ripple itself is CSS-driven via --vt-x / --vt-y.
     const transition = document.startViewTransition(() => {
       applyTheme(newTheme)
       setThemeState(newTheme)
     })
 
-    // ── 3. Restore transitions once the ripple animation completes ───────────
+    // ── 4. Restore transitions once the ripple animation completes ───────────
     transition.finished.finally(() => {
       root.classList.remove('no-vt-transitions')
+      root.style.removeProperty('--vt-x')
+      root.style.removeProperty('--vt-y')
+      isTransitioningRef.current = false
     })
   }, [applyTheme])
 

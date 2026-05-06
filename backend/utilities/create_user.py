@@ -1,3 +1,7 @@
+"""
+CLI utility to create a local GroWDash user account.
+"""
+
 import sys
 import os
 import getpass
@@ -10,6 +14,8 @@ import models
 from auth import get_password_hash
 
 def main():
+    """Run an interactive prompt and persist a new user in the database."""
+
     print("=== GroWDash User Creation Utility ===")
     
     db = SessionLocal()

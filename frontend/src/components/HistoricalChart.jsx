@@ -22,6 +22,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Cell } from 'recharts'
 import { useAggregate, usePlantInfo } from '../hooks/useGrowatt'
 import { Skeleton } from '@/components/ui/skeleton'
 import PeriodPicker from './PeriodPicker'
+import { ENERGY_COLORS } from '@/lib/energy-colors'
 
 // ── Chart config ───────────────────────────────────────────────────────────────
 
@@ -43,6 +44,7 @@ const chartConfig = {
 function monthRange(year, month) {
   const start = new Date(year, month, 1)
   const end   = new Date(year, month + 1, 0)
+  // Local helper to keep date keys in backend-compatible YYYY-MM-DD format.
   const fmt   = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
   return { start: fmt(start), end: fmt(end) }
 }
@@ -114,22 +116,19 @@ export default function HistoricalChart() {
   // - month: Full year containing refDate
   // - year:  'All time' starting from installation date to current year end
 
-  let startDate, endDate, periodLabel
+  let startDate, endDate
 
   if (timeUnit === 'day') {
     const { start, end } = monthRange(refDate.getFullYear(), refDate.getMonth())
     startDate   = start
     endDate     = end
-    periodLabel = refDate.toLocaleString('en', { month: 'long', year: 'numeric' })
   } else if (timeUnit === 'month') {
     startDate   = `${refDate.getFullYear()}-01-01`
     endDate     = `${refDate.getFullYear()}-12-31`
-    periodLabel = String(refDate.getFullYear())
   } else {
     // History starts from the plant's birth (installation date)
     startDate   = plantInfo?.plant_installation_date || '2020-01-01'
     endDate     = `${new Date().getFullYear()}-12-31`
-    periodLabel = 'All time'
   }
 
   const { data: aggregate, isLoading } = useAggregate(startDate, endDate, timeUnit)
@@ -159,60 +158,53 @@ export default function HistoricalChart() {
       data = data.filter(d => d.dateStr <= todayStr)
     }
 
-    return data.map(({ dateStr, ...rest }) => rest)
+    return data.map(item => ({
+      label: item.label,
+      energy: item.energy,
+    }))
   }, [aggregate, timeUnit, isCurrentPeriod])
-
-  const total = useMemo(() =>
-    chartData.reduce((sum, d) => sum + d.energy, 0).toFixed(1),
-    [chartData]
-  )
 
 
 
   return (
-    <Card>
-      <CardHeader>
-
-        {/* Row 1: title + time unit selector + navigation */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <BarChart2 size={16} className="text-muted-foreground" />
-            <CardTitle className="text-sm font-semibold">Solar Production</CardTitle>
-          </div>
-          <div className="flex items-center gap-2">
-            <PeriodPicker 
-              currentDate={refDate} 
-              onDateChange={(d) => { setRefDate(d); setActiveBar(null) }}
-              timeUnit={timeUnit}
-              onTimeUnitChange={(u) => { setTimeUnit(u); setActiveBar(null) }}
-              minDate={minDate}
-            />
-          </div>
+    <div className="space-y-2.5">
+      <div className="flex items-center justify-between px-1">
+        <div className="flex items-center gap-2">
+          <BarChart2 size={18} className="text-foreground/60" strokeWidth={2} />
+          <h2 className="text-[13px] font-semibold text-muted-foreground uppercase tracking-wider pl-0.5 font-display">
+            Solar Production
+          </h2>
         </div>
+        <PeriodPicker 
+          currentDate={refDate} 
+          onDateChange={(d) => { setRefDate(d); setActiveBar(null) }}
+          timeUnit={timeUnit}
+          onTimeUnitChange={(u) => { setTimeUnit(u); setActiveBar(null) }}
+          minDate={minDate}
+        />
+      </div>
 
-
-      </CardHeader>
-
-      <CardContent className="px-3 pb-3">
+      <Card className="premium-glass border-white/20 dark:border-white/5 overflow-hidden py-0">
+        <CardContent className="p-3">
         {isLoading ? (
           <Skeleton className="h-[200px] w-full" />
         ) : chartData.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No data available.</p>
+          <p className="text-sm text-muted-foreground p-3">No data available.</p>
         ) : (
           <ChartContainer config={chartConfig} className="h-50 w-full">
-            <BarChart data={chartData} barCategoryGap="20%">
+            <BarChart data={chartData} barCategoryGap="20%" margin={{ left: -10, right: 5, top: 10, bottom: 0 }}>
               <CartesianGrid vertical={false} stroke="hsl(var(--border))" strokeDasharray="3 3" />
               <XAxis
                 dataKey="label"
                 tickLine={false}
                 axisLine={false}
                 tickMargin={8}
-                tick={{ fontSize: 10 }}
+                tick={{ fontSize: 10, fill: 'var(--foreground)' }}
               />
               <YAxis
                 tickLine={false}
                 axisLine={false}
-                tick={{ fontSize: 10 }}
+                tick={{ fontSize: 10, fill: 'var(--foreground)' }}
                 unit=" kWh"
                 width={50}
               />
@@ -239,8 +231,9 @@ export default function HistoricalChart() {
                 {chartData.map((_, index) => (
                   <Cell
                     key={index}
-                    fill="var(--primary)"
-                    opacity={activeBar === null || activeBar === index ? 1 : 0.3}
+                    fill={ENERGY_COLORS.solar}
+                    opacity={activeBar === null || activeBar === index ? 1 : 0.4}
+                    className="transition-all duration-300"
                   />
                 ))}
               </Bar>
@@ -249,5 +242,6 @@ export default function HistoricalChart() {
         )}
       </CardContent>
     </Card>
+    </div>
   )
 }

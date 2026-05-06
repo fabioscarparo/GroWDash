@@ -4,6 +4,7 @@
 import { useRefresh } from '../context/RefreshContext'
 import { RefreshCw } from 'lucide-react'
 import { usePullToRefresh } from '../hooks/usePullToRefresh'
+import { cn } from '@/lib/utils'
 
 /**
  * PullToRefreshChip acts as a universal, gesture-driven global data refetch interface.
@@ -24,7 +25,7 @@ export default function PullToRefreshChip() {
   // Determine visibility states to fix the "shadow always visible" issue
   const isVisible = pulling || isRefreshing || progress > 0
   const activeTranslation = isRefreshing 
-    ? 'translateY(12px)' 
+    ? 'translateY(24px)' 
     : `translateY(calc(-100% + ${pullDistance}px))`
 
   return (
@@ -40,17 +41,20 @@ export default function PullToRefreshChip() {
       }}
     >
       <div
-        className="bg-card border border-border rounded-full px-3 py-1.5 shadow-md flex items-center gap-2"
+        className="bg-background/80 backdrop-blur-md border border-border/50 rounded-full w-9 h-9 shadow-[0_4px_16px_rgba(0,0,0,0.1)] flex items-center justify-center"
         style={{
           animation: progress >= 0.9 && !isRefreshing ? 'ptr-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)' : 'none',
         }}
       >
         <RefreshCw
-          size={14}
-          className={isRefreshing ? 'text-primary' : progress >= 0.9 ? 'text-primary' : 'text-muted-foreground'}
+          size={18}
+          className={cn(
+            "transition-colors duration-200",
+            isRefreshing || progress >= 0.9 ? 'text-primary' : 'text-muted-foreground'
+          )}
           style={{
             animation: isRefreshing
-              ? 'spin 0.8s linear infinite'
+              ? 'spin 1s linear infinite'
               : progress >= 0.9
                 ? 'ptr-wiggle 0.4s ease-out'
                 : 'none',
@@ -59,13 +63,6 @@ export default function PullToRefreshChip() {
               : undefined,
           }}
         />
-        <span
-          key={isRefreshing ? 'refreshing' : progress >= 0.9 ? 'release' : 'pull'}
-          className="text-xs text-muted-foreground"
-          style={{ animation: 'ptr-text-in 0.2s ease-out' }}
-        >
-          {isRefreshing ? 'Updating...' : progress >= 0.9 ? 'Release to refresh' : 'Pull to refresh'}
-        </span>
       </div>
     </div>
   )

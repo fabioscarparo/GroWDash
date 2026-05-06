@@ -19,6 +19,9 @@ const THEMES = {
 
 const ChartContext = React.createContext(null)
 
+/**
+ * Exposes shared chart state and helpers.
+ */
 function useChart() {
   const context = React.useContext(ChartContext)
 
@@ -29,6 +32,9 @@ function useChart() {
   return context
 }
 
+/**
+ * Renders the chart container component.
+ */
 function ChartContainer({
   id,
   className,
@@ -91,6 +97,9 @@ return color ? `  --color-${key}: ${color};` : null
 
 const ChartTooltip = RechartsPrimitive.Tooltip
 
+/**
+ * Renders the chart tooltip content component.
+ */
 function ChartTooltipContent({
   active,
   payload,
@@ -225,6 +234,9 @@ function ChartTooltipContent({
 
 const ChartLegend = RechartsPrimitive.Legend
 
+/**
+ * Renders the chart legend content component.
+ */
 function ChartLegendContent({
   className,
   hideIcon = false,

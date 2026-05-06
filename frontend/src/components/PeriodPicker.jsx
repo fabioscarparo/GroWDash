@@ -133,6 +133,9 @@ export default function PeriodPicker({
     }
   }
 
+  /**
+   * Opens/closes the picker and resets the visible year when opening.
+   */
   const handleSetOpen = (isOpen) => {
     setOpen(isOpen)
     if (isOpen) {
@@ -234,6 +237,9 @@ export default function PeriodPicker({
     </div>
   )
 
+  /**
+   * Builds the trigger caption based on the selected aggregation granularity.
+   */
   const getTriggerLabel = () => {
     if (timeUnit === 'year') return 'All time'
     if (timeUnit === 'month') return `Year ${currentDate.getFullYear()}`
@@ -245,7 +251,9 @@ export default function PeriodPicker({
       variant={"outline"}
       type="button"
       className={cn(
-        "h-8 px-2.5 text-xs font-medium gap-2 justify-start items-center transition-all hover:bg-muted border-muted-foreground/20",
+        "h-8 px-2.5 text-xs font-medium gap-2 justify-start items-center transition-all",
+        "bg-white hover:bg-neutral-50 dark:bg-[#2c2c2e] dark:hover:bg-[#3a3a3c]",
+        "shadow-sm border border-black/5 dark:border-white/10",
         className
       )}
       onPointerDown={(e) => {

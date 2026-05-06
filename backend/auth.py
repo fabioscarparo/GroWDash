@@ -1,3 +1,7 @@
+"""
+Authentication helpers and security dependencies for JWT-based sessions.
+"""
+
 import os
 from datetime import datetime, timedelta
 from typing import Optional
@@ -34,15 +38,42 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/token", auto_error=False)
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Verifies a plain text password against its bcrypt hash."""
+    """
+    Verifies a plain text password against its bcrypt hash.
+
+    Args:
+        plain_password (str): The plain text password to verify.
+        hashed_password (str): The bcrypt hash to compare against.
+
+    Returns:
+        bool: True if the password matches the hash, False otherwise.
+    """
     return pwd_context.verify(plain_password, hashed_password)
 
 def get_password_hash(password: str) -> str:
-    """Generates a bcrypt hash for a given password."""
+    """
+    Generates a bcrypt hash for a given password.
+
+    Args:
+        password (str): The plain text password to hash.
+
+    Returns:
+        str: The bcrypt hash of the password.
+    """
     return pwd_context.hash(password)
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
-    """Creates a JWT access token containing the provided payload data."""
+    """
+    Creates a JWT access token containing the provided payload data.
+
+    Args:
+        data (dict): The payload data to encode in the JWT.
+        expires_delta (Optional[timedelta], optional): Custom expiration time.
+            If None, defaults to ACCESS_TOKEN_EXPIRE_MINUTES. Defaults to None.
+
+    Returns:
+        str: The encoded JWT string.
+    """
     to_encode = data.copy()
     if expires_delta:
         expire = datetime.utcnow() + expires_delta
@@ -62,8 +93,20 @@ def get_current_user(
 ):
     """
     FastAPI Dependency that extracts and validates the JWT token.
+    
     It prioritizes the HttpOnly cookie 'growdash_token', with 
     the Authorization header as a fallback for Swagger UI.
+
+    Args:
+        growdash_token (Optional[str], optional): JWT token from the HttpOnly cookie.
+        token (Optional[str], optional): JWT token from the Authorization header.
+        db (Session, optional): Database session dependency.
+
+    Raises:
+        HTTPException: If the token is invalid, missing, or the user does not exist.
+
+    Returns:
+        models.User: The authenticated database user object.
     """
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,

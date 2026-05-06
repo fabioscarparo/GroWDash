@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 /**
  * RefreshContext.jsx — Global state for manual data synchronization.
  *
@@ -7,6 +8,10 @@
  * Centralizing this state ensures that when a refresh is triggered from a
  * global component like PullToRefreshChip, all observer pages (like Overview)
  * can immediately update their "Updated at" display.
+ *
+ * This implementation relies on TanStack Query's `invalidateQueries` to
+ * broadcast a cache invalidation signal, effectively bypassing browser and
+ * network caching to pull fresh metrics from the Growatt OpenAPI.
  *
  * @module context/RefreshContext
  */

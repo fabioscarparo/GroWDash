@@ -22,6 +22,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ChartPie } from 'lucide-react'
+import { ENERGY_COLORS } from '@/lib/energy-colors'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -108,17 +109,17 @@ function StackedBar({ segments }) {
  */
 function Row({ color, label, kwh, percentage }) {
   return (
-    <div className="flex items-center justify-between">
-      <div className="flex items-center gap-2">
+    <div className="flex items-center justify-between py-1">
+      <div className="flex items-center gap-2.5">
         <span
-          className="inline-block w-2 h-2 rounded-full shrink-0"
+          className="inline-block w-1.5 h-1.5 rounded-full shrink-0"
           style={{ backgroundColor: color }}
         />
-        <span className="text-xs text-muted-foreground">{label}</span>
+        <span className="text-[14px] font-medium text-muted-foreground/90 tracking-tight">{label}</span>
       </div>
       <div className="flex items-center gap-3">
-        <span className="text-xs font-semibold text-foreground">{fmt(kwh)} kWh</span>
-        <span className="text-xs text-muted-foreground w-8 text-right">{percentage}%</span>
+        <span className="text-[14px] font-semibold text-near-black dark:text-white tracking-tight">{fmt(kwh)} kWh</span>
+        <span className="text-[12px] font-medium text-muted-foreground/60 w-8 text-right">{percentage}%</span>
       </div>
     </div>
   )
@@ -141,17 +142,17 @@ function Row({ color, label, kwh, percentage }) {
  */
 function Section({ title, subtitle, total, segments, rows }) {
   return (
-    <div className="flex flex-col gap-2.5">
+    <div className="flex flex-col gap-4">
 
       {/* Title + total */}
-      <div className="flex justify-between items-start">
-        <div className="flex flex-col">
-          <p className="text-xs font-semibold text-foreground">{title}</p>
-          {subtitle && <p className="text-[10px] text-muted-foreground mt-0.5 leading-tight">{subtitle}</p>}
+      <div className="flex justify-between items-end">
+        <div className="flex flex-col gap-1">
+          <p className="text-[15px] font-bold text-near-black dark:text-white tracking-tight leading-none">{title}</p>
+          {subtitle && <p className="text-[12px] text-muted-foreground font-medium tracking-tight leading-tight">{subtitle}</p>}
         </div>
-        <div className="flex items-baseline gap-1 shrink-0 ml-2 pt-0.5">
-          <span className="text-sm font-bold text-foreground">{fmt(total)}</span>
-          <span className="text-xs text-muted-foreground">kWh</span>
+        <div className="flex items-baseline gap-1.5 shrink-0 ml-4">
+          <span className="text-[21px] font-bold text-near-black dark:text-white leading-none">{fmt(total)}</span>
+          <span className="text-[13px] font-medium text-muted-foreground">kWh</span>
         </div>
       </div>
 
@@ -159,7 +160,7 @@ function Section({ title, subtitle, total, segments, rows }) {
       <StackedBar segments={segments} />
 
       {/* Data rows */}
-      <div className="flex flex-col gap-1.5">
+      <div className="flex flex-col gap-0.5 mt-1">
         {rows.map((r, i) => <Row key={i} {...r} />)}
       </div>
 
@@ -190,7 +191,6 @@ export default function EnergyBreakdownCard({ today }) {
   const gridExported = Number(today?.grid_exported_kwh) || 0
   const gridImported = Number(today?.grid_imported_kwh) || 0
   const batDischarged = Number(today?.battery_discharged_kwh) || 0
-  const batCharged = Number(today?.battery_charged_kwh) || 0
 
   // ── Derived values (Option A: Perfect Coherence) ────────────────────────────
 
@@ -200,56 +200,58 @@ export default function EnergyBreakdownCard({ today }) {
   const solarDirect = Math.max(homeTotal - gridImported - batDischarged, 0)
 
   // 2. Solar production splits into what was kept locally vs what was exported.
-  // We reconstruct the local usage ("Kept on-site") by precisely summing the solar that
-  // went to the house (solarDirect) and the solar that went to the battery (batCharged).
-  // Then we reconstruct the total solar production to hide any inverter losses and ensure 100% coherence.
-  const selfConsumed = solarDirect + batCharged
-  const systemOutput = selfConsumed + gridExported
+  // We use the hardware/reconciled solar_kwh as the master systemOutput.
+  // We then derive selfConsumed as a residual to ensure perfect data alignment.
+  // This guarantees that:
+  //   selfConsumed + gridExported === systemOutput
+  // and keeps percentages coherent even with temporary API timing skew.
+  const systemOutput = Number(today?.solar_kwh) || 0
+  const selfConsumed = Math.max(systemOutput - gridExported, 0)
 
   // ── Render ──────────────────────────────────────────────────────────────────
 
   return (
     <Card>
-      <CardHeader className="pb-2">
+      <CardHeader className="pb-4">
         <div className="flex items-center gap-2">
-          <ChartPie size={16} className="text-muted-foreground" />
-          <CardTitle className="text-sm font-semibold">Energy breakdown</CardTitle>
+          <ChartPie size={18} className="text-primary" />
+          <CardTitle className="text-[17px] font-semibold tracking-tight">Energy Distribution</CardTitle>
         </div>
       </CardHeader>
 
-      <CardContent className="flex flex-col gap-4">
+      <CardContent className="flex flex-col gap-6">
 
         {/* Section 1 — Solar production */}
         <Section
-          title="Solar production"
+          title="Solar Production"
           subtitle="Where the generated solar energy went"
           total={systemOutput}
           segments={[
-            { color: '#22c55e', pct: pct(selfConsumed, systemOutput) },
-            { color: '#10b981', pct: pctLast([selfConsumed], systemOutput) },
+            { color: ENERGY_COLORS.gridExport, pct: pct(selfConsumed, systemOutput) },
+            { color: ENERGY_COLORS.batteryCharge, pct: pctLast([selfConsumed], systemOutput) },
           ]}
           rows={[
-            { color: '#22c55e', label: 'Used locally (Home + Battery)', kwh: selfConsumed, percentage: pct(selfConsumed, systemOutput) },
-            { color: '#10b981', label: 'Exported to grid', kwh: gridExported, percentage: pct(gridExported, systemOutput) },
+            { color: ENERGY_COLORS.gridExport, label: 'Self-consumed', kwh: selfConsumed, percentage: pct(selfConsumed, systemOutput) },
+            { color: ENERGY_COLORS.batteryCharge, label: 'Exported to Grid', kwh: gridExported, percentage: pct(gridExported, systemOutput) },
           ]}
         />
 
-        <div className="h-px bg-border my-1" />
+        <div className="h-px bg-border/50" />
 
         {/* Section 2 — Home consumption */}
         <Section
-          title="Home consumption"
+          title="Home Consumption"
           subtitle="Where the energy to power your home came from"
           total={homeTotal}
           segments={[
-            { color: '#f59e0b', pct: pct(solarDirect, homeTotal) },
-            { color: '#8b5cf6', pct: pct(batDischarged, homeTotal) },
-            { color: '#ef4444', pct: pctLast([solarDirect, batDischarged], homeTotal) },
+            { color: ENERGY_COLORS.solar, pct: pct(solarDirect, homeTotal) },
+            { color: ENERGY_COLORS.batteryDischarge, pct: pct(batDischarged, homeTotal) },
+            { color: ENERGY_COLORS.gridImport, pct: pctLast([solarDirect, batDischarged], homeTotal) },
           ]}
           rows={[
-            { color: '#f59e0b', label: 'Directly from solar', kwh: solarDirect, percentage: pct(solarDirect, homeTotal) },
-            { color: '#8b5cf6', label: 'From battery', kwh: batDischarged, percentage: pct(batDischarged, homeTotal) },
-            { color: '#ef4444', label: 'Imported from grid', kwh: gridImported, percentage: pct(gridImported, homeTotal) },
+            { color: ENERGY_COLORS.solar, label: 'Direct from Solar', kwh: solarDirect, percentage: pct(solarDirect, homeTotal) },
+            { color: ENERGY_COLORS.batteryDischarge, label: 'From Battery', kwh: batDischarged, percentage: pct(batDischarged, homeTotal) },
+            { color: ENERGY_COLORS.gridImport, label: 'Imported from Grid', kwh: gridImported, percentage: pct(gridImported, homeTotal) },
           ]}
         />
 

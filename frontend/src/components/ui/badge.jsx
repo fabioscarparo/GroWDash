@@ -1,3 +1,8 @@
+/**
+ * badge.jsx — Shared UI primitive module.
+ * Exposes reusable low-level components to keep layout and interactions consistent.
+ */
+
 import * as React from "react"
 import { cva } from "class-variance-authority";
 import { Slot } from "radix-ui"
@@ -26,6 +31,9 @@ const badgeVariants = cva(
   }
 )
 
+/**
+ * Renders the badge component.
+ */
 function Badge({
   className,
   variant = "default",
@@ -43,4 +51,4 @@ function Badge({
   );
 }
 
-export { Badge, badgeVariants }
+export { Badge }

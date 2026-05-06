@@ -10,9 +10,15 @@
  *   On every mount, AuthContext calls GET /auth/me to verify the session
  *   cookie.  While that check is in flight the app renders a loading screen.
  *   Once resolved:
- *     - Unauthenticated → LoginPage (no layout, no navigation)
- *     - Google Home linking path → GoogleHomeLinking (no layout, no navigation)
- *     - Authenticated → full dashboard layout
+ *   - Unauthenticated → LoginPage (no dashboard navigation chrome)
+ *   - Google Home Linking Path → GoogleHomeLinking (bypasses layout gating)
+ *   - Authenticated → Full Dashboard Layout (authenticated grid/navigation)
+ *
+ * ── Architectural Significance ──────────────────────────────────────────────
+ *
+ *   The root component manages simultaneous unmounting of outgoing pages and
+ *   mounting of incoming ones during horizontal mobile swipes. This is done
+ *   via a dual-render cycle inside ANIM_DURATION.
  *
  * ── Special-purpose routes ────────────────────────────────────────────────────
  *
@@ -23,7 +29,7 @@
  *   /google-home-link
  *     Rendered when Google redirects the user here during the Smart Home
  *     account linking OAuth2 flow.  GoogleHomeLinking is rendered outside
- *     the normal sidebar / bottom-nav layout because Google opens it inside
+ *     the normal dashboard layout because Google opens it inside
  *     its own in-app browser and the standard chrome would be confusing.
  *     The user must still be authenticated — the component itself shows a
  *     "login required" message if the session cookie is absent.
@@ -31,9 +37,8 @@
  * ── Layout ────────────────────────────────────────────────────────────────────
  *
  *   Desktop (md+)
- *     Collapsible sidebar (AppSidebar) on the left, main content area on the
- *     right.  The sidebar contains navigation items, a theme toggle, the
- *     username, and a logout button.
+ *     A sticky top navigation header (NavHeader) controls section switches,
+ *     theme toggling, account shortcut, and logout actions.
  *
  *   Mobile
  *     Full-width content area with a fixed BottomNav bar pinned to the bottom
@@ -43,8 +48,8 @@
  *
  * ── Navigation ────────────────────────────────────────────────────────────────
  *
- *   All three navigation methods funnel through the same navigate() callback:
- *     - Sidebar menu items (desktop)
+ *   All navigation methods funnel through the same navigate() callback:
+ *     - Header links (desktop + mobile)
  *     - BottomNav icon buttons (mobile)
  *     - Horizontal swipe gesture (mobile, via useSwipeNavigation)
  *
@@ -67,7 +72,7 @@
  *   Desktop (md+)
  *     Instant switch — no animation.  The Tailwind md: breakpoint overrides
  *     the slide keyframe classes, giving a clean instant transition that is
- *     more appropriate for the wider sidebar layout.
+ *     more appropriate for wide-screen navigation.
  *
  * ── Theme ─────────────────────────────────────────────────────────────────────
  *
@@ -79,17 +84,15 @@
  */
 
 import { useCallback, useEffect, useState } from 'react'
-import { SidebarProvider } from '@/components/ui/sidebar'
 import { TooltipProvider } from '@/components/ui/tooltip'
-import AppSidebar from './components/AppSidebar'
+import NavHeader from './components/NavHeader'
 import BottomNav from './components/BottomNav'
 import PullToRefreshChip from './components/PullToRefreshChip'
-import { AuthProvider, useAuth } from './context/AuthContext'
+import { useAuth } from './context/AuthContext'
 import { RefreshProvider } from './context/RefreshContext'
 import { useSwipeNavigation } from './hooks/useSwipeNavigation'
 import { useTheme } from './hooks/useTheme'
-import Device from './pages/Device'
-import DeviceSettings from './pages/DeviceSettings'
+import TechnicalInfo from './pages/TechnicalInfo'
 import GoogleHomeLinking from './pages/GoogleHomeLinking'
 import History from './pages/History'
 import LoginPage from './pages/LoginPage'
@@ -106,9 +109,9 @@ import UserAccount from './pages/UserAccount'
  * The index of each entry determines the slide direction when navigating:
  * moving to a higher index slides the viewport left (forward), moving to a
  * lower index slides right (backward).  This list must stay in sync with
- * the keys of PAGES and with the IDs used in AppSidebar / BottomNav.
+ * the keys of PAGES and with the IDs used by NavHeader / BottomNav.
  */
-const PAGE_ORDER = ['overview', 'history', 'device', 'settings', 'account']
+const PAGE_ORDER = ['overview', 'history', 'technical', 'account']
 
 /**
  * Pre-instantiated page elements keyed by page ID.
@@ -121,8 +124,7 @@ const PAGE_ORDER = ['overview', 'history', 'device', 'settings', 'account']
 const PAGES = {
   overview: <Overview />,
   history: <History />,
-  device: <Device />,
-  settings: <DeviceSettings />,
+  technical: <TechnicalInfo />,
   account: <UserAccount />,
 }
 
@@ -157,7 +159,7 @@ const ANIM_DURATION = 300
  */
 export default function App() {
   const { theme, setTheme, setThemeAt } = useTheme()
-  const { isAuthenticated, loading, user, logout } = useAuth()
+  const { isAuthenticated, sessionLoading, user, logout } = useAuth()
 
   // ── Transition state ────────────────────────────────────────────────────
   // current   : ID of the page currently visible (or sliding in)
@@ -175,7 +177,7 @@ export default function App() {
    * Navigate to a new page, triggering a slide transition on mobile.
    *
    * On desktop (viewport width ≥ 768 px) the switch is instant — no animation
-   * is applied because the sidebar layout does not benefit from horizontal
+   * is applied because wide-screen navigation does not benefit from horizontal
    * slides.
    *
    * On mobile, the direction is derived by comparing the index of the target
@@ -238,7 +240,7 @@ export default function App() {
   const currentIdx = PAGE_ORDER.indexOf(current)
 
   /**
-   * Stable theme toggle callback passed to AppSidebar.
+   * Stable theme toggle callback passed to NavHeader.
    * Cycles between light and dark; system mode is set from UserAccount only.
    */
   const toggleTheme = useCallback((e) => {
@@ -269,7 +271,7 @@ export default function App() {
    * Loading screen — shown while AuthContext verifies the session cookie
    * via GET /auth/me on application mount.
    */
-  if (loading) {
+  if (sessionLoading) {
     return (
       <div className="min-h-dvh bg-background flex items-center justify-center">
         <div className="animate-pulse text-muted-foreground uppercase tracking-widest text-xs">
@@ -314,23 +316,21 @@ export default function App() {
   return (
     <TooltipProvider>
       <RefreshProvider>
-        <SidebarProvider>
-        <div className="min-h-dvh bg-background flex w-full">
+        <div className="min-h-dvh bg-background flex flex-col w-full">
+          
+          {/* ── Top Navigation (Glass Header) ─────────────────────────── */}
+          <NavHeader
+            current={current}
+            onChange={navigate}
+            theme={theme}
+            onToggleTheme={toggleTheme}
+            user={user}
+            onLogout={logout}
+          />
 
-          {/* Pull-to-refresh chip — floats above all content on mobile */}
-          <PullToRefreshChip />
-
-          {/* ── Sidebar (desktop only, md+) ──────────────────────────────── */}
-          <div className="hidden md:block">
-            <AppSidebar
-              current={current}
-              onChange={navigate}
-              theme={theme}
-              onToggleTheme={toggleTheme}
-              user={user}
-              onLogout={logout}
-            />
-          </div>
+          <div className="flex-1 flex w-full relative">
+            {/* Pull-to-refresh chip — floats above all content on mobile */}
+            <PullToRefreshChip />
 
           {/*
            * ── Main content area ───────────────────────────────────────────
@@ -340,7 +340,7 @@ export default function App() {
            * positioned outgoing page is contained within this element and
            * does not affect the document flow of the incoming page.
            */}
-          <main className="flex-1 pb-16 md:pb-0 relative overflow-hidden touch-action-pan-y" style={{ touchAction: 'pan-y' }}>
+          <main className="flex-1 pb-[96px] md:pb-0 relative overflow-hidden touch-action-pan-y" style={{ touchAction: 'pan-y' }}>
             {/*
              * Visual Layering during Gestures/Transitions:
              * 
@@ -397,14 +397,15 @@ export default function App() {
 
           </main>
 
+          </div>
+
           {/* ── Bottom navigation bar (mobile only) ─────────────────────── */}
           <div className="md:hidden">
             <BottomNav current={current} onChange={navigate} />
           </div>
 
         </div>
-      </SidebarProvider>
-    </RefreshProvider>
-  </TooltipProvider>
-)
+      </RefreshProvider>
+    </TooltipProvider>
+  )
 }

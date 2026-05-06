@@ -1,8 +1,16 @@
+/**
+ * separator.jsx — Shared UI primitive module.
+ * Exposes reusable low-level components to keep layout and interactions consistent.
+ */
+
 import * as React from "react"
 import { Separator as SeparatorPrimitive } from "radix-ui"
 
 import { cn } from "@/lib/utils"
 
+/**
+ * Renders the separator component.
+ */
 function Separator({
   className,
   orientation = "horizontal",

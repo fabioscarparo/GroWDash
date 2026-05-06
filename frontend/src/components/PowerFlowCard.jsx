@@ -14,6 +14,14 @@
  * Colors are resolved from the system theme at runtime since SVG
  * attributes do not support CSS variables.
  *
+ * ARCHITECTURAL NOTE:
+ * -------------------
+ * This component solves the 'SVG Theme Gap' where standard CSS variables
+ * often fail to resolve inside SVG masks and animations. It uses a 
+ * MutationObserver to detect <html> class changes and forces a React 
+ * re-render to inject computed hexadecimal colors directly into the 
+ * SVG structure.
+ *
  * Data source: /energy/today → flow.live
  */
 
@@ -21,6 +29,7 @@ import { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Sun, BatteryCharging, Home, Zap, Cpu } from 'lucide-react'
 import FlowNode from './FlowNode'
+import { ENERGY_COLORS } from '@/lib/energy-colors'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -59,21 +68,21 @@ const INV = { x: CX, y: CY }
 function getColors() {
   const dark = document.documentElement.classList.contains('dark')
   return dark ? {
-    foreground: 'oklch(0.985 0 0)',
-    mutedForeground: 'oklch(0.708 0 0)',
-    muted: 'oklch(0.269 0 0)',
-    border: 'oklch(1 0 0 / 10%)',
-    nodeBorder: 'oklch(1 0 0 / 10%)',
-    nodeActive: 'oklch(1 0 0 / 25%)',
-    primary: '#006fff',
+    foreground: '#ffffff',
+    mutedForeground: 'rgba(255, 255, 255, 0.4)',
+    muted: '#1d1d1f',
+    border: 'rgba(255, 255, 255, 0.1)',
+    nodeBorder: 'rgba(255, 255, 255, 0.12)',
+    nodeActive: 'rgba(0, 113, 227, 0.2)',
+    primary: '#0071e3', // Primary accent blue
   } : {
-    foreground: 'oklch(0.145 0 0)',
-    mutedForeground: 'oklch(0.556 0 0)',
-    muted: 'oklch(0.97 0 0)',
-    border: 'oklch(0.922 0 0)',
-    nodeBorder: 'oklch(0.922 0 0)',
-    nodeActive: 'oklch(0.7 0 0)',
-    primary: '#006fff',
+    foreground: '#1d1d1f',
+    mutedForeground: 'rgba(0, 0, 0, 0.45)',
+    muted: '#f5f5f7',
+    border: 'rgba(0, 0, 0, 0.1)',
+    nodeBorder: 'rgba(0, 0, 0, 0.1)',
+    nodeActive: 'rgba(0, 113, 227, 0.1)',
+    primary: '#0071e3', // Primary accent blue
   }
 }
 
@@ -121,7 +130,6 @@ export default function PowerFlowCard({
   const THRESHOLD = 5
   const solarActive = solarW > THRESHOLD
   const batteryActive = batteryChargeW > THRESHOLD || batteryDischargeW > THRESHOLD
-  const batteryDischarging = batteryDischargeW > THRESHOLD
   const batteryCharging = batteryChargeW > THRESHOLD
   const gridActive = gridExportW > THRESHOLD || gridImportW > THRESHOLD
   const gridImporting = gridImportW > THRESHOLD
@@ -136,7 +144,12 @@ export default function PowerFlowCard({
   // ── Swarm Constants ────────────────────────────────────────────────────────
 
   const SWARM_SIZE = 8 
-  const SWARM_COLORS = ['#3b82f6', '#8b5cf6', '#d946ef', '#06b6d4']
+  const SWARM_COLORS = [
+    ENERGY_COLORS.batteryCharge,
+    ENERGY_COLORS.batteryDischarge,
+    ENERGY_COLORS.solar,
+    ENERGY_COLORS.gridExport,
+  ]
   const CYCLE_LENGTH = 24 
 
   /**
@@ -270,10 +283,10 @@ export default function PowerFlowCard({
 
   return (
     <Card className="gap-2">
-      <CardHeader>
+      <CardHeader className="pb-4">
         <div className="flex items-center gap-2">
-          <Zap size={16} className="text-muted-foreground" />
-          <CardTitle className="text-sm font-semibold">Power Flow</CardTitle>
+          <Zap size={18} className="text-primary" />
+          <CardTitle className="text-[17px] font-semibold tracking-tight">Power Flow</CardTitle>
         </div>
       </CardHeader>
 

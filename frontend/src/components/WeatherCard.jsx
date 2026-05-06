@@ -13,6 +13,7 @@ import {
   Cloud, Wind, CloudSun, Droplets,
   Sun, Moon, CloudMoon, CloudFog, CloudDrizzle, CloudRain, Snowflake, CloudLightning
 } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 // ── WMO weather code → label + icon ─────────────────────────────────────────
 
@@ -211,13 +212,13 @@ export default function WeatherCard({ data }) {
 
   return (
     <Card className="h-full flex flex-col group overflow-hidden">
-      <CardHeader className="pb-2 flex-none">
+      <CardHeader className="pb-6 flex-none">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <CloudSun size={16} className="text-muted-foreground" />
-            <CardTitle className="text-sm font-semibold">Weather</CardTitle>
+            <CloudSun size={18} className="text-blue-500" />
+            <CardTitle className="text-[17px] font-semibold tracking-tight">Atmosphere</CardTitle>
           </div>
-          <span className={`text-xs font-medium ${impact.color}`}>
+          <span className={cn("text-[12px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full bg-muted/30", impact.color)}>
             {impact.label}
           </span>
         </div>
@@ -233,17 +234,17 @@ export default function WeatherCard({ data }) {
             </div>
             <div>
               <div className="flex items-baseline gap-1">
-                <span className="text-4xl font-bold tracking-tight text-foreground">
+                <span className="text-[40px] font-semibold tracking-tight text-near-black dark:text-white leading-none font-display">
                   {Math.round(current.temperature_2m)}
                 </span>
-                <span className="text-lg font-medium text-muted-foreground">°</span>
+                <span className="text-[21px] font-medium text-muted-foreground">°</span>
               </div>
-              <p className="text-sm font-medium text-muted-foreground mt-0.5">{label}</p>
+              <p className="text-[14px] font-medium text-muted-foreground mt-2 font-text">{label}</p>
             </div>
           </div>
 
           <div className="text-right flex flex-col justify-center">
-            <p className="text-sm font-semibold text-foreground tracking-wide">
+            <p className="text-sm font-semibold text-foreground tracking-wide font-text">
               {tempMax}° <span className="text-muted-foreground font-normal mx-0.5">/</span> {tempMin}°
             </p>
             <p className="text-xs text-muted-foreground mt-0.5">Today</p>

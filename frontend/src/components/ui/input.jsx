@@ -1,7 +1,15 @@
+/**
+ * input.jsx — Shared UI primitive module.
+ * Exposes reusable low-level components to keep layout and interactions consistent.
+ */
+
 import * as React from "react"
 
 import { cn } from "@/lib/utils"
 
+/**
+ * Renders the input component.
+ */
 function Input({
   className,
   type,

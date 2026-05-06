@@ -1,3 +1,8 @@
+/**
+ * sheet.jsx — Shared UI primitive module.
+ * Exposes reusable low-level components to keep layout and interactions consistent.
+ */
+
 "use client"
 
 import * as React from "react"
@@ -6,30 +11,45 @@ import { Dialog as SheetPrimitive } from "radix-ui"
 
 import { cn } from "@/lib/utils"
 
+/**
+ * Renders the sheet component.
+ */
 function Sheet({
   ...props
 }) {
   return <SheetPrimitive.Root data-slot="sheet" {...props} />;
 }
 
+/**
+ * Renders the sheet trigger component.
+ */
 function SheetTrigger({
   ...props
 }) {
   return <SheetPrimitive.Trigger data-slot="sheet-trigger" {...props} />;
 }
 
+/**
+ * Renders the sheet close component.
+ */
 function SheetClose({
   ...props
 }) {
   return <SheetPrimitive.Close data-slot="sheet-close" {...props} />;
 }
 
+/**
+ * Renders the sheet portal component.
+ */
 function SheetPortal({
   ...props
 }) {
   return <SheetPrimitive.Portal data-slot="sheet-portal" {...props} />;
 }
 
+/**
+ * Renders the sheet overlay component.
+ */
 function SheetOverlay({
   className,
   ...props
@@ -45,6 +65,9 @@ function SheetOverlay({
   );
 }
 
+/**
+ * Renders the sheet content component.
+ */
 function SheetContent({
   className,
   children,
@@ -58,7 +81,7 @@ function SheetContent({
       <SheetPrimitive.Content
         data-slot="sheet-content"
         className={cn(
-          "fixed z-50 flex flex-col gap-4 bg-background shadow-lg transition ease-in-out data-[state=closed]:animate-out data-[state=closed]:duration-300 data-[state=open]:animate-in data-[state=open]:duration-500",
+          "fixed z-50 flex flex-col gap-4 bg-background/80 backdrop-blur-md shadow-lg transition ease-in-out data-[state=closed]:animate-out data-[state=closed]:duration-300 data-[state=open]:animate-in data-[state=open]:duration-500",
           side === "right" &&
             "inset-y-0 right-0 h-full w-3/4 border-l data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right sm:max-w-sm",
           side === "left" &&
@@ -83,6 +106,9 @@ function SheetContent({
   );
 }
 
+/**
+ * Renders the sheet header component.
+ */
 function SheetHeader({
   className,
   ...props
@@ -95,6 +121,9 @@ function SheetHeader({
   );
 }
 
+/**
+ * Renders the sheet footer component.
+ */
 function SheetFooter({
   className,
   ...props
@@ -107,6 +136,9 @@ function SheetFooter({
   );
 }
 
+/**
+ * Renders the sheet title component.
+ */
 function SheetTitle({
   className,
   ...props
@@ -119,6 +151,9 @@ function SheetTitle({
   );
 }
 
+/**
+ * Renders the sheet description component.
+ */
 function SheetDescription({
   className,
   ...props

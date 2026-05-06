@@ -19,6 +19,14 @@ SOLAR_CACHE_TTL   = 3600  # 1 hour
 def get_weather(lat: float, lon: float) -> dict:
     """
     Fetches real-time weather and 2-day daily forecast from Open-Meteo.
+
+    Args:
+        lat (float): The latitude of the location.
+        lon (float): The longitude of the location.
+
+    Returns:
+        dict: The parsed JSON response from Open-Meteo containing current 
+              and daily forecast data.
     """
     url = "https://api.open-meteo.com/v1/forecast"
     params = {
@@ -59,6 +67,15 @@ def get_solar_forecast(lat: float, lon: float, tilt: float, azimuth: float) -> d
     
     Open-Meteo azimuth convention: 0=south, -90=east, 90=west, 180=north.
     Input azimuth is compass bearing: 0=N, 90=E, 180=S, 270=W.
+
+    Args:
+        lat (float): The latitude of the location.
+        lon (float): The longitude of the location.
+        tilt (float): Panel tilt angle in degrees.
+        azimuth (float): Panel azimuth as a compass bearing (0=N, 90=E, 180=S, 270=W).
+
+    Returns:
+        dict: The parsed JSON response from Open-Meteo containing hourly GTI data.
     """
     # Convert compass bearing to Open-Meteo azimuth
     om_azimuth = azimuth - 180

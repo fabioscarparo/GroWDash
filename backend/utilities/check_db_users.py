@@ -1,3 +1,7 @@
+"""
+CLI utility that prints all users stored in the local database.
+"""
+
 import sys
 import os
 
@@ -8,6 +12,8 @@ from database import SessionLocal
 import models
 
 def check_users():
+    """Query the users table and print a readable summary to stdout."""
+
     db = SessionLocal()
     try:
         users = db.query(models.User).all()

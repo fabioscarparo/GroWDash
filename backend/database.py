@@ -1,3 +1,7 @@
+"""
+SQLAlchemy engine and session configuration for the GroWDash backend.
+"""
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 
@@ -19,6 +23,17 @@ Base = declarative_base()
 
 # Dependency function to get a database session for a request and close it afterwards.
 def get_db():
+    """
+    Yield a request-scoped database session and close it safely.
+
+    This is a FastAPI dependency function that creates a new database 
+    session for each request and ensures it is closed after the request 
+    has been fully processed, even if exceptions occur.
+
+    Yields:
+        sqlalchemy.orm.Session: A request-scoped database session.
+    """
+
     db = SessionLocal()
     try:
         yield db

@@ -91,7 +91,7 @@ export const api = {
     fetcher(`/energy/daily-breakdown?start_date=${startDate}&end_date=${endDate}`),
 
   /**
-   * Retrieves the technical technical details of the inverter(s).
+   * Retrieves the technical details of the inverter(s).
    * @returns {Promise<Object>} Details such as the inverter model, firmware version, and connection status.
    */
   getDeviceDetail: () => fetcher('/device/detail'),

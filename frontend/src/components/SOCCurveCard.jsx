@@ -12,7 +12,7 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid } from 'recharts'
 import { useHistory } from '../hooks/useGrowatt'
 
 const chartConfig = {
-  soc_pct: { label: 'SOC', color: '#22c55e' },
+  soc_pct: { label: 'SOC', color: '#30d158' },
 }
 
 /**
@@ -64,10 +64,10 @@ export default function SocCurveCard() {
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="pb-4">
         <div className="flex items-center gap-2">
-          <BatteryCharging size={16} className="text-muted-foreground" />
-          <CardTitle className="text-sm font-semibold">Battery State of Charge</CardTitle>
+          <BatteryCharging size={18} className="text-primary" />
+          <CardTitle className="text-[17px] font-semibold tracking-tight">Charge History</CardTitle>
         </div>
       </CardHeader>
 
@@ -81,8 +81,8 @@ export default function SocCurveCard() {
             <AreaChart data={chartData} margin={{ left: 0, right: 0, top: 10 }}>
               <defs>
                 <linearGradient id="grad-soc" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%"  stopColor="#22c55e" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
+                  <stop offset="5%"  stopColor="#30d158" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="#30d158" stopOpacity={0} />
                 </linearGradient>
               </defs>
               <CartesianGrid vertical={false} stroke="hsl(var(--border))" strokeDasharray="3 3" />
@@ -91,13 +91,13 @@ export default function SocCurveCard() {
                 tickLine={false}
                 axisLine={false}
                 tickMargin={8}
-                tick={{ fontSize: 10 }}
+                tick={{ fontSize: 10, fill: 'var(--foreground)' }}
                 interval="preserveStartEnd"
               />
               <YAxis
                 tickLine={false}
                 axisLine={false}
-                tick={{ fontSize: 10 }}
+                tick={{ fontSize: 10, fill: 'var(--foreground)' }}
                 domain={[0, 100]}
                 unit="%"
                 width={36}
@@ -119,7 +119,7 @@ export default function SocCurveCard() {
               <Area
                 type="monotone"
                 dataKey="soc_pct"
-                stroke="#22c55e"
+                stroke="#30d158"
                 strokeWidth={2}
                 fill="url(#grad-soc)"
                 dot={false}

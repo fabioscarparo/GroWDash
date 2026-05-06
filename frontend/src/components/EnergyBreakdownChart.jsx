@@ -19,6 +19,13 @@
  *  - Background Prefetch: Silently loads adjacent months for instant navigation.
  *
  * Data source: /energy/daily-breakdown
+ *
+ * ARCHITECTURAL NOTE:
+ * -------------------
+ * This component implements an 'Instant-UI' strategy using TanStack Query's 
+ * prefetchQuery. While the user is analyzing the current month, the system 
+ * proactively fetches the previous and next calendar windows, ensuring 
+ * month-to-month transitions have no visible loading state.
  */
 
 import { useState, useMemo, useEffect } from 'react'
@@ -32,16 +39,17 @@ import { api } from '../api/growatt'
 import SeriesToggle from './SeriesToggle'
 import { Skeleton } from '@/components/ui/skeleton'
 import PeriodPicker from './PeriodPicker'
+import { ENERGY_COLORS } from '@/lib/energy-colors'
 
 // ── Series config ─────────────────────────────────────────────────────────────
 
 const SERIES = [
-  { key: 'solar_kwh',              label: 'Solar',             color: '#f59e0b' },
-  { key: 'home_kwh',               label: 'Home',              color: '#9f1239' },
-  { key: 'grid_import_kwh',        label: 'Grid import',       color: '#ef4444' },
-  { key: 'grid_export_kwh',        label: 'Grid export',       color: '#10b981' },
-  { key: 'battery_charged_kwh',    label: 'Battery charge',    color: '#3b82f6' },
-  { key: 'battery_discharged_kwh', label: 'Battery discharge', color: '#8b5cf6' },
+  { key: 'solar_kwh',              label: 'Solar',             color: ENERGY_COLORS.solar },
+  { key: 'home_kwh',               label: 'Home',              color: ENERGY_COLORS.home },
+  { key: 'grid_import_kwh',        label: 'Grid import',       color: ENERGY_COLORS.gridImport },
+  { key: 'grid_export_kwh',        label: 'Grid export',       color: ENERGY_COLORS.gridExport },
+  { key: 'battery_charged_kwh',    label: 'Battery charge',    color: ENERGY_COLORS.batteryCharge },
+  { key: 'battery_discharged_kwh', label: 'Battery discharge', color: ENERGY_COLORS.batteryDischarge },
 ]
 
 const chartConfig = Object.fromEntries(
@@ -61,6 +69,7 @@ const chartConfig = Object.fromEntries(
 function monthRange(year, month) {
   const start = new Date(year, month, 1)
   const end   = new Date(year, month + 1, 0)
+  // Local helper to keep date keys in backend-compatible YYYY-MM-DD format.
   const fmt   = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
   return { start: fmt(start), end: fmt(end) }
 }
@@ -193,7 +202,7 @@ export default function EnergyBreakdownChart() {
         queryFn:  () => api.getDailyBreakdown(nextStart, nextEnd),
       })
     }
-  }, [refDate])
+  }, [refDate, queryClient])
 
 
   // ── Chart data ────────────────────────────────────────────────────────────
@@ -221,27 +230,23 @@ export default function EnergyBreakdownChart() {
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-
-          {/* Title */}
-          <div className="flex items-center gap-2">
-            <BarChart2 size={16} className="text-muted-foreground" />
-            <CardTitle className="text-sm font-semibold">Energy Breakdown</CardTitle>
-          </div>
-
-          {/* Month navigation */}
-          <PeriodPicker 
-            currentDate={refDate} 
-            onDateChange={setRefDate} 
-            minDate={minDate}
-          />
-
+    <div className="space-y-2.5">
+      <div className="flex items-center justify-between px-1">
+        <div className="flex items-center gap-2">
+          <BarChart2 size={18} className="text-foreground/60" strokeWidth={2} />
+          <h2 className="text-[13px] font-semibold text-muted-foreground uppercase tracking-wider pl-0.5 font-display">
+            Monthly Performance
+          </h2>
         </div>
-      </CardHeader>
+        <PeriodPicker 
+          currentDate={refDate} 
+          onDateChange={setRefDate} 
+          minDate={minDate}
+        />
+      </div>
 
-      <CardContent className="px-3 pb-3 flex flex-col gap-3">
+      <Card className="premium-glass border-white/20 dark:border-white/5 overflow-hidden py-0">
+        <CardContent className="p-3 flex flex-col gap-3">
 
         {isLoading ? (
           <Skeleton className="h-[200px] w-full" />
@@ -252,7 +257,7 @@ export default function EnergyBreakdownChart() {
           // of replacing it with a spinner — less jarring UX.
           <div className={`transition-opacity duration-300 ${isFetching ? 'opacity-40 pointer-events-none' : 'opacity-100'}`}>
             <ChartContainer config={chartConfig} className="h-50 w-full">
-              <BarChart data={chartData} barCategoryGap="20%" barGap={1}>
+              <BarChart data={chartData} barCategoryGap="20%" barGap={1} margin={{ left: -10, right: 5, top: 10, bottom: 0 }}>
                 <CartesianGrid
                   vertical={false}
                   stroke="hsl(var(--border))"
@@ -263,12 +268,12 @@ export default function EnergyBreakdownChart() {
                   tickLine={false}
                   axisLine={false}
                   tickMargin={8}
-                  tick={{ fontSize: 10 }}
+                  tick={{ fontSize: 10, fill: 'var(--foreground)' }}
                 />
                 <YAxis
                   tickLine={false}
                   axisLine={false}
-                  tick={{ fontSize: 10 }}
+                  tick={{ fontSize: 10, fill: 'var(--foreground)' }}
                   unit=" kWh"
                   width={50}
                 />
@@ -333,5 +338,6 @@ export default function EnergyBreakdownChart() {
 
       </CardContent>
     </Card>
+    </div>
   )
 }

@@ -15,28 +15,34 @@
  * @returns {JSX.Element} Configured Shadcn Toggle representation matching active styles dynamically.
  */
 import { Toggle } from '@/components/ui/toggle'
+import { cn } from '@/lib/utils'
 
+/**
+ * Renders the series toggle component.
+ */
 export default function SeriesToggle({ label, color, active, onClick }) {
   return (
     <Toggle
       pressed={active}
       onPressedChange={onClick}
       size="sm"
-      className="text-xs rounded-full h-7 px-2.5 gap-1.5"
+      className={cn(
+        "text-[12px] font-semibold rounded-full h-8 px-4 gap-2 transition-all duration-300 border",
+        active 
+          ? "border-transparent data-[state=on]:text-foreground" 
+          : "border-border/30 text-muted-foreground hover:bg-muted/50"
+      )}
       style={{
-        borderWidth: '1px',
-        borderStyle: 'solid',
-        borderColor: active ? color : 'hsl(var(--border))',
-        backgroundColor: active ? `${color}18` : 'hsl(var(--muted))',
-        color: active ? color : 'hsl(var(--muted-foreground))',
+        backgroundColor: active ? `${color}20` : 'transparent',
       }}
     >
-      {active && (
-        <span
-          className="inline-block w-2 h-2 rounded-full shrink-0"
-          style={{ background: color }}
-        />
-      )}
+      <span
+        className={cn(
+          "inline-block w-2 h-2 rounded-full shrink-0 transition-all duration-300",
+          !active && "opacity-40 grayscale"
+        )}
+        style={{ background: color }}
+      />
       {label}
     </Toggle>
   )

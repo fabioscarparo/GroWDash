@@ -35,6 +35,7 @@ export function useSwipeNavigation({ onNext, onPrev, enabled = true }) {
   useEffect(() => {
     if (!enabled) return
 
+    // Capture the starting touch point and ignore known interactive widgets.
     function onTouchStart(e) {
       if (e.target.closest('.recharts-wrapper, [role="slider"], input[type="range"], .no-swipe')) {
         startX.current = null
@@ -46,6 +47,7 @@ export function useSwipeNavigation({ onNext, onPrev, enabled = true }) {
       setDragOffset(0)
     }
 
+    // Track swipe distance and lock only to horizontal gestures.
     function onTouchMove(e) {
       if (startX.current === null) return
 
@@ -74,6 +76,7 @@ export function useSwipeNavigation({ onNext, onPrev, enabled = true }) {
       }
     }
 
+    // Complete the gesture and trigger next/previous navigation when threshold is met.
     function onTouchEnd(e) {
       if (startX.current === null || !isHorizontalSwipe.current) {
         startX.current = null

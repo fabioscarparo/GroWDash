@@ -1,3 +1,8 @@
+/**
+ * drawer.jsx — Shared UI primitive module.
+ * Exposes reusable low-level components to keep layout and interactions consistent.
+ */
+
 "use client"
 
 import * as React from "react"
@@ -5,30 +10,45 @@ import { Drawer as DrawerPrimitive } from "vaul"
 
 import { cn } from "@/lib/utils"
 
+/**
+ * Renders the drawer component.
+ */
 function Drawer({
   ...props
 }) {
   return <DrawerPrimitive.Root data-slot="drawer" {...props} />;
 }
 
+/**
+ * Renders the drawer trigger component.
+ */
 function DrawerTrigger({
   ...props
 }) {
   return <DrawerPrimitive.Trigger data-slot="drawer-trigger" {...props} />;
 }
 
+/**
+ * Renders the drawer portal component.
+ */
 function DrawerPortal({
   ...props
 }) {
   return <DrawerPrimitive.Portal data-slot="drawer-portal" {...props} />;
 }
 
+/**
+ * Renders the drawer close component.
+ */
 function DrawerClose({
   ...props
 }) {
   return <DrawerPrimitive.Close data-slot="drawer-close" {...props} />;
 }
 
+/**
+ * Renders the drawer overlay component.
+ */
 function DrawerOverlay({
   className,
   ...props
@@ -37,13 +57,16 @@ function DrawerOverlay({
     <DrawerPrimitive.Overlay
       data-slot="drawer-overlay"
       className={cn(
-        "fixed inset-0 z-50 bg-background/5 backdrop-blur-[2px] data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0",
+        "fixed inset-0 z-50 bg-transparent data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0",
         className
       )}
       {...props} />
   );
 }
 
+/**
+ * Renders the drawer content component.
+ */
 function DrawerContent({
   className,
   children,
@@ -55,7 +78,7 @@ function DrawerContent({
       <DrawerPrimitive.Content
         data-slot="drawer-content"
         className={cn(
-          "group/drawer-content fixed z-50 flex h-auto flex-col bg-background",
+          "group/drawer-content fixed z-50 flex h-auto flex-col bg-background/80 backdrop-blur-md",
           "data-[vaul-drawer-direction=top]:inset-x-0 data-[vaul-drawer-direction=top]:top-0 data-[vaul-drawer-direction=top]:mb-24 data-[vaul-drawer-direction=top]:max-h-[80vh] data-[vaul-drawer-direction=top]:rounded-b-lg data-[vaul-drawer-direction=top]:border-b",
           "data-[vaul-drawer-direction=bottom]:inset-x-0 data-[vaul-drawer-direction=bottom]:bottom-0 data-[vaul-drawer-direction=bottom]:mt-24 data-[vaul-drawer-direction=bottom]:max-h-[80vh] data-[vaul-drawer-direction=bottom]:rounded-t-lg data-[vaul-drawer-direction=bottom]:border-t",
           "data-[vaul-drawer-direction=right]:inset-y-0 data-[vaul-drawer-direction=right]:right-0 data-[vaul-drawer-direction=right]:w-3/4 data-[vaul-drawer-direction=right]:border-l data-[vaul-drawer-direction=right]:sm:max-w-sm",
@@ -71,6 +94,9 @@ function DrawerContent({
   );
 }
 
+/**
+ * Renders the drawer header component.
+ */
 function DrawerHeader({
   className,
   ...props
@@ -86,6 +112,9 @@ function DrawerHeader({
   );
 }
 
+/**
+ * Renders the drawer footer component.
+ */
 function DrawerFooter({
   className,
   ...props
@@ -98,6 +127,9 @@ function DrawerFooter({
   );
 }
 
+/**
+ * Renders the drawer title component.
+ */
 function DrawerTitle({
   className,
   ...props
@@ -110,6 +142,9 @@ function DrawerTitle({
   );
 }
 
+/**
+ * Renders the drawer description component.
+ */
 function DrawerDescription({
   className,
   ...props

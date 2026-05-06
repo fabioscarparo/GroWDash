@@ -1,7 +1,15 @@
+/**
+ * card.jsx — Shared UI primitive module.
+ * Exposes reusable low-level components to keep layout and interactions consistent.
+ */
+
 import * as React from "react"
 
 import { cn } from "@/lib/utils"
 
+/**
+ * Renders the card component.
+ */
 function Card({
   className,
   ...props
@@ -10,13 +18,16 @@ function Card({
     <div
       data-slot="card"
       className={cn(
-        "flex flex-col gap-6 rounded-xl border bg-card py-6 text-card-foreground shadow-sm",
+        "flex flex-col gap-6 rounded-[20px] bg-card py-6 text-card-foreground shadow-sm md:shadow-[0_8px_24px_rgba(0,0,0,0.04)] md:dark:shadow-[0_8px_24px_rgba(0,0,0,0.2)] border-none",
         className
       )}
       {...props} />
   );
 }
 
+/**
+ * Renders the card header component.
+ */
 function CardHeader({
   className,
   ...props
@@ -32,6 +43,9 @@ function CardHeader({
   );
 }
 
+/**
+ * Renders the card title component.
+ */
 function CardTitle({
   className,
   ...props
@@ -44,6 +58,9 @@ function CardTitle({
   );
 }
 
+/**
+ * Renders the card description component.
+ */
 function CardDescription({
   className,
   ...props
@@ -56,6 +73,9 @@ function CardDescription({
   );
 }
 
+/**
+ * Renders the card action component.
+ */
 function CardAction({
   className,
   ...props
@@ -71,6 +91,9 @@ function CardAction({
   );
 }
 
+/**
+ * Renders the card content component.
+ */
 function CardContent({
   className,
   ...props
@@ -78,6 +101,9 @@ function CardContent({
   return (<div data-slot="card-content" className={cn("px-6", className)} {...props} />);
 }
 
+/**
+ * Renders the card footer component.
+ */
 function CardFooter({
   className,
   ...props

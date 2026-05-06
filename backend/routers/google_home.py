@@ -212,6 +212,8 @@ DEVICES: list[dict] = [
 # ---------------------------------------------------------------------------
 
 def _safe_float(value) -> float:
+    """Coerce nullable or invalid numeric payload values to a safe float."""
+
     try:
         return float(value) if value is not None else 0.0
     except (ValueError, TypeError):
