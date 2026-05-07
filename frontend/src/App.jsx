@@ -254,7 +254,7 @@ export default function App() {
 
   // ── Swipe navigation ─────────────────────────────────────────────────────
   
-  const { isDragging, dragOffset } = useSwipeNavigation({
+  const { isDragging, dragOffset: rawDragOffset } = useSwipeNavigation({
     onNext: () => {
       if (currentIdx < PAGE_ORDER.length - 1)
         navigate(PAGE_ORDER[currentIdx + 1])
@@ -264,6 +264,25 @@ export default function App() {
         navigate(PAGE_ORDER[currentIdx - 1])
     },
   })
+
+  /**
+   * Apply "rubber-band" resistance when dragging beyond the first or last page.
+   * This provides physical feedback that the user has reached the boundary.
+   */
+  const isAtBoundary = (currentIdx === 0 && rawDragOffset > 0) || 
+                       (currentIdx === PAGE_ORDER.length - 1 && rawDragOffset < 0)
+  const dragOffset = isAtBoundary ? rawDragOffset * 0.15 : rawDragOffset
+
+  /**
+   * Sync the resistant offset back to the CSS variable so that any 
+   * potential animations (like the snap-back) start from the correct position.
+   */
+  useEffect(() => {
+    if (isDragging && isAtBoundary) {
+      document.documentElement.style.setProperty('--swipe-dx', `${dragOffset}px`)
+    }
+  }, [isDragging, isAtBoundary, dragOffset])
+
 
   // ── Conditional renders (always after all hooks) ─────────────────────────
 
@@ -364,21 +383,28 @@ export default function App() {
             )}
 
             {/* 2. NEIGHBOR (Active Drag Phase) */}
-            {isDragging && dragOffset !== 0 && (
-              <div
-                className="absolute inset-0 z-10"
-                style={{ 
-                  transform: `translateX(calc(${dragOffset}px + ${dragOffset < 0 ? '100%' : '-100%'}))`,
-                  // No transition here: follow the finger exactly
-                }}
-              >
-                {/* 
-                  Calculate which page is being revealed based on drag direction.
-                  PAGE_ORDER indexing is zero-clamped.
-                */}
-                {PAGES[PAGE_ORDER[Math.max(0, Math.min(PAGE_ORDER.length - 1, currentIdx + (dragOffset < 0 ? 1 : -1)))]]}
-              </div>
-            )}
+            {(() => {
+              if (!isDragging || dragOffset === 0) return null
+              
+              // Only render a neighbor if we're not at the boundary.
+              // Dragging right (offset > 0) reveals the previous page.
+              // Dragging left (offset < 0) reveals the next page.
+              const neighborIdx = dragOffset < 0 ? currentIdx + 1 : currentIdx - 1
+              const hasNeighbor = neighborIdx >= 0 && neighborIdx < PAGE_ORDER.length
+
+              if (!hasNeighbor) return null
+
+              return (
+                <div
+                  className="absolute inset-0 z-10"
+                  style={{ 
+                    transform: `translateX(calc(${dragOffset}px + ${dragOffset < 0 ? '100%' : '-100%'}))`,
+                  }}
+                >
+                  {PAGES[PAGE_ORDER[neighborIdx]]}
+                </div>
+              )
+            })()}
 
             {/* 3. CURRENT (Main State) */}
             <div

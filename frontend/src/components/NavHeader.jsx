@@ -19,7 +19,7 @@ const NAV_ITEMS = [
  */
 export default function NavHeader({ current, onChange, theme, onToggleTheme, user, onLogout }) {
   return (
-    <nav className="glass-nav h-[56px] md:h-[52px] flex items-center justify-center px-4 md:px-6">
+    <nav className="glass-nav h-[56px] md:h-[52px] flex items-center justify-center px-4 md:px-6 backdrop-blur-[20px] backdrop-saturate-[1.8]">
       <div className="max-w-[980px] w-full flex items-center justify-between">
         
         {/* Logo / Brand */}

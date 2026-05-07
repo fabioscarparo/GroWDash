@@ -88,15 +88,29 @@ export function useSwipeNavigation({ onNext, onPrev, enabled = true }) {
 
       startX.current = null
       setIsDragging(false)
-
+      
+      // If we crossed the threshold, trigger the navigation callbacks.
+      // We don't reset dragOffset/CSS-var here yet to allow App.jsx 
+      // animations to pick up the starting point.
       if (dy < MAX_VERTICAL && Math.abs(dx) > MIN_DISTANCE) {
         if (dx < 0) onNext?.()
         else onPrev?.()
-      } else {
-        // Did not cross threshold: reset CSS var so it snaps back normally
-        document.documentElement.style.removeProperty('--swipe-dx')
-        setDragOffset(0)
       }
+      
+      // Reset state. If an animation started, App.jsx will handle the 
+      // visual transition. If not (e.g. at boundary), this ensures 
+      // the page snaps back to center.
+      setDragOffset(0)
+      
+      // If no animation is expected to start (App.jsx handles cleanup 
+      // of --swipe-dx if it navigates), we should clean it up here 
+      // after a tiny delay to ensure the state has settled.
+      setTimeout(() => {
+        if (document.documentElement.style.getPropertyValue('--swipe-dx')) {
+          // If it's still there and we're not animating, it's a leak or boundary hit
+          document.documentElement.style.removeProperty('--swipe-dx')
+        }
+      }, 50)
     }
 
     window.addEventListener('touchstart', onTouchStart, { passive: true })
